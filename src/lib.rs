@@ -14,10 +14,7 @@ use skulpin::VirtualKeyCode;
 // Used for physics
 use na::Vector2;
 use ncollide2d::shape::{Cuboid, ShapeHandle, Ball};
-use nphysics2d::object::{
-    ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle,
-    DefaultBodyHandle,
-};
+use nphysics2d::object::{ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle, DefaultBodyHandle};
 
 mod physics;
 use physics::Physics;
@@ -31,32 +28,34 @@ const BALL_COUNT: usize = 5;
 #[derive(Clone, Copy, Debug)]
 struct PaintDesc {
     color: na::Vector4<f32>,
-    stroke_width: f32
+    stroke_width: f32,
 }
 
 #[derive(Debug)]
 struct DrawSkiaBoxComponent {
     half_extents: na::Vector2<f32>,
-    paint: PaintDesc
+    paint: PaintDesc,
 }
 
 #[derive(Debug)]
 struct DrawSkiaCircleComponent {
     radius: f32,
-    paint: PaintDesc
+    paint: PaintDesc,
 }
 
 #[derive(Debug)]
 struct Position2DComponent {
-    position: na::Vector2<f32>
+    position: na::Vector2<f32>,
 }
 
 struct RigidBodyComponent {
-    handle: DefaultBodyHandle
+    handle: DefaultBodyHandle,
 }
 
-
-fn spawn_ground(physics: &mut Physics, world: &mut World) {
+fn spawn_ground(
+    physics: &mut Physics,
+    world: &mut World,
+) {
     let position = Vector2::y() * -GROUND_THICKNESS;
 
     // A rectangle that the balls will fall on
@@ -78,23 +77,27 @@ fn spawn_ground(physics: &mut Physics, world: &mut World) {
 
     let paint = PaintDesc {
         color: na::Vector4::new(0.0, 1.0, 0.0, 1.0),
-        stroke_width: 0.02
+        stroke_width: 0.02,
     };
 
     world.insert(
         (),
-        (0..1).map(|_| (
-            Position2DComponent { position },
-            DrawSkiaBoxComponent {
-                half_extents: na::Vector2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS),
-                paint
-            },
-        ))
+        (0..1).map(|_| {
+            (
+                Position2DComponent { position },
+                DrawSkiaBoxComponent {
+                    half_extents: na::Vector2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS),
+                    paint,
+                },
+            )
+        }),
     );
 }
 
-fn spawn_balls(physics: &mut Physics, world: &mut World) {
-
+fn spawn_balls(
+    physics: &mut Physics,
+    world: &mut World,
+) {
     let ball_shape_handle = ShapeHandle::new(Ball::new(BALL_RADIUS));
 
     let shift = (BALL_RADIUS + ColliderDesc::<f32>::default_margin()) * 2.0;
@@ -111,8 +114,7 @@ fn spawn_balls(physics: &mut Physics, world: &mut World) {
 
     world.insert(
         (),
-        (0usize..BALL_COUNT*BALL_COUNT).map(|index| {
-
+        (0usize..BALL_COUNT * BALL_COUNT).map(|index| {
             let i = index / BALL_COUNT;
             let j = index % BALL_COUNT;
 
@@ -141,26 +143,28 @@ fn spawn_balls(physics: &mut Physics, world: &mut World) {
                     radius: BALL_RADIUS,
                     paint: PaintDesc {
                         color: circle_colors[index % circle_colors.len()],
-                        stroke_width: 0.02
-                    }
+                        stroke_width: 0.02,
+                    },
                 },
                 RigidBodyComponent {
-                    handle: rigid_body_handle
-                }
+                    handle: rigid_body_handle,
+                },
             )
-        })
+        }),
     );
 }
 
-pub struct ExampleApp {
+pub struct DemoApp {
     last_fps_text_change: Option<std::time::Instant>,
     fps_text: String,
     physics: Physics,
+    #[allow(dead_code)]
     universe: Universe,
-    world: World
+    world: World,
 }
 
-impl ExampleApp {
+impl DemoApp {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let mut physics = Physics::new(Vector2::y() * GRAVITY);
 
@@ -170,7 +174,7 @@ impl ExampleApp {
         spawn_ground(&mut physics, &mut world);
         spawn_balls(&mut physics, &mut world);
 
-        ExampleApp {
+        DemoApp {
             last_fps_text_change: None,
             fps_text: "".to_string(),
             physics,
@@ -180,7 +184,7 @@ impl ExampleApp {
     }
 }
 
-impl AppHandler for ExampleApp {
+impl AppHandler for DemoApp {
     fn update(
         &mut self,
         app_control: &mut AppControl,
@@ -240,7 +244,7 @@ impl AppHandler for ExampleApp {
         let x_half_extents = GROUND_HALF_EXTENTS_WIDTH * 1.5;
         let y_half_extents = x_half_extents
             / (coordinate_system_helper.surface_extents().width as f32
-            / coordinate_system_helper.surface_extents().height as f32);
+                / coordinate_system_helper.surface_extents().height as f32);
 
         coordinate_system_helper
             .use_visible_range(
@@ -265,7 +269,7 @@ impl AppHandler for ExampleApp {
                 skia_box.paint.color.x,
                 skia_box.paint.color.y,
                 skia_box.paint.color.z,
-                skia_box.paint.color.w
+                skia_box.paint.color.w,
             );
 
             let mut paint = skia_safe::Paint::new(color, None);
@@ -291,7 +295,7 @@ impl AppHandler for ExampleApp {
                 skia_circle.paint.color.x,
                 skia_circle.paint.color.y,
                 skia_circle.paint.color.z,
-                skia_circle.paint.color.w
+                skia_circle.paint.color.w,
             );
 
             let mut paint = skia_safe::Paint::new(color, None);
@@ -330,4 +334,3 @@ impl AppHandler for ExampleApp {
         println!("{}", error);
     }
 }
-

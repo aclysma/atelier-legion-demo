@@ -1,14 +1,8 @@
-use skulpin::AppHandler;
-use skulpin::CoordinateSystemHelper;
-use skulpin::AppControl;
-use skulpin::InputState;
-use skulpin::TimeState;
-use skulpin::VirtualKeyCode;
 use skulpin::LogicalSize;
 
 use std::ffi::CString;
 
-use atelier_legion_demo::ExampleApp;
+use atelier_legion_demo::DemoApp;
 
 fn main() {
     // Setup logging
@@ -16,7 +10,7 @@ fn main() {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    let example_app = ExampleApp::new();
+    let example_app = DemoApp::new();
 
     skulpin::AppBuilder::new()
         .app_name(CString::new("Skulpin Example App").unwrap())

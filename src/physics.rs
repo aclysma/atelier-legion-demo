@@ -1,8 +1,5 @@
-
 use na::Vector2;
-use nphysics2d::object::{
-    DefaultBodySet, DefaultColliderSet
-};
+use nphysics2d::object::{DefaultBodySet, DefaultColliderSet};
 use nphysics2d::force_generator::DefaultForceGeneratorSet;
 use nphysics2d::joint::DefaultJointConstraintSet;
 use nphysics2d::world::{DefaultMechanicalWorld, DefaultGeometricalWorld};
