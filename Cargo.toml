@@ -11,8 +11,22 @@ skulpin = "0.3"
 log="0.4"
 env_logger = "0.6"
 
+atelier-core = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+atelier-daemon = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+atelier-importer = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+atelier-loader = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+
 legion = "0.2"
 
 nalgebra = "0.18"
 ncollide2d = "0.20"
 nphysics2d = "0.12"
+
+structopt = "0.3"
+serde = "1"
+uuid = "0.8"
+type-uuid = "0.1"
+image2 = { version = "0.11", features = [ "ser" ] }
+inventory = "0.1"
+bincode = "1.2"
+mopa = "0.2"

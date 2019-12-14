@@ -19,6 +19,12 @@ use nphysics2d::object::{ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle, De
 mod physics;
 use physics::Physics;
 
+mod custom_asset;
+mod image;
+mod storage;
+pub mod daemon;
+pub mod game;
+
 const GROUND_THICKNESS: f32 = 0.2;
 const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 const BALL_RADIUS: f32 = 0.2;
