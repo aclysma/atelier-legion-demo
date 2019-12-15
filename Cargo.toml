@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "demo",
-    "format"
+    "prefab-format",
+    "legion-prefab"
 ]
 
 exclude = [

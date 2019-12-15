@@ -21,7 +21,7 @@ atelier-daemon = { path = "../atelier-assets/daemon" }
 atelier-importer = { path = "../atelier-assets/importer" }
 atelier-loader = { path = "../atelier-assets/loader" }
 
-legion = "0.2"
+legion = { git = "https://github.com/kabergstrom/legion.git", branch = "serde", default-features = false, features = ["serde-1"] }
 
 nalgebra = "0.18"
 ncollide2d = "0.20"

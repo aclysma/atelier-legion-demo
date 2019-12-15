@@ -1,4 +1,12 @@
 language: rust
+addons:
+  apt:
+    packages: capnproto
+  homebrew:
+    packages: capnp
+    update: true
+install:
+  - if [ $TRAVIS_OS_NAME = windows ]; then choco install capnproto; fi
 before_script:
   - if [ $SKIP_FORMAT_CHECK = 0 ]; then rustup component add rustfmt; fi
   - if [ $SKIP_CLIPPY = 0 ]; then rustup component add clippy; fi

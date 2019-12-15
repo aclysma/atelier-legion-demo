@@ -15,7 +15,8 @@ uuid = { version = "0.8", features = [ "serde" ] }
 
 [dev-dependencies]
 ron = "0.5"
-legion = { version = "0.2.1", default-features = false }
+#legion = { version = "0.2.1", default-features = false, features = ["serde-1"] }
+legion = { git = "https://github.com/kabergstrom/legion.git", branch = "serde", default-features = false, features = ["serde-1"] }
 linkme = "0.1"
 erased-serde = "0.3"
 atelier-core = { path = "../atelier-assets/core" }
