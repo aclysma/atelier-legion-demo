@@ -22,8 +22,10 @@ use physics::Physics;
 mod custom_asset;
 mod image;
 mod storage;
+pub mod components;
 pub mod daemon;
 pub mod game;
+
 
 const GROUND_THICKNESS: f32 = 0.2;
 const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;

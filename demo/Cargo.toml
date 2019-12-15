@@ -23,7 +23,7 @@ atelier-loader = { path = "../atelier-assets/loader" }
 
 legion = { git = "https://github.com/kabergstrom/legion.git", branch = "serde", default-features = false, features = ["serde-1"] }
 
-nalgebra = "0.18"
+nalgebra = { version = "0.18", features = [ "serde-serialize" ] }
 ncollide2d = "0.20"
 nphysics2d = "0.12"
 
@@ -35,3 +35,6 @@ image2 = { version = "0.11", features = [ "ser" ] }
 inventory = "0.1"
 bincode = "1.2"
 mopa = "0.2"
+
+serde-diff = "0.1"
+legion-prefab = { path = "../legion-prefab" }

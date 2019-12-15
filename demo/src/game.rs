@@ -33,6 +33,7 @@ pub fn run() {
     };
     game.storage.add_storage::<Image>();
     game.storage.add_storage::<BigPerf>();
+    game.storage.add_storage::<super::components::Position2DComponentDefinition>();
 
     let mut loader = RpcLoader::default();
     let weak_handle = {

@@ -172,12 +172,14 @@ dependencies = [
  "image2",
  "inventory",
  "legion",
+ "legion-prefab",
  "log",
  "mopa",
  "nalgebra",
  "ncollide2d",
  "nphysics2d",
  "serde",
+ "serde-diff 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "skulpin",
  "structopt",
  "type-uuid",
@@ -1550,6 +1552,8 @@ dependencies = [
  "num-rational",
  "num-traits",
  "rand 0.6.5",
+ "serde",
+ "serde_derive",
  "typenum",
 ]
 
@@ -1680,6 +1684,7 @@ checksum = "fcb0cf31fb3ff77e6d2a6ebd6800df7fdcd106f2ad89113c9130bcd07f93dffc"
 dependencies = [
  "autocfg",
  "num-traits",
+ "serde",
 ]
 
 [[package]]
