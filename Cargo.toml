@@ -11,10 +11,15 @@ skulpin = "0.3"
 log="0.4"
 env_logger = "0.6"
 
-atelier-core = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
-atelier-daemon = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
-atelier-importer = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
-atelier-loader = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+#atelier-core = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+#atelier-daemon = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+#atelier-importer = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+#atelier-loader = { version = "0.1", git = "https://github.com/amethyst/atelier-assets.git" }
+
+atelier-core = { path = "atelier-assets/core" }
+atelier-daemon = { path = "atelier-assets/daemon" }
+atelier-importer = { path = "atelier-assets/importer" }
+atelier-loader = { path = "atelier-assets/loader" }
 
 legion = "0.2"
 
