@@ -1,6 +1,6 @@
 (
     version: 1,
-    import_hash: Some(1883585983367062300),
+    import_hash: Some(12095393039714512734),
     importer_version: 1,
     importer_type: "162ede20-6fdd-44c1-8387-8f93983c067c",
     importer_options: (),
@@ -14,12 +14,12 @@
                 ("file_name", Some("custom_asset.ron")),
             ],
             build_deps: [
+                Uuid("b78846aa-4c95-4af1-aab9-06f03374b53c"),
                 Path("amethyst.png"),
-                Uuid("6c5ae1ad-ae30-471b-985b-7d017265f19f"),
             ],
             load_deps: [
-                Uuid("6c5ae1ad-ae30-471b-985b-7d017265f19f"),
                 Path("amethyst.png"),
+                Uuid("b78846aa-4c95-4af1-aab9-06f03374b53c"),
             ],
             build_pipeline: None,
             asset_type: "fab4249b-f95d-411d-a017-7549df090a4f",
