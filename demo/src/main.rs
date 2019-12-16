@@ -4,7 +4,7 @@ use std::ffi::CString;
 
 use atelier_legion_demo::DemoApp;
 use atelier_legion_demo::daemon;
-use atelier_legion_demo::game;
+//use atelier_legion_demo::game;
 
 fn main() {
     // Setup logging
@@ -13,22 +13,13 @@ fn main() {
         .filter_module("tokio_reactor", log::LevelFilter::Info)
         .init();
 
+    // Spawn the daemon in a background thread. This could be a different process, but
+    // for simplicity we'll launch it here.
     std::thread::spawn(move || {
         daemon::run();
     });
-    game::run();
 
-    println!("Successfully loaded and unloaded assets.");
-    println!(
-        r#"Check the asset metadata using the CLI!
-Open a new terminal without exiting this program, and run:
-- `cd cli` # from the project root
-- `cargo run`
-- Try `show_all` to get UUIDs of all indexed assets, then `get` a returned uuid
-- `help` to list all available commands.
-"#
-    );
-
+    // Build the app and run it
     let example_app = DemoApp::new();
 
     skulpin::AppBuilder::new()

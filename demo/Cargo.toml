@@ -38,3 +38,5 @@ mopa = "0.2"
 
 serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
 legion-prefab = { path = "../legion-prefab" }
+
+ron = "0.5"

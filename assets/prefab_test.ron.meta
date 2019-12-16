@@ -1,0 +1,22 @@
+(
+    version: 1,
+    import_hash: Some(11431864945982397197),
+    importer_version: 1,
+    importer_type: "162ede20-6fdd-44c1-8387-8f93983c067c",
+    importer_options: (),
+    importer_state: (
+        id: Some("dd01e049-7272-4245-bd0a-382632defe75"),
+    ),
+    assets: [
+        (
+            id: "dd01e049-7272-4245-bd0a-382632defe75",
+            search_tags: [
+                ("file_name", Some("prefab_test.ron")),
+            ],
+            build_deps: [],
+            load_deps: [],
+            build_pipeline: None,
+            asset_type: "5e751ea4-e63b-4192-a008-f5bf8674e45b",
+        ),
+    ],
+)

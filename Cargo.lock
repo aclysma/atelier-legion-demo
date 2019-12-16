@@ -178,6 +178,7 @@ dependencies = [
  "nalgebra",
  "ncollide2d",
  "nphysics2d",
+ "ron 0.5.1",
  "serde",
  "serde-diff",
  "skulpin",

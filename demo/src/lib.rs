@@ -1,8 +1,10 @@
 extern crate nalgebra as na;
 
-use skulpin::skia_safe;
+use std::sync::Arc;
 
 use legion::prelude::*;
+
+use skulpin::skia_safe;
 
 use skulpin::AppHandler;
 use skulpin::CoordinateSystemHelper;
@@ -16,15 +18,33 @@ use na::Vector2;
 use ncollide2d::shape::{Cuboid, ShapeHandle, Ball};
 use nphysics2d::object::{ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle, DefaultBodyHandle};
 
+use atelier_loader::{
+    asset_uuid,
+    handle::{AssetHandle, Handle, RefOp},
+    rpc_loader::RpcLoader,
+    LoadStatus, Loader,
+};
+
 mod physics;
 use physics::Physics;
 
 mod custom_asset;
+
 mod image;
+
 mod storage;
+use storage::GenericAssetStorage;
+
 pub mod components;
+
 pub mod daemon;
-pub mod game;
+
+//pub mod game;
+
+use components::Position2DComponentDefinition;
+
+mod prefab;
+use prefab::Prefab;
 
 
 const GROUND_THICKNESS: f32 = 0.2;
@@ -32,6 +52,88 @@ const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 const BALL_RADIUS: f32 = 0.2;
 const GRAVITY: f32 = -9.81;
 const BALL_COUNT: usize = 5;
+
+struct AssetManager {
+    loader: RpcLoader,
+    storage: GenericAssetStorage,
+    tx: Arc<atelier_loader::crossbeam_channel::Sender<RefOp>>,
+    rx: atelier_loader::crossbeam_channel::Receiver<RefOp>,
+}
+
+impl Default for AssetManager {
+    fn default() -> Self {
+        let (tx, rx) = atelier_loader::crossbeam_channel::unbounded();
+        let tx = Arc::new(tx);
+        let mut storage = GenericAssetStorage::new(tx.clone());
+
+        storage.add_storage::<Position2DComponentDefinition>();
+        storage.add_storage::<Prefab>();
+
+        let mut loader = RpcLoader::default();
+
+        AssetManager {
+            loader,
+            storage,
+            tx,
+            rx
+        }
+    }
+}
+
+impl AssetManager {
+    fn update(
+        &mut self
+    ) {
+        atelier_loader::handle::process_ref_ops(&self.loader, &self.rx);
+        self.loader
+            .process(&self.storage)
+            .expect("failed to process loader");
+    }
+
+    fn temp_force_load_asset(
+        &mut self,
+    ) {
+        {
+            let handle = self.loader.add_ref(asset_uuid!("df3a8294-ffce-4ecc-81ad-a96867aa3f8a"));
+            let handle = Handle::<Position2DComponentDefinition>::new(self.tx.clone(), handle);
+            loop {
+                self.update();
+                if let LoadStatus::Loaded = handle.load_status::<RpcLoader>(&self.loader) {
+                    let custom_asset: &Position2DComponentDefinition = handle.asset(&self.storage).expect("failed to get asset");
+                    log::info!("Loaded a component {:?}", custom_asset);
+                    break;
+                }
+            }
+        }
+
+        {
+
+            let handle = self.loader.add_ref(asset_uuid!("dd01e049-7272-4245-bd0a-382632defe75"));
+            let handle = Handle::<Prefab>::new(self.tx.clone(), handle);
+            loop {
+                self.update();
+                if let LoadStatus::Loaded = handle.load_status::<RpcLoader>(&self.loader) {
+                    let custom_asset: &Prefab = handle.asset(&self.storage).expect("failed to get asset");
+                    log::info!("Loaded a prefab {}", custom_asset.data);
+
+
+                    let mut deserializer =
+                        ron::de::Deserializer::from_bytes(custom_asset.data.as_bytes()).unwrap();
+
+                    let universe = Universe::new();
+                    let mut world = universe.create_world();
+                    
+                    // and then we deserialize it into a legion world?
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
+
+
 
 #[derive(Clone, Copy, Debug)]
 struct PaintDesc {
@@ -169,11 +271,17 @@ pub struct DemoApp {
     #[allow(dead_code)]
     universe: Universe,
     world: World,
+    asset_manager: AssetManager
 }
 
 impl DemoApp {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
+
+        let mut asset_manager = AssetManager::default();
+
+        asset_manager.temp_force_load_asset();
+
         let mut physics = Physics::new(Vector2::y() * GRAVITY);
 
         let universe = Universe::new();
@@ -188,6 +296,7 @@ impl DemoApp {
             physics,
             universe,
             world,
+            asset_manager
         }
     }
 }
@@ -207,6 +316,11 @@ impl AppHandler for DemoApp {
         if input_state.is_key_down(VirtualKeyCode::Escape) {
             app_control.enqueue_terminate_process();
         }
+
+        //
+        // Process asset loading/storage operations
+        //
+        self.asset_manager.update();
 
         //
         // Update FPS once a second
