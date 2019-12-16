@@ -179,7 +179,7 @@ dependencies = [
  "ncollide2d",
  "nphysics2d",
  "serde",
- "serde-diff 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde-diff",
  "skulpin",
  "structopt",
  "type-uuid",
@@ -1286,7 +1286,7 @@ dependencies = [
  "legion",
  "prefab-format",
  "serde",
- "serde-diff 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde-diff",
  "serde-transcode",
  "serde_json",
  "type-uuid",
@@ -1998,7 +1998,7 @@ dependencies = [
  "linkme",
  "ron 0.5.1",
  "serde",
- "serde-diff 0.1.3 (git+https://github.com/aclysma/struct-diff)",
+ "serde-diff",
  "type-uuid",
  "uuid",
 ]
@@ -2424,40 +2424,17 @@ dependencies = [
 [[package]]
 name = "serde-diff"
 version = "0.1.3"
-source = "git+https://github.com/aclysma/struct-diff#991542fc1e3eb02bfabacf1a5a2de02266868236"
+source = "git+https://github.com/kabergstrom/serde-diff.git#3e550c615b0a0cb29100f9228059c7c0435b7764"
 dependencies = [
  "serde",
- "serde-diff-derive 0.1.3 (git+https://github.com/aclysma/struct-diff)",
- "serde_derive",
-]
-
-[[package]]
-name = "serde-diff"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "554f70989122fe428ac8e1f313b9182c9eaec3b116def92f6000a914f459b659"
-dependencies = [
- "serde",
- "serde-diff-derive 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde-diff-derive",
  "serde_derive",
 ]
 
 [[package]]
 name = "serde-diff-derive"
 version = "0.1.3"
-source = "git+https://github.com/aclysma/struct-diff#991542fc1e3eb02bfabacf1a5a2de02266868236"
-dependencies = [
- "darling",
- "proc-macro2 1.0.6",
- "quote 1.0.2",
- "syn 1.0.11",
-]
-
-[[package]]
-name = "serde-diff-derive"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c4e1e854ccb5091ae3e19d1682c359d9498e3a3c8888c67ea71204cdb3eed4b"
+source = "git+https://github.com/kabergstrom/serde-diff.git#3e550c615b0a0cb29100f9228059c7c0435b7764"
 dependencies = [
  "darling",
  "proc-macro2 1.0.6",

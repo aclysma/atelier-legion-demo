@@ -7,13 +7,8 @@ use type_uuid::TypeUuid;
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
 #[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
 pub struct Position2DComponentDefinition {
-    //TODO: Using types from external crates could be tricky, nd we don't have full support for
-    // standard types (like in this case, an array of f32)
-    // position: [f32; 3]
-    // na::Vector2<f32>,
-    pub x: f32,
-    pub y: f32,
-    pub z: f32
+    #[serde_diff(inline)]
+    pub position: na::Vector2<f32>,
 }
 
 legion_prefab::register_component_type!(Position2DComponentDefinition);

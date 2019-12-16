@@ -36,5 +36,5 @@ inventory = "0.1"
 bincode = "1.2"
 mopa = "0.2"
 
-serde-diff = "0.1"
+serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
 legion-prefab = { path = "../legion-prefab" }

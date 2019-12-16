@@ -36,6 +36,20 @@ pub fn run() {
     game.storage.add_storage::<super::components::Position2DComponentDefinition>();
 
     let mut loader = RpcLoader::default();
+
+    {
+        let handle = loader.add_ref(asset_uuid!("df3a8294-ffce-4ecc-81ad-a96867aa3f8a"));
+        let handle = Handle::<super::components::Position2DComponentDefinition>::new(tx.clone(), handle);
+        loop {
+            process(&mut loader, &game, &rx);
+            if let LoadStatus::Loaded = handle.load_status(&loader) {
+                let custom_asset: &super::components::Position2DComponentDefinition = handle.asset(&game.storage).expect("failed to get asset");
+                log::info!("Loaded a component {:?}", custom_asset);
+                break;
+            }
+        }
+    }
+
     let weak_handle = {
         // add_ref begins loading of the asset
         let handle = loader.add_ref(asset_uuid!("7bceef1c-200a-459b-a26b-c25f91d64521"));

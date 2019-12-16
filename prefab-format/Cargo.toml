@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde-diff = { version = "0.1", git = "https://github.com/aclysma/struct-diff" }
+serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
 type-uuid = "0.1"
 serde = { version = "1.0", default-features = false, features = [ "derive" ] }
 uuid = { version = "0.8", features = [ "serde" ] }
