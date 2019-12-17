@@ -44,7 +44,15 @@ pub mod daemon;
 use components::Position2DComponentDefinition;
 
 mod prefab;
-use prefab::Prefab;
+use prefab::PrefabAsset;
+use serde::Deserializer;
+use std::collections::HashMap;
+use std::cell::RefCell;
+use prefab_format::{ComponentTypeUuid, PrefabUuid};
+use legion_prefab::ComponentRegistration;
+use std::hash::BuildHasherDefault;
+
+//mod legion_serde_support;
 
 
 const GROUND_THICKNESS: f32 = 0.2;
@@ -67,7 +75,7 @@ impl Default for AssetManager {
         let mut storage = GenericAssetStorage::new(tx.clone());
 
         storage.add_storage::<Position2DComponentDefinition>();
-        storage.add_storage::<Prefab>();
+        storage.add_storage::<PrefabAsset>();
 
         let mut loader = RpcLoader::default();
 
@@ -107,22 +115,63 @@ impl AssetManager {
         }
 
         {
-
             let handle = self.loader.add_ref(asset_uuid!("dd01e049-7272-4245-bd0a-382632defe75"));
-            let handle = Handle::<Prefab>::new(self.tx.clone(), handle);
+            let handle = Handle::<PrefabAsset>::new(self.tx.clone(), handle);
             loop {
                 self.update();
                 if let LoadStatus::Loaded = handle.load_status::<RpcLoader>(&self.loader) {
-                    let custom_asset: &Prefab = handle.asset(&self.storage).expect("failed to get asset");
+                    let custom_asset: &PrefabAsset = handle.asset(&self.storage).expect("failed to get asset");
                     log::info!("Loaded a prefab {}", custom_asset.data);
 
+
+                    let universe = Universe::new();
+                    let mut world = universe.create_world();
+
+                    let comp_registrations = [
+                        ComponentRegistration::of::<components::Position2DComponentDefinition>(),
+                        //ComponentRegistration::of::<Vel>(),
+                    ];
+                    use std::iter::FromIterator;
+                    let component_types : HashMap<ComponentTypeUuid, ComponentRegistration> = HashMap::from_iter(
+                        comp_registrations.iter().map(
+                            |reg| (reg.uuid().clone(), reg.clone())
+                        )
+                    );
+                    //let tag_registrations = [TagRegistration::of::<Pos>(), TagRegistration::of::<Vel>()];
+
+                    //let registered_components = HashMap::<ComponentTypeUuid, ComponentRegistration>::new();
+                    let prefabs = HashMap::<PrefabUuid, legion_prefab::Prefab>::new();
+
+                    let context = legion_prefab::Context {
+                        inner: RefCell::new(legion_prefab::InnerContext {
+                            world,
+                            registered_components: component_types,
+                            prefabs
+                        })
+                    };
 
                     let mut deserializer =
                         ron::de::Deserializer::from_bytes(custom_asset.data.as_bytes()).unwrap();
 
-                    let universe = Universe::new();
-                    let mut world = universe.create_world();
-                    
+
+
+                    //use prefab_format::StorageDeserializer;
+                    let result = prefab_format::deserialize(&mut deserializer, &&context);
+                    println!("DESERIALIZE PREFAB {:?}", result);
+
+                    let mut w = context.inner.borrow_mut();
+
+                    println!("iterate positions");
+                    let query = <(Read<Position2DComponentDefinition>)>::query();
+                    for (pos) in query.iter(&mut w.world) {
+                        println!("position: {:?}", pos);
+                    }
+                    println!("done iterating positions");
+
+                    //legion::de::deserialize(&mut deserialized_world, &de_helper, &mut deserializer).unwrap();
+
+
+
                     // and then we deserialize it into a legion world?
                     break;
                 }
@@ -130,10 +179,6 @@ impl AssetManager {
         }
     }
 }
-
-
-
-
 
 #[derive(Clone, Copy, Debug)]
 struct PaintDesc {

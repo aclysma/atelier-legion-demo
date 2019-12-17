@@ -5,7 +5,7 @@ use type_uuid::TypeUuid;
 
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
 #[uuid = "5e751ea4-e63b-4192-a008-f5bf8674e45b"]
-pub struct Prefab {
+pub struct PrefabAsset {
     #[serde_diff(inline)]
     pub data: String,
 }

@@ -4,28 +4,28 @@ use serde::Deserializer;
 use std::{cell::RefCell, collections::HashMap};
 
 
-struct ComponentOverride {
-    component_type: ComponentTypeUuid,
-    data: Vec<u8>,
+pub struct ComponentOverride {
+    pub component_type: ComponentTypeUuid,
+    pub data: Vec<u8>,
 }
-struct PrefabRef {
-    overrides: HashMap<EntityUuid, Vec<ComponentOverride>>,
-}
-
-struct InnerContext {
-    world: legion::world::World,
-    registered_components: HashMap<ComponentTypeUuid, ComponentRegistration>,
-    prefabs: HashMap<PrefabUuid, Prefab>,
+pub struct PrefabRef {
+    pub overrides: HashMap<EntityUuid, Vec<ComponentOverride>>,
 }
 
-struct Context {
-    inner: RefCell<InnerContext>,
+pub struct InnerContext {
+    pub world: legion::world::World,
+    pub registered_components: HashMap<ComponentTypeUuid, ComponentRegistration>,
+    pub prefabs: HashMap<PrefabUuid, Prefab>,
 }
 
-struct Prefab {
-    id: PrefabUuid,
-    prefab_refs: HashMap<PrefabUuid, PrefabRef>,
-    entities: HashMap<EntityUuid, legion::entity::Entity>,
+pub struct Context {
+    pub inner: RefCell<InnerContext>,
+}
+
+pub struct Prefab {
+    pub id: PrefabUuid,
+    pub prefab_refs: HashMap<PrefabUuid, PrefabRef>,
+    pub entities: HashMap<EntityUuid, legion::entity::Entity>,
 }
 
 impl InnerContext {

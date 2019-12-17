@@ -155,6 +155,10 @@ pub struct ComponentRegistration {
 }
 
 impl ComponentRegistration {
+    pub fn uuid(&self) -> &type_uuid::Bytes {
+        &self.uuid
+    }
+
     pub fn of<
         T: TypeUuid + Serialize + SerdeDiff + for<'de> Deserialize<'de> + Send + Sync + 'static,
     >() -> Self {

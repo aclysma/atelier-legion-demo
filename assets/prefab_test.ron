@@ -14,11 +14,9 @@
                          components: [
                              (
                                  // Component AssetTypeId
-                                 type: "d4b83227-d3f8-47f5-b026-db615fb41d31",
+                                 type: "f5780013-bae4-49f0-ac0e-a108ff52fec0",
                                  data: (
-                                     value: 8,
-                                     translation: [0.0, 0.0, 5.0],
-                                     scale: [2.0, 2.0, 2.0]
+                                     position: [0.0, 10.0]
                                  ),
                              ),
                          ]
@@ -30,11 +28,9 @@
                          components: [
                              (
                                  // Component AssetTypeId
-                                 type: "d4b83227-d3f8-47f5-b026-db615fb41d31",
+                                 type: "f5780013-bae4-49f0-ac0e-a108ff52fec0",
                                  data: (
-                                     value: 2,
-                                     translation: [7.0, 7.0, 7.0],
-                                     scale: [8.0, 8.0, 8.0]
+                                     position: [0.0, 20.0]
                                  ),
                              ),
                          ]
