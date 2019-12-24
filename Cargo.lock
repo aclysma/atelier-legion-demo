@@ -135,7 +135,7 @@ dependencies = [
  "path-clean",
  "path-slash",
  "rayon",
- "ron 0.5.1",
+ "ron",
  "scoped_threadpool",
  "serde",
  "serde_derive",
@@ -151,7 +151,7 @@ dependencies = [
  "erased-serde",
  "inventory",
  "mopa",
- "ron 0.4.2",
+ "ron",
  "serde",
  "serde-importable-derive",
  "type-uuid",
@@ -180,9 +180,10 @@ dependencies = [
  "ncollide2d",
  "nphysics2d",
  "prefab-format",
- "ron 0.5.1",
+ "ron",
  "serde",
  "serde-diff",
+ "serde-value",
  "skulpin",
  "structopt",
  "type-uuid",
@@ -1288,9 +1289,11 @@ dependencies = [
  "inventory",
  "legion",
  "prefab-format",
+ "ron",
  "serde",
  "serde-diff",
  "serde-transcode",
+ "serde-value",
  "serde_json",
  "type-uuid",
  "uuid",
@@ -1999,9 +2002,10 @@ dependencies = [
  "erased-serde",
  "legion",
  "linkme",
- "ron 0.5.1",
+ "ron",
  "serde",
  "serde-diff",
+ "serde-value",
  "type-uuid",
  "uuid",
 ]
@@ -2307,17 +2311,6 @@ checksum = "11a7e20d1cce64ef2fed88b66d347f88bd9babb82845b2b858f3edbf59a4f716"
 
 [[package]]
 name = "ron"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f52a24414403f81528b67488cf8edc4eda977d3af1646bb6b106a600ead78f"
-dependencies = [
- "base64",
- "bitflags",
- "serde",
-]
-
-[[package]]
-name = "ron"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ece421e0c4129b90e4a35b6f625e472e96c552136f5093a2f4fa2bbb75a62d5"
@@ -2459,6 +2452,16 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97528f0dfcf8ce2d51d995cb513a103b9cd301dc3f387a9cae5ef974381d4e1c"
 dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a65a7291a8a568adcae4c10a677ebcedbc6c9cec91c054dee2ce40b0e3290eb"
+dependencies = [
+ "ordered-float",
  "serde",
 ]
 

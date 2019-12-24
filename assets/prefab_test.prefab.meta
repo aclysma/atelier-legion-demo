@@ -1,17 +1,17 @@
 (
     version: 1,
-    import_hash: Some(11651271785012112950),
+    import_hash: Some(15389651411912687432),
     importer_version: 1,
-    importer_type: "162ede20-6fdd-44c1-8387-8f93983c067c",
+    importer_type: "5bdf4d06-a1cb-437b-b182-d6d8cb23512c",
     importer_options: (),
     importer_state: (
-        id: Some("dd01e049-7272-4245-bd0a-382632defe75"),
+        id: Some("49a78d30-0590-4511-9178-302a17f00882"),
     ),
     assets: [
         (
-            id: "dd01e049-7272-4245-bd0a-382632defe75",
+            id: "49a78d30-0590-4511-9178-302a17f00882",
             search_tags: [
-                ("file_name", Some("prefab_test.ron")),
+                ("file_name", Some("prefab_test.prefab")),
             ],
             build_deps: [],
             load_deps: [],

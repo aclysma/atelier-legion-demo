@@ -159,6 +159,8 @@ impl ComponentRegistration {
         &self.uuid
     }
 
+    pub fn ty(&self) -> TypeId { self.ty }
+
     pub fn of<
         T: TypeUuid + Serialize + SerdeDiff + for<'de> Deserialize<'de> + Send + Sync + 'static,
     >() -> Self {

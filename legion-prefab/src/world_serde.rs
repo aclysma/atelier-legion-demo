@@ -16,11 +16,29 @@ struct SerializedArchetypeDescription {
     component_types: Vec<type_uuid::Bytes>,
 }
 
-struct SerializeImpl {
+pub struct SerializeImpl {
     tag_types: HashMap<TypeId, TagRegistration>,
     comp_types: HashMap<TypeId, ComponentRegistration>,
     entity_map: RefCell<HashMap<Entity, uuid::Bytes>>,
 }
+
+impl SerializeImpl {
+    pub fn new(
+        tag_types: HashMap<TypeId, TagRegistration>,
+        comp_types: HashMap<TypeId, ComponentRegistration>
+    ) -> Self {
+        SerializeImpl {
+            tag_types,
+            comp_types,
+            entity_map: RefCell::new(HashMap::new())
+        }
+    }
+
+    pub fn take_entity_map(self) -> HashMap<Entity, uuid::Bytes> {
+        self.entity_map.into_inner()
+    }
+}
+
 impl legion::ser::WorldSerializer for SerializeImpl {
     fn can_serialize_tag(&self, ty: &TagTypeId, _meta: &TagMeta) -> bool {
         self.tag_types.get(&ty.0).is_some()
@@ -122,7 +140,7 @@ impl legion::ser::WorldSerializer for SerializeImpl {
     }
 }
 
-struct DeserializeImpl {
+pub struct DeserializeImpl {
     tag_types: HashMap<TypeId, TagRegistration>,
     comp_types: HashMap<TypeId, ComponentRegistration>,
     tag_types_by_uuid: HashMap<type_uuid::Bytes, TagRegistration>,

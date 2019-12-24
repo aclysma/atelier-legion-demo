@@ -2,14 +2,21 @@ use crate::format::{ComponentTypeUuid, EntityUuid, PrefabUuid, StorageDeserializ
 use crate::ComponentRegistration;
 use serde::Deserializer;
 use std::{cell::RefCell, collections::HashMap};
-
+use serde::{Deserialize, Serialize};
 
 pub struct ComponentOverride {
     pub component_type: ComponentTypeUuid,
     pub data: Vec<u8>,
 }
+
 pub struct PrefabRef {
     pub overrides: HashMap<EntityUuid, Vec<ComponentOverride>>,
+}
+
+pub struct Prefab {
+    pub id: PrefabUuid,
+    pub prefab_refs: HashMap<PrefabUuid, PrefabRef>,
+    pub entities: HashMap<EntityUuid, legion::entity::Entity>,
 }
 
 pub struct InnerContext {
@@ -20,12 +27,6 @@ pub struct InnerContext {
 
 pub struct Context {
     pub inner: RefCell<InnerContext>,
-}
-
-pub struct Prefab {
-    pub id: PrefabUuid,
-    pub prefab_refs: HashMap<PrefabUuid, PrefabRef>,
-    pub entities: HashMap<EntityUuid, legion::entity::Entity>,
 }
 
 impl InnerContext {

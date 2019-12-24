@@ -11,7 +11,7 @@ serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
 type-uuid = "0.1"
 serde = { version = "1.0", default-features = false, features = [ "derive" ] }
 uuid = { version = "0.8", features = [ "serde" ] }
-
+serde-value = "0.6"
 
 [dev-dependencies]
 ron = "0.5"
