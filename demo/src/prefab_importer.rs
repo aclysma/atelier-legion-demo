@@ -66,7 +66,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
         target_prefab: &PrefabUuid,
     ) {
         println!("begin_prefab_ref");
-        self.prefab_ref_uuids.borrow_mut().push(*target_prefab);
+        self.prefab_ref_uuids.borrow_mut().push(*target_prefab); //TODO: remove and use inner
     }
 
     fn end_prefab_ref(
@@ -208,19 +208,15 @@ impl Importer for PrefabImporter {
         // Take ownership of the world back onto the stack, we need it later!
         let mut context = context.inner.into_inner();
 
-        println!("iterate positions");
+        println!("IMPORTER: iterate positions");
         let query =
             <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
         for (pos) in query.iter(&mut context.world) {
             println!("position: {:?}", pos);
         }
-        println!("done iterating positions");
+        println!("IMPORTER: done iterating positions");
 
-        let prefab_asset = PrefabAsset {
-            prefab: legion_prefab::Context {
-                inner: RefCell::new(context),
-            },
-        };
+        let prefab_asset = PrefabAsset { prefab: context };
 
         ///////////////////////////////////////////////////////////////
         // STEP 5: Now we need to save it into an asset
@@ -245,7 +241,7 @@ impl Importer for PrefabImporter {
 
         // let serialize_impl = legion_prefab::SerializeImpl::new(HashMap::new(), comp_types);
 
-        {
+        let legion_world_ron = {
             // let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
             let legion_world_str =
                 ron::ser::to_string_pretty(&prefab_asset, ron::ser::PrettyConfig::default())
@@ -253,31 +249,28 @@ impl Importer for PrefabImporter {
 
             println!("Serialized legion world:");
             println!("legion_world_str {}", legion_world_str);
-        }
 
-        // let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
-        // let legion_world_bincode = bincode::serialize(&serializable_world).unwrap();
+            legion_world_str
+        };
 
-        // println!("Serialized legion world:");
-        // println!("legion_world_bincode {}", legion_world_bincode.len());
+        // let legion_world_bincode = {
+        //     let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
+        //     let legion_world_bincode = bincode::serialize(&serializable_world).unwrap();
+
+        //     println!("Serialized legion world:");
+        //     println!("legion_world_bincode {}", legion_world_bincode.len());
+
+        //     legion_world_bincode
+        // };
 
         // let entity_map = serialize_impl.take_entity_map();
 
         // let asset_data = Box::new(PrefabAsset {
         //     legion_world_bincode,
+        //     //legion_world_ron
         //     //entity_map
         // });
 
-        // Ok(ImporterValue {
-        //     assets: vec![ImportedAsset {
-        //         id: state.id.expect("AssetUuid not generated"),
-        //         search_tags: Vec::new(),
-        //         build_deps: Vec::new(),
-        //         load_deps: Vec::new(),
-        //         asset_data,
-        //         build_pipeline: None,
-        //     }],
-        // })
         Ok(ImporterValue {
             assets: vec![ImportedAsset {
                 id: state.id.expect("AssetUuid not generated"),

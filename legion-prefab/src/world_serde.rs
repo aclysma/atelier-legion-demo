@@ -174,6 +174,38 @@ impl DeserializeImpl {
         }
     }
 }
+
+impl DeserializeImpl {
+    pub fn new(
+        tag_types: HashMap<TypeId, TagRegistration>,
+        comp_types: HashMap<TypeId, ComponentRegistration>
+    ) -> Self {
+
+        use std::iter::FromIterator;
+
+        let tag_types_by_uuid : HashMap<type_uuid::Bytes, TagRegistration> = HashMap::from_iter(
+            tag_types.iter().map(|(_, v)| {
+                (*v.uuid(), v.clone())
+            }
+            ));
+
+        let comp_types_by_uuid : HashMap<type_uuid::Bytes, ComponentRegistration> = HashMap::from_iter(
+            comp_types.iter().map(|(_, v)| {
+                (*v.uuid(), v.clone())
+            }
+        ));
+
+
+        DeserializeImpl {
+            tag_types,
+            comp_types,
+            tag_types_by_uuid,
+            comp_types_by_uuid,
+            entity_map: RefCell::new(HashMap::new())
+        }
+    }
+}
+
 impl legion::de::WorldDeserializer for DeserializeImpl {
     fn deserialize_archetype_description<'de, D: Deserializer<'de>>(
         &self,

@@ -101,6 +101,12 @@ pub struct TagRegistration {
 }
 
 impl TagRegistration {
+    pub fn uuid(&self) -> &type_uuid::Bytes {
+        &self.uuid
+    }
+
+    pub fn ty(&self) -> TypeId { self.ty }
+
     pub fn of<
         T: TypeUuid
             + Serialize
