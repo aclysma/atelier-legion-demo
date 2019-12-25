@@ -25,12 +25,16 @@ pub struct InnerContext {
     pub prefabs: HashMap<PrefabUuid, Prefab>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Context {
     pub inner: RefCell<InnerContext>,
 }
 
 impl InnerContext {
-    fn get_or_insert_prefab_mut(&mut self, prefab: &PrefabUuid) -> &mut Prefab {
+    fn get_or_insert_prefab_mut(
+        &mut self,
+        prefab: &PrefabUuid,
+    ) -> &mut Prefab {
         self.prefabs.entry(*prefab).or_insert_with(|| Prefab {
             id: *prefab,
             entities: HashMap::new(),
@@ -40,13 +44,22 @@ impl InnerContext {
 }
 
 impl StorageDeserializer for &Context {
-    fn begin_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid) {
+    fn begin_entity_object(
+        &self,
+        prefab: &PrefabUuid,
+        entity: &EntityUuid,
+    ) {
         let mut this = self.inner.borrow_mut();
         let new_entity = this.world.insert((), vec![()])[0];
         let prefab = this.get_or_insert_prefab_mut(prefab);
         prefab.entities.insert(*entity, new_entity);
     }
-    fn end_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid) {}
+    fn end_entity_object(
+        &self,
+        prefab: &PrefabUuid,
+        entity: &EntityUuid,
+    ) {
+    }
     fn deserialize_component<'de, D: Deserializer<'de>>(
         &self,
         prefab: &PrefabUuid,
@@ -60,11 +73,16 @@ impl StorageDeserializer for &Context {
             .entities
             .get(entity)
             // deserializer implementation error, begin_entity_object shall always be called before deserialize_component
-            .expect("could not find prefab entity"); 
+            .expect("could not find prefab entity");
         let registered = this
             .registered_components
             .get(component_type)
-            .ok_or_else(|| <D::Error as serde::de::Error>::custom(format!("Component type {:?} was not registered when deserializing", component_type)))?;
+            .ok_or_else(|| {
+                <D::Error as serde::de::Error>::custom(format!(
+                    "Component type {:?} was not registered when deserializing",
+                    component_type
+                ))
+            })?;
         (registered.deserialize_single_fn)(
             &mut erased_serde::Deserializer::erase(deserializer),
             &mut this.world,
@@ -72,14 +90,26 @@ impl StorageDeserializer for &Context {
         );
         Ok(())
     }
-    fn begin_prefab_ref(&self, prefab: &PrefabUuid, target_prefab: &PrefabUuid) {
+    fn begin_prefab_ref(
+        &self,
+        prefab: &PrefabUuid,
+        target_prefab: &PrefabUuid,
+    ) {
         let mut this = self.inner.borrow_mut();
         let prefab = this.get_or_insert_prefab_mut(prefab);
-        prefab.prefab_refs.entry(*target_prefab).or_insert_with(|| PrefabRef {
-            overrides: HashMap::new(),
-        });
+        prefab
+            .prefab_refs
+            .entry(*target_prefab)
+            .or_insert_with(|| PrefabRef {
+                overrides: HashMap::new(),
+            });
     }
-    fn end_prefab_ref(&self, prefab: &PrefabUuid, target_prefab: &PrefabUuid) {}
+    fn end_prefab_ref(
+        &self,
+        prefab: &PrefabUuid,
+        target_prefab: &PrefabUuid,
+    ) {
+    }
     fn apply_component_diff<'de, D: Deserializer<'de>>(
         &self,
         parent_prefab: &PrefabUuid,
@@ -107,5 +137,49 @@ impl StorageDeserializer for &Context {
             data: buffer,
         });
         Ok(())
+    }
+}
+
+impl Serialize for InnerContext {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use std::iter::FromIterator;
+        let serialize_impl = crate::SerializeImpl::new(
+            HashMap::new(),
+            HashMap::from_iter(
+                self.registered_components
+                    .iter()
+                    .map(|(_, value)| (legion::storage::ComponentTypeId(value.ty), value.clone())),
+            ),
+        );
+        let serializable_world = legion::ser::serializable_world(&self.world, &serialize_impl);
+        serializable_world.serialize(serializer)
+        // TODO serialize self.prefabs
+    }
+}
+
+impl<'de> Deserialize<'de> for InnerContext {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use std::iter::FromIterator;
+        // TODO get type registry here
+        let deserialize_impl = crate::DeserializeImpl::new(HashMap::new(), HashMap::new());
+        let mut world = legion::world::World::new();
+        let mut deserializable_world = legion::de::deserializable(&mut world, &deserialize_impl);
+        serde::de::DeserializeSeed::deserialize(deserializable_world, deserializer)?;
+        Ok(InnerContext {
+            world,
+            // TODO type registry
+            registered_components: HashMap::new(),
+            // TODO deserialize self.prefabs
+            prefabs: HashMap::new(),
+        })
     }
 }

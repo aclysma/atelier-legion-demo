@@ -8,6 +8,7 @@ use type_uuid::TypeUuid;
 use crate::prefab::PrefabAsset;
 
 use legion::prelude::*;
+use legion::storage::ComponentTypeId;
 use legion_prefab::ComponentRegistration;
 use crate::components;
 use std::collections::HashMap;
@@ -19,13 +20,13 @@ use std::net::ToSocketAddrs;
 
 #[derive(Default, Debug)]
 pub struct PrefabRefUuidReader {
-    prefab_ref_uuids: RefCell<Vec<PrefabUuid>>
+    prefab_ref_uuids: RefCell<Vec<PrefabUuid>>,
 }
 
 impl PrefabRefUuidReader {
     fn new() -> Self {
         PrefabRefUuidReader {
-            prefab_ref_uuids: RefCell::new(vec![])
+            prefab_ref_uuids: RefCell::new(vec![]),
         }
     }
 }
@@ -34,7 +35,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
     fn begin_entity_object(
         &self,
         prefab: &PrefabUuid,
-        entity: &EntityUuid
+        entity: &EntityUuid,
     ) {
         println!("begin_entity_object");
     }
@@ -42,7 +43,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
     fn end_entity_object(
         &self,
         prefab: &PrefabUuid,
-        entity: &EntityUuid
+        entity: &EntityUuid,
     ) {
         println!("end_entity_object");
     }
@@ -52,7 +53,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
         prefab: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
-        deserializer: D
+        deserializer: D,
     ) -> Result<(), <D as Deserializer<'de>>::Error> {
         println!("deserialize_component");
         let value = serde_value::Value::deserialize(deserializer).unwrap();
@@ -62,7 +63,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
     fn begin_prefab_ref(
         &self,
         prefab: &PrefabUuid,
-        target_prefab: &PrefabUuid
+        target_prefab: &PrefabUuid,
     ) {
         println!("begin_prefab_ref");
         self.prefab_ref_uuids.borrow_mut().push(*target_prefab);
@@ -71,7 +72,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
     fn end_prefab_ref(
         &self,
         prefab: &PrefabUuid,
-        target_prefab: &PrefabUuid
+        target_prefab: &PrefabUuid,
     ) {
         println!("end_prefab_ref");
     }
@@ -82,16 +83,13 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
         prefab_ref: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
-        deserializer: D
+        deserializer: D,
     ) -> Result<(), <D as Deserializer<'de>>::Error> {
         println!("apply_component_diff");
         let value = serde_value::Value::deserialize(deserializer).unwrap();
         Ok(())
     }
 }
-
-
-
 
 #[derive(Default, Deserialize, Serialize, TypeUuid, Clone, Copy)]
 #[uuid = "80583980-24d4-4034-8394-ea749b43f55d"]
@@ -150,10 +148,7 @@ impl Importer for PrefabImporter {
         let prefab_ref_uuid_reader = PrefabRefUuidReader::new();
         let mut de = ron::de::Deserializer::from_bytes(bytes.as_slice()).unwrap();
 
-        prefab_format::deserialize(
-            &mut de,
-            &prefab_ref_uuid_reader
-        ).unwrap();
+        prefab_format::deserialize(&mut de, &prefab_ref_uuid_reader).unwrap();
 
         let prefab_ref_uuids = prefab_ref_uuid_reader.prefab_ref_uuids.into_inner();
 
@@ -186,11 +181,12 @@ impl Importer for PrefabImporter {
             ];
 
             use std::iter::FromIterator;
-            let component_types : HashMap<ComponentTypeUuid, ComponentRegistration> = HashMap::from_iter(
-                comp_registrations.iter().map(
-                    |reg| (reg.uuid().clone(), reg.clone())
-                )
-            );
+            let component_types: HashMap<ComponentTypeUuid, ComponentRegistration> =
+                HashMap::from_iter(
+                    comp_registrations
+                        .iter()
+                        .map(|reg| (reg.uuid().clone(), reg.clone())),
+                );
 
             component_types
         };
@@ -203,79 +199,92 @@ impl Importer for PrefabImporter {
             inner: RefCell::new(legion_prefab::InnerContext {
                 world,
                 registered_components,
-                prefabs
-            })
+                prefabs,
+            }),
         };
 
-        prefab_format::deserialize(
-            &mut de,
-            &&context
-        ).unwrap();
+        prefab_format::deserialize(&mut de, &&context).unwrap();
 
         // Take ownership of the world back onto the stack, we need it later!
-        let mut world = context.inner.into_inner().world;
-
+        let mut context = context.inner.into_inner();
 
         println!("iterate positions");
-        let query = <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
-        for (pos) in query.iter(&mut world) {
+        let query =
+            <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
+        for (pos) in query.iter(&mut context.world) {
             println!("position: {:?}", pos);
         }
         println!("done iterating positions");
+
+        let prefab_asset = PrefabAsset {
+            prefab: legion_prefab::Context {
+                inner: RefCell::new(context),
+            },
+        };
 
         ///////////////////////////////////////////////////////////////
         // STEP 5: Now we need to save it into an asset
         ///////////////////////////////////////////////////////////////
 
-        let comp_types = {
-            let comp_registrations = [
-                ComponentRegistration::of::<components::Position2DComponentDefinition>(),
-                //ComponentRegistration::of::<Vel>(),
-            ];
+        // let comp_types = {
+        //     let comp_registrations = [
+        //         ComponentRegistration::of::<components::Position2DComponentDefinition>(),
+        //         //ComponentRegistration::of::<Vel>(),
+        //     ];
 
-            use std::iter::FromIterator;
-            let component_types : HashMap<TypeId, ComponentRegistration> = HashMap::from_iter(
-                comp_registrations.iter().map(
-                    |reg| (reg.ty(), reg.clone())
-                )
-            );
+        //     use std::iter::FromIterator;
+        //     let component_types: HashMap<ComponentTypeId, ComponentRegistration> =
+        //         HashMap::from_iter(
+        //             comp_registrations
+        //                 .iter()
+        //                 .map(|reg| (ComponentTypeId(reg.ty()), reg.clone())),
+        //         );
 
-            component_types
-        };
+        //     component_types
+        // };
 
-        let serialize_impl = legion_prefab::SerializeImpl::new(
-            HashMap::new(),
-            comp_types
-        );
+        // let serialize_impl = legion_prefab::SerializeImpl::new(HashMap::new(), comp_types);
 
         {
-            let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
-            let legion_world_str = ron::ser::to_string_pretty(&serializable_world, ron::ser::PrettyConfig::default()).unwrap();
+            // let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
+            let legion_world_str =
+                ron::ser::to_string_pretty(&prefab_asset, ron::ser::PrettyConfig::default())
+                    .unwrap();
 
             println!("Serialized legion world:");
             println!("legion_world_str {}", legion_world_str);
         }
 
-        let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
-        let legion_world_bincode = bincode::serialize(&serializable_world).unwrap();
+        // let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
+        // let legion_world_bincode = bincode::serialize(&serializable_world).unwrap();
 
-        println!("Serialized legion world:");
-        println!("legion_world_bincode {}", legion_world_bincode.len());
+        // println!("Serialized legion world:");
+        // println!("legion_world_bincode {}", legion_world_bincode.len());
 
-        let entity_map = serialize_impl.take_entity_map();
+        // let entity_map = serialize_impl.take_entity_map();
 
-        let asset_data = Box::new(PrefabAsset {
-            legion_world_bincode,
-            //entity_map
-        });
+        // let asset_data = Box::new(PrefabAsset {
+        //     legion_world_bincode,
+        //     //entity_map
+        // });
 
+        // Ok(ImporterValue {
+        //     assets: vec![ImportedAsset {
+        //         id: state.id.expect("AssetUuid not generated"),
+        //         search_tags: Vec::new(),
+        //         build_deps: Vec::new(),
+        //         load_deps: Vec::new(),
+        //         asset_data,
+        //         build_pipeline: None,
+        //     }],
+        // })
         Ok(ImporterValue {
             assets: vec![ImportedAsset {
                 id: state.id.expect("AssetUuid not generated"),
                 search_tags: Vec::new(),
                 build_deps: Vec::new(),
                 load_deps: Vec::new(),
-                asset_data,
+                asset_data: Box::new(prefab_asset),
                 build_pipeline: None,
             }],
         })
