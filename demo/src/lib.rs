@@ -51,6 +51,9 @@ use std::cell::RefCell;
 use prefab_format::{ComponentTypeUuid, PrefabUuid};
 use legion_prefab::ComponentRegistration;
 use std::hash::BuildHasherDefault;
+use std::any::{TypeId, Any};
+use serde::de::Visitor;
+use bincode::{ErrorKind, DeserializerAcceptor};
 
 //mod legion_serde_support;
 
@@ -101,6 +104,7 @@ impl AssetManager {
     fn temp_force_load_asset(
         &mut self,
     ) {
+        // Demonstrate loading a component as an asset (probably won't do this in practice)
         {
             let handle = self.loader.add_ref(asset_uuid!("df3a8294-ffce-4ecc-81ad-a96867aa3f8a"));
             let handle = Handle::<Position2DComponentDefinition>::new(self.tx.clone(), handle);
@@ -114,13 +118,88 @@ impl AssetManager {
             }
         }
 
+        // Demonstrate loading a prefab
         {
+            //
+            // Fetch the prefab data
+            //
+            let handle = self.loader.add_ref(asset_uuid!("49a78d30-0590-4511-9178-302a17f00882"));
+            let handle = Handle::<PrefabAsset>::new(self.tx.clone(), handle);
+            loop {
+                self.update();
+                if let LoadStatus::Loaded = handle.load_status::<RpcLoader>(&self.loader) {
+                    break;
+                }
+            }
 
-//            let serialize_impl = legion_prefab::DeserializeImpl::new(
-//                HashMap::new(),
-//                comp_types
-//            );
+            let prefab_asset : &PrefabAsset = handle.asset(&self.storage).unwrap();
+
+            //
+            // Setup for deserializing the legion world out of the prefab
+            //
+            let comp_types = {
+                let comp_registrations = [
+                    ComponentRegistration::of::<components::Position2DComponentDefinition>(),
+                    //ComponentRegistration::of::<Vel>(),
+                ];
+
+                use std::iter::FromIterator;
+                let comp_types : HashMap<TypeId, ComponentRegistration> = HashMap::from_iter(
+                    comp_registrations.iter().map(
+                        |reg| (reg.ty(), reg.clone())
+                    )
+                );
+
+                comp_types
+            };
+
+            let deserialize_impl = legion_prefab::DeserializeImpl::new(
+                HashMap::new(), // tag types
+                comp_types,
+            );
+
+            //
+            // Create a world to deserialize data into
+            //
+            let universe = Universe::new();
+            let mut world = universe.create_world();
+
+            //
+            // Reading legion world from bincode
+            //
+            let mut slice_reader = bincode::SliceReader::new(&prefab_asset.legion_world_bincode);
+            let acceptor = LegionWorldBincodeDeserializerAcceptor {
+                world: &mut world,
+                deserialize_impl: &deserialize_impl
+            };
+            bincode::with_deserializer(slice_reader, acceptor);
+
+            //
+            // Print legion contents to prove that it worked
+            //
+            println!("GAME: iterate positions");
+            let query = <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
+            for (pos) in query.iter(&mut world) {
+                println!("position: {:?}", pos);
+            }
+            println!("GAME: done iterating positions");
         }
+    }
+}
+
+// bincode API requires us to implement an acceptor in order to get a deserializer impl. We need
+// the impl so that we can pass it to legion::de::deserialize()
+struct LegionWorldBincodeDeserializerAcceptor<'b, 'c> {
+    world: &'b mut World,
+    deserialize_impl: &'c legion_prefab::DeserializeImpl
+}
+
+impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a> for LegionWorldBincodeDeserializerAcceptor<'b, 'c> {
+    type Output = ();
+
+    //TODO: Error handling needs to be passed back out
+    fn accept<T: serde::Deserializer<'a>>(self, de: T) -> Self::Output {
+        legion::de::deserialize(self.world, self.deserialize_impl, de).unwrap();
     }
 }
 

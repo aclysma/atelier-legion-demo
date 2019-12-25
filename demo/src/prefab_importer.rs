@@ -65,7 +65,7 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
         target_prefab: &PrefabUuid
     ) {
         println!("begin_prefab_ref");
-        self.prefab_ref_uuids.borrow_mut().push(*target_prefab);
+        self.prefab_ref_uuids.borrow_mut().push(*target_prefab); //TODO: remove and use inner
     }
 
     fn end_prefab_ref(
@@ -216,12 +216,12 @@ impl Importer for PrefabImporter {
         let mut world = context.inner.into_inner().world;
 
 
-        println!("iterate positions");
+        println!("IMPORTER: iterate positions");
         let query = <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
         for (pos) in query.iter(&mut world) {
             println!("position: {:?}", pos);
         }
-        println!("done iterating positions");
+        println!("IMPORTER: done iterating positions");
 
         ///////////////////////////////////////////////////////////////
         // STEP 5: Now we need to save it into an asset
@@ -248,24 +248,31 @@ impl Importer for PrefabImporter {
             comp_types
         );
 
-        {
+        let legion_world_ron = {
             let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
             let legion_world_str = ron::ser::to_string_pretty(&serializable_world, ron::ser::PrettyConfig::default()).unwrap();
 
             println!("Serialized legion world:");
             println!("legion_world_str {}", legion_world_str);
-        }
 
-        let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
-        let legion_world_bincode = bincode::serialize(&serializable_world).unwrap();
+            legion_world_str
+        };
 
-        println!("Serialized legion world:");
-        println!("legion_world_bincode {}", legion_world_bincode.len());
+        let legion_world_bincode = {
+            let serializable_world = legion::ser::serializable_world(&world, &serialize_impl);
+            let legion_world_bincode = bincode::serialize(&serializable_world).unwrap();
+
+            println!("Serialized legion world:");
+            println!("legion_world_bincode {}", legion_world_bincode.len());
+
+            legion_world_bincode
+        };
 
         let entity_map = serialize_impl.take_entity_map();
 
         let asset_data = Box::new(PrefabAsset {
             legion_world_bincode,
+            //legion_world_ron
             //entity_map
         });
 
