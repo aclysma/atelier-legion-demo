@@ -216,7 +216,11 @@ impl Importer for PrefabImporter {
         }
         println!("IMPORTER: done iterating positions");
 
-        let prefab_asset = PrefabAsset { prefab: context };
+        let prefab_asset = PrefabAsset {
+            prefab: legion_prefab::Context {
+                inner: RefCell::new(context),
+            },
+        };
 
         ///////////////////////////////////////////////////////////////
         // STEP 5: Now we need to save it into an asset

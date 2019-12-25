@@ -169,15 +169,24 @@ impl<'de> Deserialize<'de> for InnerContext {
         D: Deserializer<'de>,
     {
         use std::iter::FromIterator;
-        // TODO get type registry here
-        let deserialize_impl = crate::DeserializeImpl::new(HashMap::new(), HashMap::new());
+        let tag_types = HashMap::from_iter(
+            crate::registration::iter_tag_registrations()
+                .map(|reg| (legion::storage::TagTypeId(reg.ty()), reg.clone())),
+        );
+        let comp_types = HashMap::from_iter(
+            crate::registration::iter_component_registrations()
+                .map(|reg| (legion::storage::ComponentTypeId(reg.ty()), reg.clone())),
+        );
+        let deserialize_impl = crate::DeserializeImpl::new(tag_types, comp_types.clone());
+        // TODO support sharing universe
         let mut world = legion::world::World::new();
         let mut deserializable_world = legion::de::deserializable(&mut world, &deserialize_impl);
         serde::de::DeserializeSeed::deserialize(deserializable_world, deserializer)?;
         Ok(InnerContext {
             world,
-            // TODO type registry
-            registered_components: HashMap::new(),
+            registered_components: HashMap::from_iter(
+                comp_types.into_iter().map(|(key, val)| (*val.uuid(), val)),
+            ),
             // TODO deserialize self.prefabs
             prefabs: HashMap::new(),
         })

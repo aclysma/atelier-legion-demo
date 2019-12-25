@@ -15,7 +15,10 @@ struct ComponentDeserializer<'de, T: Deserialize<'de>> {
 
 impl<'de, T: Deserialize<'de> + 'static> DeserializeSeed<'de> for ComponentDeserializer<'de, T> {
     type Value = ();
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    fn deserialize<D>(
+        self,
+        deserializer: D,
+    ) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -36,7 +39,10 @@ impl<'de, 'a, T: for<'b> Deserialize<'b> + 'static> DeserializeSeed<'de>
     for ComponentSeqDeserializer<'a, T>
 {
     type Value = ();
-    fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    fn deserialize<D>(
+        self,
+        deserializer: D,
+    ) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -48,10 +54,16 @@ impl<'de, 'a, T: for<'b> Deserialize<'b> + 'static> Visitor<'de>
 {
     type Value = ();
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(
+        &self,
+        formatter: &mut std::fmt::Formatter,
+    ) -> std::fmt::Result {
         formatter.write_str("sequence of objects")
     }
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(
+        self,
+        mut seq: A,
+    ) -> Result<Self::Value, A::Error>
     where
         A: de::SeqAccess<'de>,
     {
@@ -105,7 +117,9 @@ impl TagRegistration {
         &self.uuid
     }
 
-    pub fn ty(&self) -> TypeId { self.ty }
+    pub fn ty(&self) -> TypeId {
+        self.ty
+    }
 
     pub fn of<
         T: TypeUuid
@@ -165,7 +179,9 @@ impl ComponentRegistration {
         &self.uuid
     }
 
-    pub fn ty(&self) -> TypeId { self.ty }
+    pub fn ty(&self) -> TypeId {
+        self.ty
+    }
 
     pub fn of<
         T: TypeUuid + Serialize + SerdeDiff + for<'de> Deserialize<'de> + Send + Sync + 'static,
@@ -212,6 +228,13 @@ impl ComponentRegistration {
 
 inventory::collect!(TagRegistration);
 inventory::collect!(ComponentRegistration);
+
+pub fn iter_component_registrations() -> impl Iterator<Item = &'static ComponentRegistration> {
+    inventory::iter::<ComponentRegistration>.into_iter()
+}
+pub fn iter_tag_registrations() -> impl Iterator<Item = &'static TagRegistration> {
+    inventory::iter::<TagRegistration>.into_iter()
+}
 
 #[macro_export]
 macro_rules! register_tag_type {

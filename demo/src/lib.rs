@@ -3,6 +3,7 @@ extern crate nalgebra as na;
 use std::sync::Arc;
 
 use legion::prelude::*;
+use legion::storage::ComponentTypeId;
 
 use skulpin::skia_safe;
 
@@ -57,7 +58,6 @@ use bincode::{ErrorKind, DeserializerAcceptor};
 
 //mod legion_serde_support;
 
-
 const GROUND_THICKNESS: f32 = 0.2;
 const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 const BALL_RADIUS: f32 = 0.2;
@@ -86,32 +86,31 @@ impl Default for AssetManager {
             loader,
             storage,
             tx,
-            rx
+            rx,
         }
     }
 }
 
 impl AssetManager {
-    fn update(
-        &mut self
-    ) {
+    fn update(&mut self) {
         atelier_loader::handle::process_ref_ops(&self.loader, &self.rx);
         self.loader
             .process(&self.storage)
             .expect("failed to process loader");
     }
 
-    fn temp_force_load_asset(
-        &mut self,
-    ) {
+    fn temp_force_load_asset(&mut self) {
         // Demonstrate loading a component as an asset (probably won't do this in practice)
         {
-            let handle = self.loader.add_ref(asset_uuid!("df3a8294-ffce-4ecc-81ad-a96867aa3f8a"));
+            let handle = self
+                .loader
+                .add_ref(asset_uuid!("df3a8294-ffce-4ecc-81ad-a96867aa3f8a"));
             let handle = Handle::<Position2DComponentDefinition>::new(self.tx.clone(), handle);
             loop {
                 self.update();
                 if let LoadStatus::Loaded = handle.load_status::<RpcLoader>(&self.loader) {
-                    let custom_asset: &Position2DComponentDefinition = handle.asset(&self.storage).expect("failed to get asset");
+                    let custom_asset: &Position2DComponentDefinition =
+                        handle.asset(&self.storage).expect("failed to get asset");
                     log::info!("Loaded a component {:?}", custom_asset);
                     break;
                 }
@@ -123,7 +122,9 @@ impl AssetManager {
             //
             // Fetch the prefab data
             //
-            let handle = self.loader.add_ref(asset_uuid!("49a78d30-0590-4511-9178-302a17f00882"));
+            let handle = self
+                .loader
+                .add_ref(asset_uuid!("49a78d30-0590-4511-9178-302a17f00882"));
             let handle = Handle::<PrefabAsset>::new(self.tx.clone(), handle);
             loop {
                 self.update();
@@ -132,54 +133,58 @@ impl AssetManager {
                 }
             }
 
-            let prefab_asset : &PrefabAsset = handle.asset(&self.storage).unwrap();
+            let prefab_asset: &PrefabAsset = handle.asset(&self.storage).unwrap();
 
             //
             // Setup for deserializing the legion world out of the prefab
             //
-            let comp_types = {
-                let comp_registrations = [
-                    ComponentRegistration::of::<components::Position2DComponentDefinition>(),
-                    //ComponentRegistration::of::<Vel>(),
-                ];
+            // let comp_types = {
+            //     let comp_registrations = [
+            //         ComponentRegistration::of::<components::Position2DComponentDefinition>(),
+            //         //ComponentRegistration::of::<Vel>(),
+            //     ];
 
-                use std::iter::FromIterator;
-                let comp_types : HashMap<TypeId, ComponentRegistration> = HashMap::from_iter(
-                    comp_registrations.iter().map(
-                        |reg| (reg.ty(), reg.clone())
-                    )
-                );
+            //     use std::iter::FromIterator;
+            //     let comp_types: HashMap<ComponentTypeId, ComponentRegistration> =
+            //         HashMap::from_iter(
+            //             comp_registrations
+            //                 .iter()
+            //                 .map(|reg| (ComponentTypeId(reg.ty()), reg.clone())),
+            //         );
 
-                comp_types
-            };
+            //     comp_types
+            // };
 
-            let deserialize_impl = legion_prefab::DeserializeImpl::new(
-                HashMap::new(), // tag types
-                comp_types,
-            );
+            // let deserialize_impl = legion_prefab::DeserializeImpl::new(
+            //     HashMap::new(), // tag types
+            //     comp_types,
+            // );
 
             //
             // Create a world to deserialize data into
             //
-            let universe = Universe::new();
-            let mut world = universe.create_world();
+            // let universe = Universe::new();
+            // let mut world = universe.create_world();
 
             //
             // Reading legion world from bincode
             //
-            let mut slice_reader = bincode::SliceReader::new(&prefab_asset.legion_world_bincode);
-            let acceptor = LegionWorldBincodeDeserializerAcceptor {
-                world: &mut world,
-                deserialize_impl: &deserialize_impl
-            };
-            bincode::with_deserializer(slice_reader, acceptor);
+            // let mut slice_reader = bincode::SliceReader::new(&prefab_asset.legion_world_bincode);
+            // let acceptor = LegionWorldBincodeDeserializerAcceptor {
+            //     world: &mut world,
+            //     deserialize_impl: &deserialize_impl,
+            // };
+            // bincode::with_deserializer(slice_reader, acceptor);
 
             //
             // Print legion contents to prove that it worked
             //
+            let mut ctx_mut = prefab_asset.prefab.inner.borrow_mut();
             println!("GAME: iterate positions");
-            let query = <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
-            for (pos) in query.iter(&mut world) {
+            let query =
+                <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query(
+                );
+            for (pos) in query.iter(&mut ctx_mut.world) {
                 println!("position: {:?}", pos);
             }
             println!("GAME: done iterating positions");
@@ -191,14 +196,19 @@ impl AssetManager {
 // the impl so that we can pass it to legion::de::deserialize()
 struct LegionWorldBincodeDeserializerAcceptor<'b, 'c> {
     world: &'b mut World,
-    deserialize_impl: &'c legion_prefab::DeserializeImpl
+    deserialize_impl: &'c legion_prefab::DeserializeImpl,
 }
 
-impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a> for LegionWorldBincodeDeserializerAcceptor<'b, 'c> {
+impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a>
+    for LegionWorldBincodeDeserializerAcceptor<'b, 'c>
+{
     type Output = ();
 
     //TODO: Error handling needs to be passed back out
-    fn accept<T: serde::Deserializer<'a>>(self, de: T) -> Self::Output {
+    fn accept<T: serde::Deserializer<'a>>(
+        self,
+        de: T,
+    ) -> Self::Output {
         legion::de::deserialize(self.world, self.deserialize_impl, de).unwrap();
     }
 }
@@ -339,13 +349,12 @@ pub struct DemoApp {
     #[allow(dead_code)]
     universe: Universe,
     world: World,
-    asset_manager: AssetManager
+    asset_manager: AssetManager,
 }
 
 impl DemoApp {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-
         let mut asset_manager = AssetManager::default();
 
         asset_manager.temp_force_load_asset();
@@ -364,7 +373,7 @@ impl DemoApp {
             physics,
             universe,
             world,
-            asset_manager
+            asset_manager,
         }
     }
 }
