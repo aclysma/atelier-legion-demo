@@ -31,7 +31,7 @@ impl PrefabRefUuidReader {
     }
 }
 
-impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
+impl<'de> prefab_format::StorageDeserializer<'de, ()> for PrefabRefUuidReader {
     fn begin_entity_object(
         &self,
         prefab: &PrefabUuid,
@@ -48,12 +48,13 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
         println!("end_entity_object");
     }
 
-    fn deserialize_component<'de, D: Deserializer<'de>>(
+    fn deserialize_component<D: Deserializer<'de>>(
         &self,
         prefab: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
+        context: &()
     ) -> Result<(), <D as Deserializer<'de>>::Error> {
         println!("deserialize_component");
         let value = serde_value::Value::deserialize(deserializer).unwrap();
@@ -77,13 +78,14 @@ impl prefab_format::StorageDeserializer for PrefabRefUuidReader {
         println!("end_prefab_ref");
     }
 
-    fn apply_component_diff<'de, D: Deserializer<'de>>(
+    fn apply_component_diff<D: Deserializer<'de>>(
         &self,
         parent_prefab: &PrefabUuid,
         prefab_ref: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
+        context: &()
     ) -> Result<(), <D as Deserializer<'de>>::Error> {
         println!("apply_component_diff");
         let value = serde_value::Value::deserialize(deserializer).unwrap();
@@ -148,7 +150,7 @@ impl Importer for PrefabImporter {
         let prefab_ref_uuid_reader = PrefabRefUuidReader::new();
         let mut de = ron::de::Deserializer::from_bytes(bytes.as_slice()).unwrap();
 
-        prefab_format::deserialize(&mut de, &prefab_ref_uuid_reader).unwrap();
+        prefab_format::deserialize(&mut de, &prefab_ref_uuid_reader, &()).unwrap();
 
         let prefab_ref_uuids = prefab_ref_uuid_reader.prefab_ref_uuids.into_inner();
 
@@ -191,35 +193,29 @@ impl Importer for PrefabImporter {
             component_types
         };
 
-        // Create a lookup for all prefabs we reference. These were found in an earlier step and
-        // their UUIDs are in prefab_ref_uuids. For now, this is unimplemented
-        let prefabs = HashMap::<PrefabUuid, legion_prefab::Prefab>::new();
-
-        let context = legion_prefab::Context {
-            inner: RefCell::new(legion_prefab::InnerContext {
+        let prefab = legion_prefab::Prefab {
+            inner: RefCell::new(legion_prefab::PrefabInner {
                 world,
-                registered_components,
-                prefabs,
+                prefab_meta: None,
             }),
         };
 
-        prefab_format::deserialize(&mut de, &&context).unwrap();
+        let context = legion_prefab::PrefabContext {
+            registered_components
+        };
 
-        // Take ownership of the world back onto the stack, we need it later!
-        let mut context = context.inner.into_inner();
+        prefab_format::deserialize(&mut de, &&prefab, &context).unwrap();
 
         println!("IMPORTER: iterate positions");
         let query =
             <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query();
-        for (pos) in query.iter(&mut context.world) {
+        for (pos) in query.iter(&mut prefab.inner.borrow_mut().world) {
             println!("position: {:?}", pos);
         }
         println!("IMPORTER: done iterating positions");
 
         let prefab_asset = PrefabAsset {
-            prefab: legion_prefab::Context {
-                inner: RefCell::new(context),
-            },
+            prefab
         };
 
         ///////////////////////////////////////////////////////////////

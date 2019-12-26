@@ -10,9 +10,10 @@ mod prefab_serde;
 pub use prefab_serde::{
     ComponentOverride,
     PrefabRef,
+    PrefabMeta,
+    PrefabInner,
     Prefab,
-    InnerContext,
-    Context
+    PrefabContext
 };
 
 mod world_serde;

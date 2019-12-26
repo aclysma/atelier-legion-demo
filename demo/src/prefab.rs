@@ -12,7 +12,7 @@ pub struct PrefabAsset {
     // need to write an importer to handle these
     //#[serde_diff(inline)]
     // pub legion_world_bincode: Vec<u8>,
-    pub prefab: legion_prefab::Context,
+    pub prefab: legion_prefab::Prefab,
     //pub legion_world_ron: String,
     //pub entity_map: HashMap<prefab_format::EntityUuid, legion::prelude::Entity>
     //pub entity_map: HashMap<legion::prelude::Entity, prefab_format::EntityUuid>

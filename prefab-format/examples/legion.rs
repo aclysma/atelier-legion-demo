@@ -33,19 +33,20 @@ struct World {
     inner: RefCell<InnerWorld>,
 }
 
-impl prefab_format::StorageDeserializer for &World {
+impl<'de> prefab_format::StorageDeserializer<'de, ()> for &World {
     fn begin_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid) {
         let mut this = self.inner.borrow_mut();
         let new_entity = this.world.insert((), vec![()])[0];
         this.entity_map.insert(*entity, new_entity);
     }
     fn end_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid) {}
-    fn deserialize_component<'de, D: Deserializer<'de>>(
+    fn deserialize_component<D: Deserializer<'de>>(
         &self,
         prefab: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
+        context: &()
     ) -> Result<(), D::Error> {
         println!("deserializing transform");
         let mut this = self.inner.borrow_mut();
@@ -75,13 +76,14 @@ impl prefab_format::StorageDeserializer for &World {
         read_prefab(prefab.1, self);
     }
     fn end_prefab_ref(&self, prefab: &PrefabUuid, target_prefab: &PrefabUuid) {}
-    fn apply_component_diff<'de, D: Deserializer<'de>>(
+    fn apply_component_diff<D: Deserializer<'de>>(
         &self,
         parent_prefab: &PrefabUuid,
         prefab_ref: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
+        context: &()
     ) -> Result<(), D::Error> {
         let mut this = self.inner.borrow_mut();
         let registered = this
@@ -116,7 +118,7 @@ const PREFABS: [(PrefabUuid, &'static str); 2] = [
 fn read_prefab(text: &str, world: &World) {
     let mut deserializer = ron::de::Deserializer::from_bytes(text.as_bytes()).unwrap();
 
-    prefab_format::deserialize(&mut deserializer, &world).unwrap();
+    prefab_format::deserialize(&mut deserializer, &world, &()).unwrap();
 }
 
 fn main() {
