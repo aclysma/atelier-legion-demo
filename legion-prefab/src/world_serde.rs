@@ -8,7 +8,7 @@ use legion::{
     },
 };
 use serde::{de::IgnoredAny, Deserialize, Deserializer, Serialize, Serializer};
-use std::{any::TypeId, cell::RefCell, collections::HashMap, ptr::NonNull};
+use std::{cell::RefCell, collections::HashMap, ptr::NonNull};
 
 #[derive(Serialize, Deserialize)]
 struct SerializedArchetypeDescription {

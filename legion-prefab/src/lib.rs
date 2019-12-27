@@ -13,7 +13,8 @@ pub use prefab_serde::{
     PrefabMeta,
     PrefabInner,
     Prefab,
-    PrefabContext
+    PrefabDeserializeContext,
+    DeserializablePrefab
 };
 
 mod world_serde;

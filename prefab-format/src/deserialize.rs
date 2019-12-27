@@ -1,10 +1,9 @@
-use std::marker::PhantomData;
 use crate::{ComponentTypeUuid, EntityUuid, PrefabUuid};
 use serde::{
     de::{self, DeserializeSeed, Visitor},
     Deserialize, Deserializer,
 };
-pub trait Storage<'de, C: 'de> {
+pub trait Storage {
     /// Called when the deserializer encounters an entity object.
     /// Ideally used to start buffering component data for an entity.
     fn begin_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid);
@@ -14,13 +13,12 @@ pub trait Storage<'de, C: 'de> {
     /// Called when the deserializer encounters component data.
     /// The Storage implementation must handle deserialization of the data,
     /// using the ComponentTypeUuid to identify the type to deserialize as.
-    fn deserialize_component<D: Deserializer<'de>>(
+    fn deserialize_component<'de, D: Deserializer<'de>>(
         &self,
         prefab: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
-        context: &C
     ) -> Result<(), D::Error>;
     /// Called when the deserializer encounters a prefab reference.
     /// The Storage implementation should probably ensure that the referenced prefab
@@ -32,60 +30,52 @@ pub trait Storage<'de, C: 'de> {
     /// Called when the deserializer encounters a component diff for a prefab reference.
     /// The Storage implementation must handle deserialization of the diff,
     /// using the ComponentTypeUuid to identify the type to deserialize as.
-    fn apply_component_diff<D: Deserializer<'de>>(
+    fn apply_component_diff<'de, D: Deserializer<'de>>(
         &self,
         parent_prefab: &PrefabUuid,
         prefab_ref: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
-        context: &C
     ) -> Result<(), D::Error>;
 }
-struct ComponentOverrideData<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct ComponentOverrideData<'a, S: Storage> {
     pub storage: &'a S,
-    pub context: &'b C,
     pub parent_id: PrefabUuid,
     pub prefab_ref_id: PrefabUuid,
     pub entity_id: EntityUuid,
     pub component_type_id: ComponentTypeUuid,
-    pub phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for ComponentOverrideData<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for ComponentOverrideData<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        <S as Storage<'de, C>>::apply_component_diff(
+        <S as Storage>::apply_component_diff(
             self.storage,
             &self.parent_id,
             &self.prefab_ref_id,
             &self.entity_id,
             &self.component_type_id,
             deserializer,
-            self.context
         )
     }
 }
-struct ComponentOverride<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct ComponentOverride<'a, S: Storage> {
     pub storage: &'a S,
-    pub context: &'b C,
     pub parent_id: PrefabUuid,
     pub prefab_ref_id: PrefabUuid,
     pub entity_id: EntityUuid,
-    pub phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> Clone for ComponentOverride<'de, 'a, 'b, S, C> {
+impl<'a, S: Storage> Clone for ComponentOverride<'a, S> {
     fn clone(&self) -> Self {
         Self {
             storage: self.storage,
-            context: self.context,
             parent_id: self.parent_id,
             prefab_ref_id: self.prefab_ref_id,
             entity_id: self.entity_id,
-            phantom_data: Default::default()
         }
     }
 }
@@ -95,14 +85,14 @@ enum ComponentOverrideField {
     ComponentType,
     Diff,
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for ComponentOverride<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for ComponentOverride<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        impl<'de, 'a, 'b, S: Storage<'de, C>, C> Visitor<'de> for ComponentOverride<'de, 'a, 'b, S, C> {
+        impl<'a, 'de, S: Storage> Visitor<'de> for ComponentOverride<'a, S> {
             type Value = ();
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -133,8 +123,6 @@ impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for ComponentOverr
                                     ),
                                 )?,
                                 storage: self.storage,
-                                context: self.context,
-                                phantom_data: Default::default()
                             })?;
                             return Ok(());
                         }
@@ -147,21 +135,17 @@ impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for ComponentOverr
         deserializer.deserialize_struct("ComponentOverride", FIELDS, self)
     }
 }
-struct EntityOverride<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct EntityOverride<'a, S: Storage> {
     pub storage: &'a S,
-    pub context: &'b C,
     pub parent_id: PrefabUuid,
     pub prefab_ref_id: PrefabUuid,
-    pub phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> Clone for EntityOverride<'de, 'a, 'b, S, C> {
+impl<'a, S: Storage> Clone for EntityOverride<'a, S> {
     fn clone(&self) -> Self {
         Self {
             storage: self.storage,
-            context: self.context,
             parent_id: self.parent_id,
             prefab_ref_id: self.prefab_ref_id,
-            phantom_data: Default::default()
         }
     }
 }
@@ -171,14 +155,14 @@ enum EntityOverrideField {
     EntityId,
     ComponentOverrides,
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityOverride<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for EntityOverride<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        impl<'de, 'a, 'b, S: Storage<'de, C>, C> Visitor<'de> for EntityOverride<'de, 'a, 'b, S, C> {
+        impl<'a, 'de, S: Storage> Visitor<'de> for EntityOverride<'a, S> {
             type Value = ();
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -206,8 +190,6 @@ impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityOverride
                                     "entity_id must be serialized before component_overrides",
                                 ))?,
                                 storage: self.storage,
-                                context: self.context,
-                                phantom_data: Default::default()
                             }))?;
                             return Ok(());
                         }
@@ -220,11 +202,9 @@ impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityOverride
         deserializer.deserialize_struct("PrefabRef", FIELDS, self)
     }
 }
-struct PrefabRef<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct PrefabRef<'a, S: Storage> {
     pub storage: &'a S,
-    pub context: &'b C,
     pub parent_id: PrefabUuid,
-    pub phantom_data: PhantomData<&'de C>
 }
 #[derive(Deserialize, Debug)]
 #[serde(field_identifier, rename_all = "snake_case")]
@@ -232,14 +212,14 @@ enum PrefabRefField {
     PrefabId,
     EntityOverrides,
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for PrefabRef<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for PrefabRef<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        impl<'de, 'a, 'b, S: Storage<'de, C>, C> Visitor<'de> for PrefabRef<'de, 'a, 'b, S, C> {
+        impl<'a, 'de, S: Storage> Visitor<'de> for PrefabRef<'a, S> {
             type Value = ();
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -269,8 +249,6 @@ impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for PrefabRef<'de,
                                 parent_id: self.parent_id,
                                 prefab_ref_id,
                                 storage: self.storage,
-                                context: self.context,
-                                phantom_data: Default::default()
                             }))?;
                             self.storage.end_prefab_ref(&self.parent_id, &prefab_ref_id);
                             return Ok(());
@@ -285,19 +263,15 @@ impl<'de, 'a, 'b, S: Storage<'de, C>, C> DeserializeSeed<'de> for PrefabRef<'de,
     }
 }
 
-struct PrefabObjectDeserializer<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct PrefabObjectDeserializer<'a, S: Storage> {
     pub prefab_id: PrefabUuid,
     pub storage: &'a S,
-    pub context: &'b C,
-    pub phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> Clone for PrefabObjectDeserializer<'de, 'a, 'b, S, C> {
+impl<'a, S: Storage> Clone for PrefabObjectDeserializer<'a, S> {
     fn clone(&self) -> Self {
         Self {
             prefab_id: self.prefab_id,
             storage: self.storage,
-            context: self.context,
-            phantom_data: Default::default()
         }
     }
 }
@@ -307,57 +281,50 @@ enum ComponentField {
     Type,
     Data,
 }
-struct EntityComponentData<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct EntityComponentData<'a, S: Storage> {
     prefab_id: PrefabUuid,
     entity_id: EntityUuid,
     component_id: ComponentTypeUuid,
     storage: &'a S,
-    context: &'b C,
-    phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityComponentData<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for EntityComponentData<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        <S as Storage<'de, C>>::deserialize_component(
+        <S as Storage>::deserialize_component(
             self.storage,
             &self.prefab_id,
             &self.entity_id,
             &self.component_id,
             deserializer,
-            self.context
         )
     }
 }
-struct EntityComponent<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+struct EntityComponent<'a, S: Storage> {
     prefab_id: PrefabUuid,
     entity_id: EntityUuid,
     storage: &'a S,
-    context: &'b C,
-    phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> Clone for EntityComponent<'de, 'a, 'b, S, C> {
+impl<'a, S: Storage> Clone for EntityComponent<'a, S> {
     fn clone(&self) -> Self {
         Self {
             prefab_id: self.prefab_id,
             entity_id: self.entity_id,
             storage: self.storage,
-            context: self.context,
-            phantom_data: Default::default()
         }
     }
 }
-impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityComponent<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for EntityComponent<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        impl<'a, 'b: 'de, 'de, S: Storage<'de, C>, C> Visitor<'de> for EntityComponent<'de, 'a, 'b, S, C> {
+        impl<'a, 'de, S: Storage> Visitor<'de> for EntityComponent<'a, S> {
             type Value = ();
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -385,8 +352,6 @@ impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityCom
                                 component_id: component_id.ok_or(de::Error::missing_field(
                                     "component type must be serialized before data",
                                 ))?,
-                                context: self.context,
-                                phantom_data: Default::default()
                             })?;
                             return Ok(());
                         }
@@ -400,16 +365,10 @@ impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityCom
     }
 }
 
-struct EntityPrefabObject<'de, 'a, 'b, S: Storage<'de, C>, C> {
-    obj: PrefabObjectDeserializer<'de, 'a, 'b, S, C>,
-    context: &'b C
-}
-impl<'de, 'a, 'b, S: Storage<'de, C>, C> Clone for EntityPrefabObject<'de, 'a, 'b, S, C> {
+struct EntityPrefabObject<'a, S: Storage>(PrefabObjectDeserializer<'a, S>);
+impl<'a, S: Storage> Clone for EntityPrefabObject<'a, S> {
     fn clone(&self) -> Self {
-        Self {
-            obj: self.obj.clone(),
-            context: self.context
-        }
+        Self(self.0.clone())
     }
 }
 #[derive(Deserialize, Debug)]
@@ -418,15 +377,15 @@ enum EntityPrefabObjectField {
     Id,
     Components,
 }
-impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityPrefabObject<'de, 'a, 'b, S, C> {
-    type Value = PrefabObjectDeserializer<'de, 'a, 'b, S, C>;
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for EntityPrefabObject<'a, S> {
+    type Value = PrefabObjectDeserializer<'a, S>;
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
     where
         D: Deserializer<'de>,
     {
-        impl<'a, 'b: 'de, 'de, S: Storage<'de, C>, C> Visitor<'de> for EntityPrefabObject<'de, 'a, 'b, S, C> {
-            type Value = PrefabObjectDeserializer<'de, 'a, 'b, S, C>;
+        impl<'a, 'de, S: Storage> Visitor<'de> for EntityPrefabObject<'a, S> {
+            type Value = PrefabObjectDeserializer<'a, S>;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("struct Entity")
@@ -449,20 +408,18 @@ impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityPre
                             let entity_id = entity_id.ok_or(de::Error::missing_field(
                                 "entity id must be serialized before components",
                             ))?;
-                            self.obj
+                            self.0
                                 .storage
-                                .begin_entity_object(&self.obj.prefab_id, &entity_id);
+                                .begin_entity_object(&self.0.prefab_id, &entity_id);
                             map.next_value_seed(SeqDeserializer(EntityComponent {
-                                prefab_id: self.obj.prefab_id,
+                                prefab_id: self.0.prefab_id,
                                 entity_id,
-                                storage: self.obj.storage,
-                                context: self.context,
-                                phantom_data: Default::default()
+                                storage: self.0.storage,
                             }))?;
-                            self.obj
+                            self.0
                                 .storage
-                                .end_entity_object(&self.obj.prefab_id, &entity_id);
-                            return Ok(self.obj);
+                                .end_entity_object(&self.0.prefab_id, &entity_id);
+                            return Ok(self.0);
                         }
                     }
                 }
@@ -474,7 +431,7 @@ impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for EntityPre
     }
 }
 
-impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for PrefabObjectDeserializer<'de, 'a, 'b, S, C> {
+impl<'de, 'a, S: Storage> DeserializeSeed<'de> for PrefabObjectDeserializer<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -486,7 +443,7 @@ impl<'de, 'a, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for PrefabObj
     }
 }
 
-impl<'a, 'b: 'de, 'de, S: Storage<'de, C>, C> Visitor<'de> for PrefabObjectDeserializer<'de, 'a, 'b, S, C> {
+impl<'a, 'de, S: Storage> Visitor<'de> for PrefabObjectDeserializer<'a, S> {
     type Value = ();
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -503,24 +460,18 @@ impl<'a, 'b: 'de, 'de, S: Storage<'de, C>, C> Visitor<'de> for PrefabObjectDeser
         }
         match de::EnumAccess::variant(data)? {
             (ObjectVariant::Entity, variant) => {
-                let context = self.context;
-                de::VariantAccess::newtype_variant_seed::<EntityPrefabObject<S, C>>(
+                de::VariantAccess::newtype_variant_seed::<EntityPrefabObject<S>>(
                     variant,
-                    EntityPrefabObject {
-                        obj: self,
-                        context
-                    },
+                    EntityPrefabObject(self),
                 )?;
                 Ok(())
             }
             (ObjectVariant::PrefabRef, variant) => {
-                de::VariantAccess::newtype_variant_seed::<PrefabRef<S, C>>(
+                de::VariantAccess::newtype_variant_seed::<PrefabRef<S>>(
                     variant,
                     PrefabRef {
                         parent_id: self.prefab_id,
                         storage: self.storage,
-                        context: self.context,
-                        phantom_data: Default::default()
                     },
                 )?;
                 Ok(())
@@ -555,12 +506,10 @@ impl<'de, T: DeserializeSeed<'de> + Clone> Visitor<'de> for SeqDeserializer<T> {
     }
 }
 
-pub struct PrefabDeserializer<'de, 'a, 'b: 'de, S: Storage<'de, C>, C: 'b> {
+pub struct PrefabDeserializer<'a, S: Storage> {
     pub storage: &'a S,
-    pub context: &'b C,
-    pub phantom_data: PhantomData<&'de C>
 }
-impl<'de, 'a: 'de, 'b: 'de, S: Storage<'de, C>, C> DeserializeSeed<'de> for PrefabDeserializer<'de, 'a, 'b, S, C> {
+impl<'de, 'a: 'de, S: Storage> DeserializeSeed<'de> for PrefabDeserializer<'a, S> {
     type Value = ();
 
     fn deserialize<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -578,7 +527,7 @@ enum PrefabField {
     Id,
     Objects,
 }
-impl<'a: 'de, 'b: 'de, 'de, S: Storage<'de, C>, C> Visitor<'de> for PrefabDeserializer<'de, 'a, 'b, S, C> {
+impl<'a: 'de, 'de, S: Storage> Visitor<'de> for PrefabDeserializer<'a, S> {
     type Value = ();
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -606,8 +555,6 @@ impl<'a: 'de, 'b: 'de, 'de, S: Storage<'de, C>, C> Visitor<'de> for PrefabDeseri
                                 "prefab ID must be serialized before prefab objects",
                             ))?,
                             storage: self.storage,
-                            context: self.context,
-                            phantom_data: Default::default()
                         },
                     ))?);
                 }

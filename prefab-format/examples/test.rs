@@ -1,4 +1,4 @@
-use prefab_format::{self, ComponentTypeUuid, EntityUuid, PrefabUuid, StorageDeserializer};
+use prefab_format::{self, ComponentTypeUuid, EntityUuid, PrefabUuid};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_diff::{Apply, SerdeDiff};
 use std::cell::RefCell;
@@ -18,32 +18,30 @@ struct World {
     transform: RefCell<Option<Transform>>,
 }
 
-impl<'de> prefab_format::StorageDeserializer<'de, ()> for World {
-    fn begin_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid) {}
-    fn end_entity_object(&self, prefab: &PrefabUuid, entity: &EntityUuid) {}
-    fn deserialize_component<D: Deserializer<'de>>(
+impl prefab_format::StorageDeserializer for World {
+    fn begin_entity_object(&self, _prefab: &PrefabUuid, _entity: &EntityUuid) {}
+    fn end_entity_object(&self, _prefab: &PrefabUuid, _entity: &EntityUuid) {}
+    fn deserialize_component<'de, D: Deserializer<'de>>(
         &self,
-        prefab: &PrefabUuid,
-        entity: &EntityUuid,
-        component_type: &ComponentTypeUuid,
+        _prefab: &PrefabUuid,
+        _entity: &EntityUuid,
+        _component_type: &ComponentTypeUuid,
         deserializer: D,
-        context: &()
     ) -> Result<(), D::Error> {
         println!("deserializing transform");
         *self.transform.borrow_mut() = Some(<Transform as Deserialize>::deserialize(deserializer)?);
         println!("deserialized {:?}", self.transform);
         Ok(())
     }
-    fn begin_prefab_ref(&self, prefab: &PrefabUuid, target_prefab: &PrefabUuid) {}
-    fn end_prefab_ref(&self, prefab: &PrefabUuid, target_prefab: &PrefabUuid) {}
-    fn apply_component_diff<D: Deserializer<'de>>(
+    fn begin_prefab_ref(&self, _prefab: &PrefabUuid, _target_prefab: &PrefabUuid) {}
+    fn end_prefab_ref(&self, _prefab: &PrefabUuid, _target_prefab: &PrefabUuid) {}
+    fn apply_component_diff<'de, D: Deserializer<'de>>(
         &self,
-        parent_prefab: &PrefabUuid,
-        prefab_ref: &PrefabUuid,
-        entity: &EntityUuid,
-        component_type: &ComponentTypeUuid,
+        _parent_prefab: &PrefabUuid,
+        _prefab_ref: &PrefabUuid,
+        _entity: &EntityUuid,
+        _component_type: &ComponentTypeUuid,
         deserializer: D,
-        context: &()
     ) -> Result<(), D::Error> {
         let mut transform = self.transform.borrow_mut();
         let transform = transform.as_mut().expect("diff but value didn't exist");
@@ -61,5 +59,5 @@ fn main() {
     let world = World {
         transform: RefCell::new(None),
     };
-    prefab_format::deserialize(&mut deserializer, &world, &()).unwrap();
+    prefab_format::deserialize(&mut deserializer, &world).unwrap();
 }

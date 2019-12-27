@@ -3,7 +3,6 @@ use crate::ComponentRegistration;
 use serde::Deserializer;
 use std::{cell::RefCell, collections::HashMap};
 use serde::{Deserialize, Serialize};
-use std::borrow::BorrowMut;
 
 /// The data we override on a component of an entity in another prefab that we reference
 pub struct ComponentOverride {
@@ -45,13 +44,19 @@ pub struct PrefabInner {
     pub prefab_meta: Option<PrefabMeta>
 }
 
-pub struct PrefabContext {
-    pub registered_components: HashMap<ComponentTypeUuid, ComponentRegistration>,
-}
-
+/// The data that is loaded/destroyed
 #[derive(Serialize, Deserialize)]
 pub struct Prefab {
     pub inner: RefCell<PrefabInner>,
+}
+
+pub struct PrefabDeserializeContext {
+    pub registered_components: HashMap<ComponentTypeUuid, ComponentRegistration>,
+}
+
+pub struct DeserializablePrefab<'a, 'b> {
+    pub prefab: &'a Prefab,
+    pub context: &'b PrefabDeserializeContext
 }
 
 impl PrefabInner {
@@ -75,39 +80,38 @@ impl PrefabInner {
 
 // This implementation takes care of reading a prefab source file. As we walk through the source
 // file the functions here are called and we build out the data
-impl<'de> StorageDeserializer<'de, PrefabContext> for &Prefab {
+impl StorageDeserializer for DeserializablePrefab<'_, '_> {
     fn begin_entity_object(
         &self,
         prefab: &PrefabUuid,
         entity: &EntityUuid,
     ) {
-        let mut this = self.inner.borrow_mut();
+        let mut this = self.prefab.inner.borrow_mut();
         let new_entity = this.world.insert((), vec![()])[0];
         let prefab = this.get_or_insert_prefab_mut(prefab);
         prefab.entities.insert(*entity, new_entity);
     }
     fn end_entity_object(
         &self,
-        prefab: &PrefabUuid,
-        entity: &EntityUuid,
+        _prefab: &PrefabUuid,
+        _entity: &EntityUuid,
     ) {
     }
-    fn deserialize_component<D: Deserializer<'de>>(
+    fn deserialize_component<'de, D: Deserializer<'de>>(
         &self,
         prefab: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
-        context: &PrefabContext
     ) -> Result<(), D::Error> {
-        let mut this = self.inner.borrow_mut();
+        let mut this = self.prefab.inner.borrow_mut();
         let prefab = this.get_or_insert_prefab_mut(prefab);
         let entity = *prefab
             .entities
             .get(entity)
             // deserializer implementation error, begin_entity_object shall always be called before deserialize_component
             .expect("could not find prefab entity");
-        let registered = context
+        let registered = self.context
             .registered_components
             .get(component_type)
             .ok_or_else(|| {
@@ -128,7 +132,7 @@ impl<'de> StorageDeserializer<'de, PrefabContext> for &Prefab {
         prefab: &PrefabUuid,
         target_prefab: &PrefabUuid,
     ) {
-        let mut this = self.inner.borrow_mut();
+        let mut this = self.prefab.inner.borrow_mut();
         let prefab = this.get_or_insert_prefab_mut(prefab);
         prefab
             .prefab_refs
@@ -139,20 +143,19 @@ impl<'de> StorageDeserializer<'de, PrefabContext> for &Prefab {
     }
     fn end_prefab_ref(
         &self,
-        prefab: &PrefabUuid,
-        target_prefab: &PrefabUuid,
+        _prefab: &PrefabUuid,
+        _target_prefab: &PrefabUuid,
     ) {
     }
-    fn apply_component_diff<D: Deserializer<'de>>(
+    fn apply_component_diff<'de, D: Deserializer<'de>>(
         &self,
         parent_prefab: &PrefabUuid,
         prefab_ref: &PrefabUuid,
         entity: &EntityUuid,
         component_type: &ComponentTypeUuid,
         deserializer: D,
-        context: &PrefabContext
     ) -> Result<(), D::Error> {
-        let mut this = self.inner.borrow_mut();
+        let mut this = self.prefab.inner.borrow_mut();
         let prefab = this.get_or_insert_prefab_mut(parent_prefab);
         let prefab_ref = prefab
             .prefab_refs
@@ -220,7 +223,7 @@ impl<'de> Deserialize<'de> for PrefabInner {
 
         // TODO support sharing universe
         let mut world = legion::world::World::new();
-        let mut deserializable_world = legion::de::deserializable(&mut world, &deserialize_impl);
+        let deserializable_world = legion::de::deserializable(&mut world, &deserialize_impl);
         serde::de::DeserializeSeed::deserialize(deserializable_world, deserializer)?;
 
         Ok(PrefabInner {

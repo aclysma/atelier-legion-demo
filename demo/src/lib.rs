@@ -3,7 +3,6 @@ extern crate nalgebra as na;
 use std::sync::Arc;
 
 use legion::prelude::*;
-use legion::storage::ComponentTypeId;
 
 use skulpin::skia_safe;
 
@@ -46,15 +45,6 @@ use components::Position2DComponentDefinition;
 
 mod prefab;
 use prefab::PrefabAsset;
-use serde::Deserializer;
-use std::collections::HashMap;
-use std::cell::RefCell;
-use prefab_format::{ComponentTypeUuid, PrefabUuid};
-use legion_prefab::ComponentRegistration;
-use std::hash::BuildHasherDefault;
-use std::any::{TypeId, Any};
-use serde::de::Visitor;
-use bincode::{ErrorKind, DeserializerAcceptor};
 
 //mod legion_serde_support;
 
@@ -75,12 +65,12 @@ impl Default for AssetManager {
     fn default() -> Self {
         let (tx, rx) = atelier_loader::crossbeam_channel::unbounded();
         let tx = Arc::new(tx);
-        let mut storage = GenericAssetStorage::new(tx.clone());
+        let storage = GenericAssetStorage::new(tx.clone());
 
         storage.add_storage::<Position2DComponentDefinition>();
         storage.add_storage::<PrefabAsset>();
 
-        let mut loader = RpcLoader::default();
+        let loader = RpcLoader::default();
 
         AssetManager {
             loader,
@@ -136,55 +126,14 @@ impl AssetManager {
             let prefab_asset: &PrefabAsset = handle.asset(&self.storage).unwrap();
 
             //
-            // Setup for deserializing the legion world out of the prefab
-            //
-            // let comp_types = {
-            //     let comp_registrations = [
-            //         ComponentRegistration::of::<components::Position2DComponentDefinition>(),
-            //         //ComponentRegistration::of::<Vel>(),
-            //     ];
-
-            //     use std::iter::FromIterator;
-            //     let comp_types: HashMap<ComponentTypeId, ComponentRegistration> =
-            //         HashMap::from_iter(
-            //             comp_registrations
-            //                 .iter()
-            //                 .map(|reg| (ComponentTypeId(reg.ty()), reg.clone())),
-            //         );
-
-            //     comp_types
-            // };
-
-            // let deserialize_impl = legion_prefab::DeserializeImpl::new(
-            //     HashMap::new(), // tag types
-            //     comp_types,
-            // );
-
-            //
-            // Create a world to deserialize data into
-            //
-            // let universe = Universe::new();
-            // let mut world = universe.create_world();
-
-            //
-            // Reading legion world from bincode
-            //
-            // let mut slice_reader = bincode::SliceReader::new(&prefab_asset.legion_world_bincode);
-            // let acceptor = LegionWorldBincodeDeserializerAcceptor {
-            //     world: &mut world,
-            //     deserialize_impl: &deserialize_impl,
-            // };
-            // bincode::with_deserializer(slice_reader, acceptor);
-
-            //
             // Print legion contents to prove that it worked
             //
             let mut ctx_mut = prefab_asset.prefab.inner.borrow_mut();
             println!("GAME: iterate positions");
             let query =
-                <(legion::prelude::Read<crate::components::Position2DComponentDefinition>)>::query(
+                <legion::prelude::Read<crate::components::Position2DComponentDefinition>>::query(
                 );
-            for (pos) in query.iter(&mut ctx_mut.world) {
+            for pos in query.iter(&mut ctx_mut.world) {
                 println!("position: {:?}", pos);
             }
             println!("GAME: done iterating positions");
