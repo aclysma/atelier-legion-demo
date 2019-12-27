@@ -227,7 +227,7 @@ impl Importer for PrefabImporter {
 
         // Add the ID to the .meta
         let prefab_id = prefab_asset.prefab.inner.borrow().prefab_id();
-        state.id = prefab_id.map(|id| AssetUuid(id));//Some(AssetUuid(*uuid::Uuid::new_v4().as_bytes()));
+        state.id = prefab_id.map(|id| AssetUuid(id));
 
         Ok(ImporterValue {
             assets: vec![ImportedAsset {
