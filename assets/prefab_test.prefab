@@ -1,6 +1,6 @@
 Prefab(
     // Prefab AssetUuid
-    id: "14dec17f-ae14-40a3-8e44-e487fc423287",
+    id: "49a78d30-0590-4511-9178-302a17f00882",
     objects: [
         // Inline definition of an entity and its components
         Entity((

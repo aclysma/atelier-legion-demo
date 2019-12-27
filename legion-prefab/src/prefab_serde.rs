@@ -76,6 +76,10 @@ impl PrefabInner {
 
         self.prefab_meta.as_mut().unwrap()
     }
+
+    pub fn prefab_id(&self) -> Option<PrefabUuid> {
+        self.prefab_meta.as_ref().map(|meta| meta.id.clone())
+    }
 }
 
 // This implementation takes care of reading a prefab source file. As we walk through the source

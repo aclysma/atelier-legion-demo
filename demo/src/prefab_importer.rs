@@ -121,11 +121,6 @@ impl Importer for PrefabImporter {
         _: Self::Options,
         state: &mut Self::State,
     ) -> atelier_importer::Result<ImporterValue> {
-        // Give it an ID
-        if state.id.is_none() {
-            state.id = Some(AssetUuid(*uuid::Uuid::new_v4().as_bytes()));
-        }
-
         ///////////////////////////////////////////////////////////////
         // STEP 1: Read in the data
         ///////////////////////////////////////////////////////////////
@@ -229,6 +224,10 @@ impl Importer for PrefabImporter {
             println!("Serialized legion world:");
             println!("legion_world_str {}", legion_world_str);
         }
+
+        // Add the ID to the .meta
+        let prefab_id = prefab_asset.prefab.inner.borrow().prefab_id();
+        state.id = prefab_id.map(|id| AssetUuid(id));//Some(AssetUuid(*uuid::Uuid::new_v4().as_bytes()));
 
         Ok(ImporterValue {
             assets: vec![ImportedAsset {
