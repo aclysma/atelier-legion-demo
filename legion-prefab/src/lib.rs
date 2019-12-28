@@ -8,17 +8,9 @@ pub use registration::{ComponentRegistration, TagRegistration};
 
 mod prefab_serde;
 pub use prefab_serde::{
-    ComponentOverride,
-    PrefabRef,
-    PrefabMeta,
-    PrefabInner,
-    Prefab,
+    ComponentOverride, PrefabRef, PrefabMeta, Prefab, PrefabFormatDeserializer,
     PrefabDeserializeContext,
-    DeserializablePrefab
 };
 
 mod world_serde;
-pub use world_serde::{
-    SerializeImpl,
-    DeserializeImpl
-};
+pub use world_serde::{SerializeImpl, DeserializeImpl};

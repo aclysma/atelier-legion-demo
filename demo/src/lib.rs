@@ -128,15 +128,18 @@ impl AssetManager {
             //
             // Print legion contents to prove that it worked
             //
-            let mut ctx_mut = prefab_asset.prefab.inner.borrow_mut();
             println!("GAME: iterate positions");
             let query =
-                <legion::prelude::Read<crate::components::Position2DComponentDefinition>>::query(
-                );
-            for pos in query.iter(&mut ctx_mut.world) {
+                <legion::prelude::Read<crate::components::Position2DComponentDefinition>>::query();
+            for pos in query.iter_immutable(&prefab_asset.prefab.world) {
                 println!("position: {:?}", pos);
             }
             println!("GAME: done iterating positions");
+            println!("GAME: iterating entities");
+            for (entity_uuid, entity_id) in &prefab_asset.prefab.prefab_meta.entities {
+                println!("GAME: entity {:?} maps to {:?}", entity_uuid, entity_id);
+            }
+            println!("GAME: done iterating entities");
         }
     }
 }

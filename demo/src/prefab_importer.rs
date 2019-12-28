@@ -182,34 +182,23 @@ impl Importer for PrefabImporter {
             component_types
         };
 
-        let prefab = legion_prefab::Prefab {
-            inner: RefCell::new(legion_prefab::PrefabInner {
-                world,
-                prefab_meta: None,
-            }),
-        };
-
         let prefab_serde_context = legion_prefab::PrefabDeserializeContext {
-            registered_components
+            registered_components,
         };
 
-        let prefab_test = legion_prefab::DeserializablePrefab {
-            prefab: &prefab,
-            context: &prefab_serde_context
-        };
-        prefab_format::deserialize(&mut de, &prefab_test)?;
+        let prefab_deser = legion_prefab::PrefabFormatDeserializer::new(&prefab_serde_context);
+        prefab_format::deserialize(&mut de, &prefab_deser)?;
+        let prefab = prefab_deser.prefab();
 
         println!("IMPORTER: iterate positions");
         let query =
             <legion::prelude::Read<crate::components::Position2DComponentDefinition>>::query();
-        for pos in query.iter(&mut prefab.inner.borrow_mut().world) {
+        for pos in query.iter_immutable(&prefab.world) {
             println!("position: {:?}", pos);
         }
         println!("IMPORTER: done iterating positions");
 
-        let prefab_asset = PrefabAsset {
-            prefab
-        };
+        let prefab_asset = PrefabAsset { prefab };
 
         ///////////////////////////////////////////////////////////////
         // STEP 5: Now we need to save it into an asset
@@ -226,8 +215,8 @@ impl Importer for PrefabImporter {
         }
 
         // Add the ID to the .meta
-        let prefab_id = prefab_asset.prefab.inner.borrow().prefab_id();
-        state.id = prefab_id.map(|id| AssetUuid(id));
+        let prefab_id = prefab_asset.prefab.prefab_id();
+        state.id = Some(AssetUuid(prefab_id));
 
         Ok(ImporterValue {
             assets: vec![ImportedAsset {
