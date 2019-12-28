@@ -123,6 +123,7 @@ impl<'a> PrefabFormatDeserializer<'a> {
             assert!(prefab.prefab_meta.id == *prefab_uuid);
         } else {
             prefab_cell.replace(Prefab {
+                // TODO support sharing universe
                 world: legion::world::World::new(),
                 prefab_meta: PrefabMeta {
                     id: *prefab_uuid,
