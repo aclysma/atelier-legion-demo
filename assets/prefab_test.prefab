@@ -31,5 +31,19 @@ Prefab(
                  ),
              ]
         )),
+        Entity((
+             // Entity AssetUuid
+             id: "6b114fd3-1aee-4501-8389-1015c3afbdc5",
+             // Component data and types
+             components: [
+                 (
+                     // Component AssetTypeId
+                     type: "fe5d26b5-582d-4464-8dec-ba234e31aa41",
+                     data: (
+                         handle: "position_component.ron"
+                     ),
+                 ),
+             ]
+        )),
     ]
 )

@@ -1,6 +1,6 @@
 (
     version: 1,
-    import_hash: Some(172068340319371470),
+    import_hash: Some(2886953142594922536),
     importer_version: 1,
     importer_type: "5bdf4d06-a1cb-437b-b182-d6d8cb23512c",
     importer_options: (),
@@ -13,8 +13,12 @@
             search_tags: [
                 ("file_name", Some("prefab_test.prefab")),
             ],
-            build_deps: [],
-            load_deps: [],
+            build_deps: [
+                Path("position_component.ron"),
+            ],
+            load_deps: [
+                Path("position_component.ron"),
+            ],
             build_pipeline: None,
             asset_type: "5e751ea4-e63b-4192-a008-f5bf8674e45b",
         ),
