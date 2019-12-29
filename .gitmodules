@@ -1,3 +1,6 @@
 [submodule "atelier-assets.git"]
 	path = atelier-assets
 	url = https://github.com/amethyst/atelier-assets.git
+[submodule "legion.git"]
+	path = legion
+	url = https://github.com/kabergstrom/legion.git

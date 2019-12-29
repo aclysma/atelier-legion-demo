@@ -135,7 +135,7 @@ dependencies = [
  "path-clean",
  "path-slash",
  "rayon",
- "ron",
+ "ron 0.5.1",
  "scoped_threadpool",
  "serde",
  "serde_derive",
@@ -151,7 +151,7 @@ dependencies = [
  "erased-serde",
  "inventory",
  "mopa",
- "ron",
+ "ron 0.4.2",
  "serde",
  "serde-importable-derive",
  "type-uuid",
@@ -180,7 +180,7 @@ dependencies = [
  "ncollide2d",
  "nphysics2d",
  "prefab-format",
- "ron",
+ "ron 0.4.2",
  "serde",
  "serde-diff",
  "serde-value",
@@ -1266,7 +1266,6 @@ checksum = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
 [[package]]
 name = "legion"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion.git?branch=serde#688765e83b836259fe3fd4beb4b496e494ee7e0e"
 dependencies = [
  "bit-set",
  "crossbeam",
@@ -1285,16 +1284,15 @@ dependencies = [
 name = "legion-prefab"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "erased-serde",
  "inventory",
  "legion",
  "prefab-format",
- "ron",
+ "ron 0.5.1",
  "serde",
  "serde-diff",
- "serde-transcode",
  "serde-value",
- "serde_json",
  "type-uuid",
  "uuid",
 ]
@@ -2002,7 +2000,7 @@ dependencies = [
  "erased-serde",
  "legion",
  "linkme",
- "ron",
+ "ron 0.5.1",
  "serde",
  "serde-diff",
  "serde-value",
@@ -2311,6 +2309,17 @@ checksum = "11a7e20d1cce64ef2fed88b66d347f88bd9babb82845b2b858f3edbf59a4f716"
 
 [[package]]
 name = "ron"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17f52a24414403f81528b67488cf8edc4eda977d3af1646bb6b106a600ead78f"
+dependencies = [
+ "base64",
+ "bitflags",
+ "serde",
+]
+
+[[package]]
+name = "ron"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ece421e0c4129b90e4a35b6f625e472e96c552136f5093a2f4fa2bbb75a62d5"
@@ -2444,15 +2453,6 @@ version = "0.1.0"
 dependencies = [
  "quote 1.0.2",
  "syn 1.0.11",
-]
-
-[[package]]
-name = "serde-transcode"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97528f0dfcf8ce2d51d995cb513a103b9cd301dc3f387a9cae5ef974381d4e1c"
-dependencies = [
- "serde",
 ]
 
 [[package]]
