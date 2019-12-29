@@ -8,7 +8,6 @@ use crate::prefab::PrefabAsset;
 
 use legion::prelude::*;
 use legion_prefab::ComponentRegistration;
-use crate::components;
 use std::collections::HashMap;
 use prefab_format::{ComponentTypeUuid, PrefabUuid, EntityUuid};
 use std::cell::RefCell;
@@ -166,18 +165,10 @@ impl Importer for PrefabImporter {
 
         // Create the component registry
         let registered_components = {
-            let comp_registrations = [
-                ComponentRegistration::of::<components::Position2DComponentDefinition>(),
-                //ComponentRegistration::of::<Vel>(),
-            ];
-
+            let comp_registrations = legion_prefab::iter_component_registrations();
             use std::iter::FromIterator;
             let component_types: HashMap<ComponentTypeUuid, ComponentRegistration> =
-                HashMap::from_iter(
-                    comp_registrations
-                        .iter()
-                        .map(|reg| (reg.uuid().clone(), reg.clone())),
-                );
+                HashMap::from_iter(comp_registrations.map(|reg| (reg.uuid().clone(), reg.clone())));
 
             component_types
         };

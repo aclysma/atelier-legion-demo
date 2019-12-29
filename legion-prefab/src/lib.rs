@@ -4,7 +4,9 @@ pub use inventory;
 use prefab_format as format;
 
 mod registration;
-pub use registration::{ComponentRegistration, TagRegistration};
+pub use registration::{
+    ComponentRegistration, TagRegistration, iter_component_registrations, iter_tag_registrations,
+};
 
 mod prefab_serde;
 pub use prefab_serde::{
