@@ -45,6 +45,8 @@ use components::Position2DComponentDefinition;
 
 mod prefab;
 use prefab::PrefabAsset;
+use legion::storage::{ComponentMeta, ComponentTypeId};
+use legion::borrow::UnsafeClone;
 
 //mod legion_serde_support;
 
@@ -140,7 +142,35 @@ impl AssetManager {
                 println!("GAME: entity {:?} maps to {:?}", entity_uuid, entity_id);
             }
             println!("GAME: done iterating entities");
+
+            let universe = Universe::new();
+            let mut world = universe.create_world();
+
+            let clone_merge_impl = CloneMergeImpl {};
+            println!("--- CLONE MERGE 1 ---");
+            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl);
+            println!("--- CLONE MERGE 2 ---");
+            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl);
+
+
+            //world.merge(prefab_asset.prefab.world);
+
+            std::process::abort();
         }
+    }
+}
+
+struct CloneMergeImpl {
+
+}
+
+impl legion::world::CloneImpl for CloneMergeImpl {
+    fn map_component_type(&self, component_type: &(ComponentTypeId, ComponentMeta)) -> (ComponentTypeId, ComponentMeta) {
+        component_type.clone()
+    }
+
+    fn clone(&self, src_type: &ComponentMeta, dst_type: &ComponentMeta, src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+
     }
 }
 
