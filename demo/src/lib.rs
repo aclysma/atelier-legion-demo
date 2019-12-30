@@ -42,7 +42,6 @@ mod prefab_importer;
 //pub mod game;
 
 use components::Position2DComponentDefinition;
-use components::PositionReference;
 
 mod prefab;
 use prefab::PrefabAsset;
@@ -236,14 +235,14 @@ impl AssetManager {
 struct CloneMergeImplMapping {
     dst_type_id: ComponentTypeId,
     dst_type_meta: ComponentMeta,
-    clone_fn: fn(src_data: *const u8, dst_data: *mut u8, num_components: usize)
+    clone_fn: fn(entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize)
 }
 
 impl CloneMergeImplMapping {
     fn new(
         dst_type_id: ComponentTypeId,
         dst_type_meta: ComponentMeta,
-        clone_fn: fn(src_data: *const u8, dst_data: *mut u8, num_components: usize)
+        clone_fn: fn(entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize)
     ) -> Self {
         CloneMergeImplMapping {
             dst_type_id,
@@ -295,7 +294,7 @@ impl CloneMergeImpl {
         let handler = CloneMergeImplMapping::new(
             into_type_id,
             into_type_meta,
-            |src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+            |_entities, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
                 println!("Map type {} to {}", core::any::type_name::<FromT>(), core::any::type_name::<FromT>());
 
                 unsafe {
@@ -320,7 +319,7 @@ impl CloneMergeImpl {
         let handler = CloneMergeImplMapping::new(
             type_id,
             type_meta,
-            |src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+            |_entities, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
                 println!("Clone {}", core::any::type_name::<T>());
 
                 unsafe {
@@ -344,9 +343,9 @@ impl legion::world::CloneImpl for CloneMergeImpl {
         (handler.dst_type_id, handler.dst_type_meta)
     }
 
-    fn clone(&self, src_type: ComponentTypeId, src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+    fn clone(&self, entities: &[Entity], src_type: ComponentTypeId, src_data: *const u8, dst_data: *mut u8, num_components: usize) {
         let handler = &self.handlers[&src_type];
-        (handler.clone_fn)(src_data, dst_data, num_components);
+        (handler.clone_fn)(entities, src_data, dst_data, num_components);
     }
 }
 
