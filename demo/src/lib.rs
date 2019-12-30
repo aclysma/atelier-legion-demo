@@ -147,14 +147,73 @@ impl AssetManager {
             let mut world = universe.create_world();
 
             println!("--- CLONE MERGE 1 ---");
+            println!("This test just clones Position2DComponentDefinition");
             let mut clone_merge_impl = CloneMergeImpl::new();
             clone_merge_impl.add_clone::<Position2DComponentDefinition>();
-            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl);
+            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None);
+
+            println!("MERGED: iterate positions");
+            let query =
+                <legion::prelude::Read<Position2DComponentDefinition>>::query();
+            for (e, pos_def) in query.iter_entities_immutable(&world) {
+                println!("entity: {:?} position_def: {:?}", e, pos_def);
+            }
+            let query =
+                <legion::prelude::Read<Position2DComponent>>::query();
+            for (e, pos) in query.iter_entities_immutable(&world) {
+                println!("entity: {:?} position: {:?}", e, pos);
+            }
+            println!("MERGED: done iterating positions");
 
             println!("--- CLONE MERGE 2 ---");
+            println!("This test transforms Position2DComponentDefinition into Position2DComponent");
             let mut clone_merge_impl = CloneMergeImpl::new();
             clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
-            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl);
+            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None);
+
+            println!("MERGED: iterate positions");
+            let query =
+                <legion::prelude::Read<Position2DComponentDefinition>>::query();
+            for (e, pos_def) in query.iter_entities_immutable(&world) {
+                println!("entity: {:?} position_def: {:?}", e, pos_def);
+            }
+            let query =
+                <legion::prelude::Read<Position2DComponent>>::query();
+            for (e, pos) in query.iter_entities_immutable(&world) {
+                println!("entity: {:?} position: {:?}", e, pos);
+            }
+            println!("MERGED: done iterating positions");
+
+            println!("--- CLONE MERGE 3 ---");
+            println!("This test demonstrates replacing existing entities rather than making new ones");
+            let mut clone_merge_impl = CloneMergeImpl::new();
+            clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
+            //clone_merge_impl.add_clone::<Position2DComponentDefinition>();
+
+            // Get a list of entities in the prefab
+            let mut prefab_entities = vec![];
+            let query =
+                <legion::prelude::Read<Position2DComponentDefinition>>::query();
+            for (e, _) in query.iter_entities_immutable(&prefab_asset.prefab.world) {
+                prefab_entities.push(e);
+            }
+
+            // Get a list of entities in the world
+            let mut world_entities = vec![];
+            let query =
+                <legion::prelude::Read<Position2DComponent>>::query();
+            for (e, _) in query.iter_entities_immutable(&world) {
+                world_entities.push(e);
+            }
+
+            // Create a hashmap to map them 1:1
+            let mut mappings = std::collections::HashMap::new();
+            for (k, v) in prefab_entities.iter().zip(world_entities) {
+                mappings.insert(*k, v);
+            }
+
+            println!("mappings: {:#?}", mappings);
+            world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, Some(&mappings));
 
             println!("MERGED: iterate positions");
             let query =
