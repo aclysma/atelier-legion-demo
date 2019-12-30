@@ -42,11 +42,11 @@ mod prefab_importer;
 //pub mod game;
 
 use components::Position2DComponentDefinition;
+use components::PositionReference;
 
 mod prefab;
 use prefab::PrefabAsset;
-use legion::storage::{ComponentMeta, ComponentTypeId};
-use legion::borrow::UnsafeClone;
+use legion::storage::{ComponentMeta, ComponentTypeId, Component};
 
 //mod legion_serde_support;
 
@@ -132,7 +132,7 @@ impl AssetManager {
             //
             println!("GAME: iterate positions");
             let query =
-                <legion::prelude::Read<crate::components::Position2DComponentDefinition>>::query();
+                <legion::prelude::Read<Position2DComponentDefinition>>::query();
             for pos in query.iter_immutable(&prefab_asset.prefab.world) {
                 println!("position: {:?}", pos);
             }
@@ -146,52 +146,148 @@ impl AssetManager {
             let universe = Universe::new();
             let mut world = universe.create_world();
 
-            let clone_merge_impl = CloneMergeImpl {};
             println!("--- CLONE MERGE 1 ---");
+            let mut clone_merge_impl = CloneMergeImpl::new();
+            clone_merge_impl.add_clone::<Position2DComponentDefinition>();
             world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl);
+
             println!("--- CLONE MERGE 2 ---");
+            let mut clone_merge_impl = CloneMergeImpl::new();
+            clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
             world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl);
 
-
-            //world.merge(prefab_asset.prefab.world);
+            println!("MERGED: iterate positions");
+            let query =
+                <legion::prelude::Read<Position2DComponentDefinition>>::query();
+            for (e, pos_def) in query.iter_entities_immutable(&world) {
+                println!("entity: {:?} position_def: {:?}", e, pos_def);
+            }
+            let query =
+                <legion::prelude::Read<Position2DComponent>>::query();
+            for (e, pos) in query.iter_entities_immutable(&world) {
+                println!("entity: {:?} position: {:?}", e, pos);
+            }
+            println!("MERGED: done iterating positions");
 
             std::process::abort();
         }
     }
 }
 
-struct CloneMergeImpl {
+struct CloneMergeImplMapping {
+    dst_type_id: ComponentTypeId,
+    dst_type_meta: ComponentMeta,
+    clone_fn: fn(src_data: *const u8, dst_data: *mut u8, num_components: usize)
+}
 
+impl CloneMergeImplMapping {
+    fn new(
+        dst_type_id: ComponentTypeId,
+        dst_type_meta: ComponentMeta,
+        clone_fn: fn(src_data: *const u8, dst_data: *mut u8, num_components: usize)
+    ) -> Self {
+        CloneMergeImplMapping {
+            dst_type_id,
+            dst_type_meta,
+            clone_fn
+        }
+    }
+}
+
+#[derive(Default)]
+struct CloneMergeImpl {
+    handlers: std::collections::HashMap<ComponentTypeId, CloneMergeImplMapping>
+}
+
+impl CloneMergeImpl {
+    fn new() -> Self {
+        Self::default()
+    }
+
+//    fn add_mapping<FromT : Component, IntoT : Component>(
+//        &mut self,
+//        clone_fn: fn(from: &[FromT], to: &mut [IntoT])
+//    ) {
+//        let from_type_id = ComponentTypeId::of::<FromT>();
+//        let into_type_id = ComponentTypeId::of::<IntoT>();
+//        let into_type_meta = ComponentMeta::of::<IntoT>();
+//
+//        let handler = CloneMergeImplMapping::new(
+//            into_type_id,
+//            into_type_meta,
+//            |src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+//                println!("Map type {} to {}", core::any::type_name::<FromT>(), core::any::type_name::<FromT>());
+//
+//                unsafe {
+//                    let from_slice = std::slice::from_raw_parts(src_data as *const FromT, num_components);
+//                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+//                    (clone_fn)(from_slice, to_slice);
+//                }
+//        });
+//
+//        self.handlers.insert(from_type_id, handler);
+//    }
+
+    fn add_mapping_into<FromT : Component + Clone, IntoT : Component + From<FromT>>(&mut self) {
+        let from_type_id = ComponentTypeId::of::<FromT>();
+        let into_type_id = ComponentTypeId::of::<IntoT>();
+        let into_type_meta = ComponentMeta::of::<IntoT>();
+
+        let handler = CloneMergeImplMapping::new(
+            into_type_id,
+            into_type_meta,
+            |src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+                println!("Map type {} to {}", core::any::type_name::<FromT>(), core::any::type_name::<FromT>());
+
+                unsafe {
+                    let from_slice = std::slice::from_raw_parts(src_data as *const FromT, num_components);
+                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+
+                    from_slice.iter().zip(to_slice).for_each(|(from, to)| {
+                        *to = (*from).clone().into();
+                    });
+                }
+            });
+
+        self.handlers.insert(from_type_id, handler);
+    }
+
+    fn add_clone<T : Component + Clone>(
+        &mut self
+    ) {
+        let type_id = ComponentTypeId::of::<T>();
+        let type_meta = ComponentMeta::of::<T>();
+
+        let handler = CloneMergeImplMapping::new(
+            type_id,
+            type_meta,
+            |src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+                println!("Clone {}", core::any::type_name::<T>());
+
+                unsafe {
+                    let from_slice = std::slice::from_raw_parts(src_data as *const T, num_components);
+                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut T, num_components);
+
+                    from_slice.iter().zip(to_slice).for_each(|(from, to)| {
+                        *to = (*from).clone();
+                    });
+                }
+        });
+
+        self.handlers.insert(type_id, handler);
+    }
 }
 
 impl legion::world::CloneImpl for CloneMergeImpl {
-    fn map_component_type(&self, component_type: &(ComponentTypeId, ComponentMeta)) -> (ComponentTypeId, ComponentMeta) {
-        component_type.clone()
+    fn map_component_type(&self, component_type: ComponentTypeId) -> (ComponentTypeId, ComponentMeta) {
+        // We expect any type we will encounter to be registered
+        let handler = &self.handlers[&component_type];
+        (handler.dst_type_id, handler.dst_type_meta)
     }
 
-    fn clone(&self, src_type: &ComponentMeta, dst_type: &ComponentMeta, src_data: *const u8, dst_data: *mut u8, num_components: usize) {
-
-    }
-}
-
-// bincode API requires us to implement an acceptor in order to get a deserializer impl. We need
-// the impl so that we can pass it to legion::de::deserialize()
-struct LegionWorldBincodeDeserializerAcceptor<'b, 'c> {
-    world: &'b mut World,
-    deserialize_impl: &'c legion_prefab::DeserializeImpl,
-}
-
-impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a>
-    for LegionWorldBincodeDeserializerAcceptor<'b, 'c>
-{
-    type Output = ();
-
-    //TODO: Error handling needs to be passed back out
-    fn accept<T: serde::Deserializer<'a>>(
-        self,
-        de: T,
-    ) -> Self::Output {
-        legion::de::deserialize(self.world, self.deserialize_impl, de).unwrap();
+    fn clone(&self, src_type: ComponentTypeId, src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+        let handler = &self.handlers[&src_type];
+        (handler.clone_fn)(src_data, dst_data, num_components);
     }
 }
 
@@ -216,6 +312,16 @@ struct DrawSkiaCircleComponent {
 #[derive(Debug)]
 struct Position2DComponent {
     position: na::Vector2<f32>,
+}
+
+impl From<Position2DComponentDefinition> for Position2DComponent {
+    fn from(from: Position2DComponentDefinition) -> Self {
+        Position2DComponent {
+            position: {
+                from.position
+            }
+        }
+    }
 }
 
 struct RigidBodyComponent {

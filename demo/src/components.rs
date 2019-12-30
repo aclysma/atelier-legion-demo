@@ -5,7 +5,7 @@ use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 
 // Components require TypeUuid + Serialize + Deserialize + SerdeDiff + Send + Sync
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq)]
+#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
 #[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
 pub struct Position2DComponentDefinition {
     #[serde_diff(inline)]

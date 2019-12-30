@@ -159,10 +159,6 @@ impl Importer for PrefabImporter {
         // Pass it to the reader
         //let prefab_data_buffer = legion_prefab::prefab_data::PrefabDataReader::default();
 
-        // Create an empty legion universe/world
-        let universe = Universe::new();
-        let world = universe.create_world();
-
         // Create the component registry
         let registered_components = {
             let comp_registrations = legion_prefab::iter_component_registrations();
