@@ -214,7 +214,7 @@ impl AssetManager {
             }
 
             // Create a hashmap to map them 1:1
-            let mut mappings = std::collections::HashMap::new();
+            let mut mappings = HashMap::new();
             for (k, v) in prefab_entities.iter().zip(world_entities) {
                 mappings.insert(*k, v);
             }
@@ -262,7 +262,7 @@ impl CloneMergeImplMapping {
 
 #[derive(Default)]
 struct CloneMergeImpl {
-    handlers: std::collections::HashMap<ComponentTypeId, CloneMergeImplMapping>,
+    handlers: HashMap<ComponentTypeId, CloneMergeImplMapping>,
     components: HashMap<ComponentTypeId, ComponentRegistration>,
 }
 
