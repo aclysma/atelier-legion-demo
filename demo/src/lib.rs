@@ -176,7 +176,16 @@ impl AssetManager {
             println!("--- CLONE MERGE 2 ---");
             println!("This test transforms Position2DComponentDefinition into Position2DComponent");
             let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
-            clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
+            //clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
+
+            clone_merge_impl.add_mapping::<Position2DComponentDefinition, Position2DComponent, _>(|_resources, _entities, from, into| {
+                for (f, t) in from.iter().zip(into) {
+                    *t = Position2DComponent {
+                        position: f.position
+                    };
+                }
+            });
+
             world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None);
 
             println!("MERGED: iterate positions");
@@ -240,19 +249,41 @@ impl AssetManager {
     }
 }
 
-struct CloneMergeImplMapping {
-    dst_type_id: ComponentTypeId,
-    dst_type_meta: ComponentMeta,
-    clone_fn: fn(entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize)
+trait CloneMergeMapping {
+    fn dst_type_id(&self) -> ComponentTypeId;
+    fn dst_type_meta(&self) -> ComponentMeta;
+    fn clone_components(&self, resources: &Resources, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize);
 }
 
-impl CloneMergeImplMapping {
+struct CloneMergeMappingImpl<F>
+    where F: Fn(
+        &Resources, // resources
+        &[Entity], // entities
+        *const u8, // src_data
+        *mut u8, // dst_data
+        usize // num_components
+    )
+{
+    dst_type_id: ComponentTypeId,
+    dst_type_meta: ComponentMeta,
+    clone_fn: F
+}
+
+impl<F> CloneMergeMappingImpl<F>
+    where F: Fn(
+        &Resources, // resources
+        &[Entity], // entities
+        *const u8, // src_data
+        *mut u8, // dst_data
+        usize // num_components
+    )
+{
     fn new(
         dst_type_id: ComponentTypeId,
         dst_type_meta: ComponentMeta,
-        clone_fn: fn(entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize)
+        clone_fn: F
     ) -> Self {
-        CloneMergeImplMapping {
+        CloneMergeMappingImpl {
             dst_type_id,
             dst_type_meta,
             clone_fn
@@ -260,9 +291,31 @@ impl CloneMergeImplMapping {
     }
 }
 
+impl<F> CloneMergeMapping for CloneMergeMappingImpl<F>
+    where F: Fn(
+        &Resources, // resources
+        &[Entity], // entities
+        *const u8, // src_data
+        *mut u8, // dst_data
+        usize // num_components
+    )
+{
+    fn dst_type_id(&self) -> ComponentTypeId {
+        self.dst_type_id
+    }
+
+    fn dst_type_meta(&self) -> ComponentMeta {
+        self.dst_type_meta
+    }
+
+    fn clone_components(&self, resources: &Resources, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+        (self.clone_fn)(resources, entities, src_data, dst_data, num_components);
+    }
+}
+
 #[derive(Default)]
 struct CloneMergeImpl {
-    handlers: HashMap<ComponentTypeId, CloneMergeImplMapping>,
+    handlers: HashMap<ComponentTypeId, Box<dyn CloneMergeMapping>>,
     components: HashMap<ComponentTypeId, ComponentRegistration>,
 }
 
@@ -274,39 +327,44 @@ impl CloneMergeImpl {
         }
     }
 
-//    fn add_mapping<FromT : Component, IntoT : Component>(
-//        &mut self,
-//        clone_fn: fn(from: &[FromT], to: &mut [IntoT])
-//    ) {
-//        let from_type_id = ComponentTypeId::of::<FromT>();
-//        let into_type_id = ComponentTypeId::of::<IntoT>();
-//        let into_type_meta = ComponentMeta::of::<IntoT>();
-//
-//        let handler = CloneMergeImplMapping::new(
-//            into_type_id,
-//            into_type_meta,
-//            |src_data: *const u8, dst_data: *mut u8, num_components: usize| {
-//                println!("Map type {} to {}", core::any::type_name::<FromT>(), core::any::type_name::<FromT>());
-//
-//                unsafe {
-//                    let from_slice = std::slice::from_raw_parts(src_data as *const FromT, num_components);
-//                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
-//                    (clone_fn)(from_slice, to_slice);
-//                }
-//        });
-//
-//        self.handlers.insert(from_type_id, handler);
-//    }
+    fn add_mapping<FromT, IntoT, F>(
+        &mut self,
+        clone_fn: F
+    )
+    where
+        FromT: Component,
+        IntoT: Component,
+        F: Fn(&Resources, &[Entity], &[FromT], &mut [IntoT]) + 'static
+    {
+        let from_type_id = ComponentTypeId::of::<FromT>();
+        let into_type_id = ComponentTypeId::of::<IntoT>();
+        let into_type_meta = ComponentMeta::of::<IntoT>();
+
+        let handler = Box::new(CloneMergeMappingImpl::new(
+            into_type_id,
+            into_type_meta,
+            move |resources, entities, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+                println!("Map type {} to {}", core::any::type_name::<FromT>(), core::any::type_name::<FromT>());
+
+                unsafe {
+                    let from_slice = std::slice::from_raw_parts(src_data as *const FromT, num_components);
+                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+                    (clone_fn)(resources, entities, from_slice, to_slice);
+                }
+        }));
+
+        self.handlers.insert(from_type_id, handler);
+    }
 
     fn add_mapping_into<FromT : Component + Clone, IntoT : Component + From<FromT>>(&mut self) {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
         let into_type_meta = ComponentMeta::of::<IntoT>();
 
-        let handler = CloneMergeImplMapping::new(
+        let handler = Box::new(CloneMergeMappingImpl::new(
             into_type_id,
             into_type_meta,
-            |_entities, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+            |_entities, _resources, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
                 println!("Map type {} to {}", core::any::type_name::<FromT>(), core::any::type_name::<FromT>());
 
                 unsafe {
@@ -317,7 +375,7 @@ impl CloneMergeImpl {
                         *to = (*from).clone().into();
                     });
                 }
-            });
+            }));
 
         self.handlers.insert(from_type_id, handler);
     }
@@ -328,17 +386,17 @@ impl legion::world::CloneImpl for CloneMergeImpl {
         // We expect any type we will encounter to be registered
         let handler = &self.handlers.get(&component_type);
         if let Some(handler) = handler {
-            (handler.dst_type_id, handler.dst_type_meta)
+            (handler.dst_type_id(), handler.dst_type_meta())
         } else {
             let comp_reg = &self.components[&component_type];
             (ComponentTypeId(comp_reg.ty()), comp_reg.meta().clone())
         }
     }
 
-    fn clone(&self, entities: &[Entity], src_type: ComponentTypeId, src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+    fn clone_components(&self, resources: &Resources, src_type: ComponentTypeId, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize) {
         let handler = &self.handlers.get(&src_type);
         if let Some(handler) = handler {
-            (handler.clone_fn)(entities, src_data, dst_data, num_components);
+            handler.clone_components(resources, entities, src_data, dst_data, num_components);
         } else {
             let comp_reg = &self.components[&src_type];
             unsafe {

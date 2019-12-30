@@ -3,7 +3,7 @@ use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 
 // Components require TypeUuid + Serialize + Deserialize + SerdeDiff + Send + Sync
-#[derive(TypeUuid, Serialize, Deserialize, SerdeDiff)]
+#[derive(TypeUuid, Serialize, Deserialize, SerdeDiff, Clone)]
 #[uuid = "d4b83227-d3f8-47f5-b026-db615fb41d31"]
 struct Transform {
     value: u32,
