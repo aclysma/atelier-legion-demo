@@ -14,7 +14,7 @@ pub struct Position2DComponentDefinition {
 
 legion_prefab::register_component_type!(Position2DComponentDefinition);
 
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
+#[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
 #[uuid = "fe5d26b5-582d-4464-8dec-ba234e31aa41"]
 pub struct PositionReference {
     #[serde_diff(inline)]

@@ -1,5 +1,5 @@
 pub use inventory;
-use legion::storage::{ArchetypeDescription, ComponentResourceSet, TagStorage};
+use legion::storage::{ComponentMeta, ArchetypeDescription, ComponentResourceSet, TagStorage};
 use serde::{
     de::{self, DeserializeSeed, IgnoredAny, Visitor},
     Deserialize, Deserializer, Serialize,
@@ -161,6 +161,7 @@ impl TagRegistration {
 pub struct ComponentRegistration {
     pub(crate) uuid: type_uuid::Bytes,
     pub(crate) ty: TypeId,
+    pub(crate) meta: ComponentMeta,
     pub(crate) comp_serialize_fn:
         unsafe fn(&ComponentResourceSet, &mut dyn FnMut(&dyn erased_serde::Serialize)),
     pub(crate) comp_deserialize_fn: fn(
@@ -172,6 +173,7 @@ pub struct ComponentRegistration {
         fn(&mut dyn erased_serde::Deserializer, &mut legion::world::World, legion::entity::Entity),
     pub(crate) apply_diff:
         fn(&mut dyn erased_serde::Deserializer, &mut legion::world::World, legion::entity::Entity),
+    pub(crate) comp_clone_fn: fn(*const u8, *mut u8, usize),
 }
 
 impl ComponentRegistration {
@@ -183,12 +185,21 @@ impl ComponentRegistration {
         self.ty
     }
 
+    pub fn meta(&self) -> &ComponentMeta {
+        &self.meta
+    }
+
+    pub unsafe fn clone_components(&self, src: *const u8, dst: *mut u8, num_components: usize) {
+        (self.comp_clone_fn)(src, dst, num_components);
+    }
+
     pub fn of<
-        T: TypeUuid + Serialize + SerdeDiff + for<'de> Deserialize<'de> + Send + Sync + 'static,
+        T: TypeUuid + Clone + Serialize + SerdeDiff + for<'de> Deserialize<'de> + Send + Sync + 'static,
     >() -> Self {
         Self {
             uuid: T::UUID,
             ty: TypeId::of::<T>(),
+            meta: ComponentMeta::of::<T>(),
             comp_serialize_fn: |comp_storage, serialize_fn| unsafe {
                 let slice = comp_storage.data_slice::<T>();
                 serialize_fn(&*slice);
@@ -221,6 +232,15 @@ impl ComponentRegistration {
                     d,
                 )
                 .expect("failed to deserialize diff");
+            },
+            comp_clone_fn: |src, dst, num_components| {
+                unsafe {
+                    for i in 0..num_components {
+                        let src_ptr = (src as *const T).add(i);
+                        let dst_ptr = (dst as *mut T).add(i);
+                        std::ptr::write(dst_ptr, <T as Clone>::clone(&*src_ptr));
+                    }
+                }
             },
         }
     }
