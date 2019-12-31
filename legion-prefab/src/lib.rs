@@ -14,5 +14,10 @@ pub use prefab_serde::{
     PrefabDeserializeContext,
 };
 
+mod cooked_prefab;
+pub use cooked_prefab::{
+    CookedPrefab
+};
+
 mod world_serde;
 pub use world_serde::{SerializeImpl, DeserializeImpl};

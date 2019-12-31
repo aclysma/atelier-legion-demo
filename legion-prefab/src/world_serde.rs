@@ -26,11 +26,12 @@ impl SerializeImpl {
     pub fn new(
         tag_types: HashMap<TagTypeId, TagRegistration>,
         comp_types: HashMap<ComponentTypeId, ComponentRegistration>,
+        entity_map: HashMap<Entity, uuid::Bytes>
     ) -> Self {
         SerializeImpl {
             tag_types,
             comp_types,
-            entity_map: RefCell::new(HashMap::new()),
+            entity_map: RefCell::new(entity_map),
         }
     }
 

@@ -257,7 +257,13 @@ impl Serialize for Prefab {
                 .map(|reg| (legion::storage::ComponentTypeId(reg.ty()), reg.clone())),
         );
 
-        let serialize_impl = crate::SerializeImpl::new(tag_types, comp_types);
+        // Providing this map ensures that UUIDs are preserved across serialization/deserialization
+        let mut entity_map = HashMap::with_capacity(self.prefab_meta.entities.len());
+        for (k, v) in &self.prefab_meta.entities {
+            entity_map.insert(*v, *k);
+        }
+
+        let serialize_impl = crate::SerializeImpl::new(tag_types, comp_types, entity_map);
         let serializable_world = legion::ser::serializable_world(&self.world, &serialize_impl);
         let mut struct_ser = serializer.serialize_struct("Prefab", 2)?;
         struct_ser.serialize_field("prefab_meta", &self.prefab_meta)?;

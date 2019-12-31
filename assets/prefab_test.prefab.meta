@@ -1,6 +1,6 @@
 (
     version: 1,
-    import_hash: Some(2886953142594922536),
+    import_hash: Some(9973176370906554000),
     importer_version: 1,
     importer_type: "5bdf4d06-a1cb-437b-b182-d6d8cb23512c",
     importer_options: (),
@@ -13,14 +13,21 @@
             search_tags: [
                 ("file_name", Some("prefab_test.prefab")),
             ],
-            build_deps: [
-                Path("position_component.ron"),
-            ],
-            load_deps: [
-                Path("position_component.ron"),
-            ],
             build_pipeline: None,
-            asset_type: "5e751ea4-e63b-4192-a008-f5bf8674e45b",
+            artifact: Some((
+                hash: 8633923056455949572,
+                id: "49a78d30-0590-4511-9178-302a17f00882",
+                build_deps: [
+                    Path("position_component.ron"),
+                ],
+                load_deps: [
+                    Path("position_component.ron"),
+                ],
+                compression: None,
+                compressed_size: Some(296),
+                uncompressed_size: Some(296),
+                type_id: "5e751ea4-e63b-4192-a008-f5bf8674e45b",
+            )),
         ),
     ],
 )
