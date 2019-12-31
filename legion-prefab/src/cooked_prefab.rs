@@ -1,8 +1,6 @@
-use crate::format::{ComponentTypeUuid, EntityUuid, PrefabUuid, StorageDeserializer};
-use crate::ComponentRegistration;
+use crate::format::EntityUuid;
 use serde::{Serializer, Deserializer};
 use std::{
-    cell::{RefCell, RefMut},
     collections::HashMap,
 };
 use serde::{Deserialize, Serialize};
@@ -12,13 +10,13 @@ pub struct CookedPrefab {
     pub entities: HashMap<EntityUuid, legion::entity::Entity>
 }
 
-impl serde::Serialize for CookedPrefab {
+impl Serialize for CookedPrefab {
     fn serialize<S>(
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error>
         where
-            S: serde::Serializer,
+            S: Serializer,
     {
         use std::iter::FromIterator;
         use serde::ser::SerializeStruct;
@@ -44,15 +42,15 @@ impl serde::Serialize for CookedPrefab {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(field_identifier, rename_all = "snake_case")]
 enum PrefabField {
     World,
 }
-impl<'de> serde::Deserialize<'de> for CookedPrefab {
+impl<'de> Deserialize<'de> for CookedPrefab {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
-            D: serde::Deserializer<'de>,
+            D: Deserializer<'de>,
     {
         struct PrefabDeserVisitor;
         impl<'de> serde::de::Visitor<'de> for PrefabDeserVisitor {

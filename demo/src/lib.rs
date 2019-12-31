@@ -23,7 +23,7 @@ use atelier_loader::{
     asset_uuid,
     handle::{AssetHandle, Handle, RefOp},
     rpc_loader::RpcLoader,
-    LoadStatus, Loader, LoadHandle
+    LoadStatus, Loader
 };
 
 use atelier_core::AssetUuid;
@@ -50,6 +50,7 @@ use components::PositionReference;
 mod prefab;
 use prefab::PrefabAsset;
 use legion::storage::{ComponentMeta, ComponentTypeId, Component};
+use prefab_format::ComponentTypeUuid;
 
 //mod legion_serde_support;
 
@@ -267,6 +268,16 @@ impl AssetManager {
             component_types
         };
 
+        // Create the component registry
+        let registered_components_by_uuid = {
+            let comp_registrations = legion_prefab::iter_component_registrations();
+            use std::iter::FromIterator;
+            let component_types: HashMap<ComponentTypeUuid, ComponentRegistration> =
+                HashMap::from_iter(comp_registrations.map(|reg| (reg.uuid().clone(), reg.clone())));
+
+            component_types
+        };
+
         // Create the clone_merge impl. For prefab cooking, we will clone everything so we don't need to
         // set up any transformations
         let clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
@@ -343,8 +354,18 @@ impl AssetManager {
                     // Iterate all the component types for which we have override data
                     for component_override in component_overrides {
                         println!("processing component type {}", uuid::Uuid::from_bytes(component_override.component_type));
+                        let component_registration = &registered_components_by_uuid[&component_override.component_type];
 
                         // Apply the override data to the component
+                        //TODO: Implement this
+//                        match &component_override.data.0 {
+//                            legion_prefab::BincodeOrSerdeValue::Bincode(x) => {
+//                                println!("deserialize bincode");
+//                            },
+//                            legion_prefab::BincodeOrSerdeValue::SerdeValue(value) => {
+//                                println!("deserialize serde_value");
+//                            }
+//                        }
                     }
                 }
             }
@@ -365,7 +386,7 @@ impl AssetManager {
             let restored = ron::de::from_str::<legion_prefab::CookedPrefab>(&cooked_prefab_string).unwrap();
 
             let cooked_prefab_string2 =
-                ron::ser::to_string_pretty(&cooked_prefab, ron::ser::PrettyConfig::default())
+                ron::ser::to_string_pretty(&restored, ron::ser::PrettyConfig::default())
                     .unwrap();
 
             assert_eq!(cooked_prefab_string, cooked_prefab_string2);
