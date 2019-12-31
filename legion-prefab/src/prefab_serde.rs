@@ -24,7 +24,7 @@ pub enum BincodeOrSerdeValue {
 }
 #[derive(Deserialize)]
 #[serde(transparent)]
-pub struct ComponentData(BincodeOrSerdeValue);
+pub struct ComponentData(pub BincodeOrSerdeValue);
 
 // When a serde_value::Value is serialized with bincode, it can no longer be deserialized as a serde_value::Value
 // since bincode is not self describing. To support round-tripping ComponentData in all cases, it is serialized as

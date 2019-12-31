@@ -358,14 +358,25 @@ impl AssetManager {
 
                         // Apply the override data to the component
                         //TODO: Implement this
-//                        match &component_override.data.0 {
-//                            legion_prefab::BincodeOrSerdeValue::Bincode(x) => {
-//                                println!("deserialize bincode");
-//                            },
-//                            legion_prefab::BincodeOrSerdeValue::SerdeValue(value) => {
-//                                println!("deserialize serde_value");
-//                            }
-//                        }
+                        match &component_override.data.0 {
+                            legion_prefab::BincodeOrSerdeValue::Bincode(x) => {
+                                println!("deserialize bincode");
+
+                                let mut slice_reader = bincode::SliceReader::new(x);
+                                let de_acceptor = ApplyComponentDiffDeserializerAcceptor {
+                                    component_registration: component_registration,
+                                    world: &mut world,
+                                    entity: cooked_entity
+                                };
+
+                                bincode::with_deserializer(slice_reader, de_acceptor);
+                            },
+                            legion_prefab::BincodeOrSerdeValue::SerdeValue(value) => {
+                                println!("deserialize serde_value");
+                                unimplemented!();
+
+                            }
+                        }
                     }
                 }
             }
@@ -390,6 +401,7 @@ impl AssetManager {
                     .unwrap();
 
             assert_eq!(cooked_prefab_string, cooked_prefab_string2);
+            println!("{}", cooked_prefab_string2);
         }
     }
 
@@ -438,6 +450,26 @@ trait CloneMergeMapping {
     fn dst_type_id(&self) -> ComponentTypeId;
     fn dst_type_meta(&self) -> ComponentMeta;
     fn clone_components(&self, resources: &Resources, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize);
+}
+
+// bincode API requires us to implement an acceptor in order to get a deserializer impl. We need
+// the impl so that we can pass it to legion::de::deserialize()
+struct ApplyComponentDiffDeserializerAcceptor<'b, 'c> {
+    //world: &'b mut World,
+    //deserialize_impl: &'c legion_prefab::DeserializeImpl
+    component_registration: &'b ComponentRegistration,
+    world: &'c mut World,
+    entity: Entity
+}
+
+impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a> for ApplyComponentDiffDeserializerAcceptor<'b, 'c> {
+    type Output = ();
+
+    //TODO: Error handling needs to be passed back out
+    fn accept<T: serde::Deserializer<'a>>(self, de: T) -> Self::Output {
+        let mut de = erased_serde::Deserializer::erase(de);
+        self.component_registration.apply_diff(&mut de, self.world, self.entity);
+    }
 }
 
 struct CloneMergeMappingImpl<F>

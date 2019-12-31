@@ -11,7 +11,7 @@ pub use registration::{
 mod prefab_serde;
 pub use prefab_serde::{
     ComponentOverride, PrefabRef, PrefabMeta, Prefab, PrefabFormatDeserializer,
-    PrefabDeserializeContext,
+    PrefabDeserializeContext, ComponentData, BincodeOrSerdeValue
 };
 
 mod cooked_prefab;

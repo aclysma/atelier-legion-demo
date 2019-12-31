@@ -189,6 +189,10 @@ impl ComponentRegistration {
         &self.meta
     }
 
+    pub fn apply_diff(&self, de: &mut dyn erased_serde::Deserializer, world: &mut legion::world::World, entity: legion::entity::Entity) {
+        (self.apply_diff)(de, world, entity);
+    }
+
     pub unsafe fn clone_components(&self, src: *const u8, dst: *mut u8, num_components: usize) {
         (self.comp_clone_fn)(src, dst, num_components);
     }
