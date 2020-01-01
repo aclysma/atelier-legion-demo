@@ -136,7 +136,7 @@ dependencies = [
  "path-clean",
  "path-slash",
  "rayon",
- "ron 0.5.1",
+ "ron",
  "scoped_threadpool",
  "serde",
  "serde_derive",
@@ -152,7 +152,7 @@ dependencies = [
  "erased-serde",
  "inventory",
  "mopa",
- "ron 0.4.2",
+ "ron",
  "serde",
  "serde-importable-derive",
  "type-uuid",
@@ -182,10 +182,9 @@ dependencies = [
  "ncollide2d",
  "nphysics2d",
  "prefab-format",
- "ron 0.4.2",
+ "ron",
  "serde",
  "serde-diff",
- "serde-value",
  "skulpin",
  "structopt",
  "type-uuid",
@@ -1286,15 +1285,13 @@ dependencies = [
 name = "legion-prefab"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "erased-serde",
  "inventory",
  "legion",
  "prefab-format",
- "ron 0.5.1",
+ "ron",
  "serde",
  "serde-diff",
- "serde-value",
  "type-uuid",
  "uuid",
 ]
@@ -2017,7 +2014,7 @@ dependencies = [
  "erased-serde",
  "legion",
  "linkme",
- "ron 0.5.1",
+ "ron",
  "serde",
  "serde-diff",
  "serde-value",
@@ -2048,6 +2045,19 @@ dependencies = [
  "quote 1.0.2",
  "rustversion",
  "syn 1.0.12",
+ "syn-mid",
+]
+
+[[package]]
+name = "proc-macro-error-attr"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2bf5d493cf5d3e296beccfd61794e445e830dfc8070a9c248ad3ee071392c6c"
+dependencies = [
+ "proc-macro2 1.0.6",
+ "quote 1.0.2",
+ "rustversion",
+ "syn 1.0.11",
  "syn-mid",
 ]
 
@@ -2338,17 +2348,6 @@ name = "regex-syntax"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11a7e20d1cce64ef2fed88b66d347f88bd9babb82845b2b858f3edbf59a4f716"
-
-[[package]]
-name = "ron"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f52a24414403f81528b67488cf8edc4eda977d3af1646bb6b106a600ead78f"
-dependencies = [
- "base64",
- "bitflags",
- "serde",
-]
 
 [[package]]
 name = "ron"
