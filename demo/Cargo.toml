@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-skulpin = "0.3"
+skulpin = { git = "https://github.com/aclysma/skulpin.git", branch = "imgui_support", features = ["with_imgui"] }
 log="0.4"
 env_logger = "0.6"
 

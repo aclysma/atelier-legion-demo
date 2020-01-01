@@ -19,19 +19,17 @@ fn main() {
         daemon::run();
     });
 
+    {
+        let mut asset_manager = atelier_legion_demo::AssetManager::default();
+        asset_manager.temp_force_load_asset();
+        asset_manager.temp_force_prefab_cook();
+    }
+
     // Build the app and run it
     let example_app = DemoApp::new();
-
-//    skulpin::AppBuilder::new()
-//        .app_name(CString::new("Skulpin Example App").unwrap())
-//        .use_vulkan_debug_layer(true)
-//        .logical_size(LogicalSize::new(900.0, 600.0))
-//        .run(example_app);
-
-
-    let mut asset_manager = atelier_legion_demo::AssetManager::default();
-
-    //asset_manager.temp_force_load_asset();
-
-    asset_manager.temp_force_prefab_cook();
+    skulpin::AppBuilder::new()
+        .app_name(CString::new("Skulpin Example App").unwrap())
+        .use_vulkan_debug_layer(true)
+        .logical_size(LogicalSize::new(900.0, 600.0))
+        .run(example_app);
 }

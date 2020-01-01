@@ -5,7 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 use legion::prelude::*;
 use legion_prefab::ComponentRegistration;
 
-use skulpin::skia_safe;
+use skulpin::{skia_safe, ImguiManager, AppUpdateArgs, AppDrawArgs};
 
 use skulpin::AppHandler;
 use skulpin::CoordinateSystemHelper;
@@ -13,6 +13,7 @@ use skulpin::AppControl;
 use skulpin::InputState;
 use skulpin::TimeState;
 use skulpin::VirtualKeyCode;
+use skulpin::imgui;
 
 // Used for physics
 use na::Vector2;
@@ -803,10 +804,12 @@ impl DemoApp {
 impl AppHandler for DemoApp {
     fn update(
         &mut self,
-        app_control: &mut AppControl,
-        input_state: &InputState,
-        time_state: &TimeState,
+        update_args: AppUpdateArgs
     ) {
+        let time_state = update_args.time_state;
+        let input_state = update_args.input_state;
+        let app_control = update_args.app_control;
+
         let now = time_state.current_instant();
 
         //
@@ -855,12 +858,25 @@ impl AppHandler for DemoApp {
 
     fn draw(
         &mut self,
-        _app_control: &AppControl,
-        _input_state: &InputState,
-        _time_state: &TimeState,
-        canvas: &mut skia_safe::Canvas,
-        coordinate_system_helper: &CoordinateSystemHelper,
+        draw_args: AppDrawArgs
     ) {
+        let imgui_manager = draw_args.imgui_manager;
+        let coordinate_system_helper = draw_args.coordinate_system_helper;
+        let canvas = draw_args.canvas;
+
+        imgui_manager.with_ui(|ui: &mut imgui::Ui| {
+            let mut show_demo = true;
+            ui.show_demo_window(&mut show_demo);
+
+            ui.main_menu_bar(|| {
+                ui.menu(imgui::im_str!("File"), true, || {
+                    if imgui::MenuItem::new(imgui::im_str!("New")).build(ui) {
+                        log::info!("clicked");
+                    }
+                });
+            });
+        });
+
         // Set up the coordinate system such that Y position is in the upward direction
         let x_half_extents = GROUND_HALF_EXTENTS_WIDTH * 1.5;
         let y_half_extents = x_half_extents
