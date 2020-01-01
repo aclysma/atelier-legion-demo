@@ -189,16 +189,33 @@ impl ComponentRegistration {
         &self.meta
     }
 
-    pub fn apply_diff(&self, de: &mut dyn erased_serde::Deserializer, world: &mut legion::world::World, entity: legion::entity::Entity) {
+    pub fn apply_diff(
+        &self,
+        de: &mut dyn erased_serde::Deserializer,
+        world: &mut legion::world::World,
+        entity: legion::entity::Entity,
+    ) {
         (self.apply_diff)(de, world, entity);
     }
 
-    pub unsafe fn clone_components(&self, src: *const u8, dst: *mut u8, num_components: usize) {
+    pub unsafe fn clone_components(
+        &self,
+        src: *const u8,
+        dst: *mut u8,
+        num_components: usize,
+    ) {
         (self.comp_clone_fn)(src, dst, num_components);
     }
 
     pub fn of<
-        T: TypeUuid + Clone + Serialize + SerdeDiff + for<'de> Deserialize<'de> + Send + Sync + 'static,
+        T: TypeUuid
+            + Clone
+            + Serialize
+            + SerdeDiff
+            + for<'de> Deserialize<'de>
+            + Send
+            + Sync
+            + 'static,
     >() -> Self {
         Self {
             uuid: T::UUID,
@@ -237,13 +254,11 @@ impl ComponentRegistration {
                 )
                 .expect("failed to deserialize diff");
             },
-            comp_clone_fn: |src, dst, num_components| {
-                unsafe {
-                    for i in 0..num_components {
-                        let src_ptr = (src as *const T).add(i);
-                        let dst_ptr = (dst as *mut T).add(i);
-                        std::ptr::write(dst_ptr, <T as Clone>::clone(&*src_ptr));
-                    }
+            comp_clone_fn: |src, dst, num_components| unsafe {
+                for i in 0..num_components {
+                    let src_ptr = (src as *const T).add(i);
+                    let dst_ptr = (dst as *mut T).add(i);
+                    std::ptr::write(dst_ptr, <T as Clone>::clone(&*src_ptr));
                 }
             },
         }

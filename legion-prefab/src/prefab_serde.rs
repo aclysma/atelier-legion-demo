@@ -1,6 +1,6 @@
 use crate::format::{ComponentTypeUuid, EntityUuid, PrefabUuid, StorageDeserializer};
 use crate::ComponentRegistration;
-use serde::{Serializer, Deserializer};
+use serde::{Deserializer};
 use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
@@ -13,44 +13,9 @@ pub struct ComponentOverride {
     /// The component type to which we will apply this override data
     pub component_type: ComponentTypeUuid,
 
-    /// The data used to override (in serde_diff format)
-    pub data: ComponentData,
+    /// The data used to override (in Ron-encoded serde_diff format)
+    pub data: String,
 }
-
-#[derive(Serialize, Deserialize)]
-pub enum BincodeOrSerdeValue {
-    Bincode(Vec<u8>),
-    SerdeValue(serde_value::Value),
-}
-#[derive(Deserialize)]
-#[serde(transparent)]
-pub struct ComponentData(pub BincodeOrSerdeValue);
-
-// When a serde_value::Value is serialized with bincode, it can no longer be deserialized as a serde_value::Value
-// since bincode is not self describing. To support round-tripping ComponentData in all cases, it is serialized as
-// serde_value::Value for human readable formats and as bincode-encoded Vec<u8> for others.
-impl Serialize for ComponentData {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        if serializer.is_human_readable() {
-            self.0.serialize(serializer)
-        } else {
-            match &self.0 {
-                v @ BincodeOrSerdeValue::Bincode(_) => v.serialize(serializer),
-                v @ BincodeOrSerdeValue::SerdeValue(_) => {
-                    BincodeOrSerdeValue::Bincode(bincode::serialize(v).unwrap())
-                        .serialize(serializer)
-                }
-            }
-        }
-    }
-}
-
 /// Represents a reference from one prefab to another, along with the data with which it should be
 /// overridden
 #[derive(Serialize, Deserialize)]
@@ -230,9 +195,7 @@ impl StorageDeserializer for PrefabFormatDeserializer<'_> {
             .or_insert(Vec::<ComponentOverride>::new());
         overrides.push(ComponentOverride {
             component_type: component_type.clone(),
-            data: ComponentData(BincodeOrSerdeValue::SerdeValue(
-                serde_value::Value::deserialize(deserializer)?,
-            )),
+            data: String::deserialize(deserializer)?,
         });
         Ok(())
     }

@@ -11,13 +11,11 @@ pub use registration::{
 mod prefab_serde;
 pub use prefab_serde::{
     ComponentOverride, PrefabRef, PrefabMeta, Prefab, PrefabFormatDeserializer,
-    PrefabDeserializeContext, ComponentData, BincodeOrSerdeValue
+    PrefabDeserializeContext,
 };
 
 mod cooked_prefab;
-pub use cooked_prefab::{
-    CookedPrefab
-};
+pub use cooked_prefab::{CookedPrefab};
 
 mod world_serde;
 pub use world_serde::{SerializeImpl, DeserializeImpl};

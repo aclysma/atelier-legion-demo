@@ -19,8 +19,18 @@ struct World {
 }
 
 impl prefab_format::StorageDeserializer for World {
-    fn begin_entity_object(&self, _prefab: &PrefabUuid, _entity: &EntityUuid) {}
-    fn end_entity_object(&self, _prefab: &PrefabUuid, _entity: &EntityUuid) {}
+    fn begin_entity_object(
+        &self,
+        _prefab: &PrefabUuid,
+        _entity: &EntityUuid,
+    ) {
+    }
+    fn end_entity_object(
+        &self,
+        _prefab: &PrefabUuid,
+        _entity: &EntityUuid,
+    ) {
+    }
     fn deserialize_component<'de, D: Deserializer<'de>>(
         &self,
         _prefab: &PrefabUuid,
@@ -33,8 +43,18 @@ impl prefab_format::StorageDeserializer for World {
         println!("deserialized {:?}", self.transform);
         Ok(())
     }
-    fn begin_prefab_ref(&self, _prefab: &PrefabUuid, _target_prefab: &PrefabUuid) {}
-    fn end_prefab_ref(&self, _prefab: &PrefabUuid, _target_prefab: &PrefabUuid) {}
+    fn begin_prefab_ref(
+        &self,
+        _prefab: &PrefabUuid,
+        _target_prefab: &PrefabUuid,
+    ) {
+    }
+    fn end_prefab_ref(
+        &self,
+        _prefab: &PrefabUuid,
+        _target_prefab: &PrefabUuid,
+    ) {
+    }
     fn apply_component_diff<'de, D: Deserializer<'de>>(
         &self,
         _parent_prefab: &PrefabUuid,

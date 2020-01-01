@@ -1,13 +1,11 @@
 use crate::format::EntityUuid;
 use serde::{Serializer, Deserializer};
-use std::{
-    collections::HashMap,
-};
+use std::{collections::HashMap};
 use serde::{Deserialize, Serialize};
 
 pub struct CookedPrefab {
     pub world: legion::world::World,
-    pub entities: HashMap<EntityUuid, legion::entity::Entity>
+    pub entities: HashMap<EntityUuid, legion::entity::Entity>,
 }
 
 impl Serialize for CookedPrefab {
@@ -15,8 +13,8 @@ impl Serialize for CookedPrefab {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         use std::iter::FromIterator;
         use serde::ser::SerializeStruct;
@@ -49,8 +47,8 @@ enum PrefabField {
 }
 impl<'de> Deserialize<'de> for CookedPrefab {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         struct PrefabDeserVisitor;
         impl<'de> serde::de::Visitor<'de> for PrefabDeserVisitor {
@@ -66,13 +64,13 @@ impl<'de> Deserialize<'de> for CookedPrefab {
                 self,
                 mut seq: V,
             ) -> Result<Self::Value, V::Error>
-                where
-                    V: serde::de::SeqAccess<'de>,
+            where
+                V: serde::de::SeqAccess<'de>,
             {
                 let world = seq.next_element::<WorldDeser>()?.expect("expected world");
                 Ok(CookedPrefab {
                     world: world.0,
-                    entities: world.1
+                    entities: world.1,
                 })
             }
 
@@ -80,8 +78,8 @@ impl<'de> Deserialize<'de> for CookedPrefab {
                 self,
                 mut map: V,
             ) -> Result<Self::Value, V::Error>
-                where
-                    V: serde::de::MapAccess<'de>,
+            where
+                V: serde::de::MapAccess<'de>,
             {
                 while let Some(key) = map.next_key()? {
                     match key {
@@ -89,7 +87,7 @@ impl<'de> Deserialize<'de> for CookedPrefab {
                             let world_deser = map.next_value::<WorldDeser>()?;
                             return Ok(CookedPrefab {
                                 world: world_deser.0,
-                                entities: world_deser.1
+                                entities: world_deser.1,
                             });
                         }
                     }
@@ -107,8 +105,8 @@ struct WorldDeser(
 );
 impl<'de> Deserialize<'de> for WorldDeser {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
     {
         use std::iter::FromIterator;
         let tag_types = HashMap::from_iter(
@@ -128,4 +126,3 @@ impl<'de> Deserialize<'de> for WorldDeser {
         Ok(WorldDeser(world, deserialize_impl.entity_map.into_inner()))
     }
 }
-

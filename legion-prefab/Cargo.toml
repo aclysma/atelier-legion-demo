@@ -14,8 +14,6 @@ inventory = "0.1"
 type-uuid = "0.1"
 uuid = { version = "0.8", default-features = false, features = [ "v4" ] }
 serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
-serde-value = "0.6"
-bincode = "1.2"
 
 [dev-dependencies]
 ron = "0.5"
