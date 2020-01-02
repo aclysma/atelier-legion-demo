@@ -3,6 +3,7 @@ use atelier_loader::handle::Handle;
 use serde::{Deserialize, Serialize};
 use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
+use nphysics2d::object::DefaultBodyHandle;
 
 // Components require TypeUuid + Serialize + Deserialize + SerdeDiff + Send + Sync
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
@@ -29,3 +30,43 @@ legion_prefab::register_component_type!(PositionReference);
 //struct ModelId(u32);
 //
 //legion_prefab::register_tag_type!(ModelId);
+
+
+
+
+#[derive(Clone, Copy, Debug)]
+pub struct PaintDesc {
+    pub color: na::Vector4<f32>,
+    pub stroke_width: f32,
+}
+
+#[derive(Debug)]
+pub struct DrawSkiaBoxComponent {
+    pub half_extents: na::Vector2<f32>,
+    pub paint: PaintDesc,
+}
+
+#[derive(Debug)]
+pub struct DrawSkiaCircleComponent {
+    pub radius: f32,
+    pub paint: PaintDesc,
+}
+
+#[derive(Debug)]
+pub struct Position2DComponent {
+    pub position: na::Vector2<f32>,
+}
+
+impl From<Position2DComponentDefinition> for Position2DComponent {
+    fn from(from: Position2DComponentDefinition) -> Self {
+        Position2DComponent {
+            position: {
+                from.position
+            }
+        }
+    }
+}
+
+pub struct RigidBodyComponent {
+    pub handle: DefaultBodyHandle,
+}

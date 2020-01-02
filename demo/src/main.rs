@@ -20,9 +20,9 @@ fn main() {
     });
 
     {
-        let mut asset_manager = atelier_legion_demo::AssetManager::default();
-        asset_manager.temp_force_load_asset();
-        asset_manager.temp_force_prefab_cook();
+        let mut asset_manager = atelier_legion_demo::create_asset_manager();
+        atelier_legion_demo::temp_force_load_asset(&mut asset_manager);
+        atelier_legion_demo::temp_force_prefab_cook(&mut asset_manager);
     }
 
     // Build the app and run it
