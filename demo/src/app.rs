@@ -1,21 +1,15 @@
 //! Contains the main types a user needs to interact with to configure and run a skulpin app
-
-use std::ffi::CString;
-
 use skulpin::AppControl;
 use skulpin::InputState;
 use skulpin::TimeState;
 use skulpin::PeriodicEvent;
 
 use skulpin::RendererBuilder;
-use skulpin::PresentMode;
-use skulpin::PhysicalDeviceType;
 
 use skulpin::ImguiManager;
 use skulpin::LogicalSize;
 
 use skulpin::CreateRendererError;
-use skulpin::CoordinateSystem;
 use skulpin::CoordinateSystemHelper;
 
 use skulpin::skia_safe;

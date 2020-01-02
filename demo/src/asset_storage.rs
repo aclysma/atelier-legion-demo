@@ -4,23 +4,23 @@ use atelier_loader::{
     AssetLoadOp, AssetStorage, AssetTypeId, LoadHandle, LoaderInfoProvider, TypeUuid,
 };
 use mopa::{mopafy, Any};
-use std::{cell::RefCell, collections::HashMap, error::Error, sync::Arc};
+use std::{sync::Mutex, collections::HashMap, error::Error, sync::Arc};
 
 pub struct GenericAssetStorage {
-    storage: RefCell<HashMap<AssetTypeId, Box<dyn TypedStorage>>>,
+    storage: Mutex<HashMap<AssetTypeId, Box<dyn TypedStorage>>>,
     refop_sender: Arc<Sender<RefOp>>,
 }
 
 impl GenericAssetStorage {
     pub fn new(refop_sender: Arc<Sender<RefOp>>) -> Self {
         Self {
-            storage: RefCell::new(HashMap::new()),
+            storage: Mutex::new(HashMap::new()),
             refop_sender,
         }
     }
 
     pub fn add_storage<T: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send>(&self) {
-        let mut storages = self.storage.borrow_mut();
+        let mut storages = self.storage.lock().unwrap();
         storages.insert(
             AssetTypeId(T::UUID),
             Box::new(Storage::<T>::new(self.refop_sender.clone())),
@@ -77,7 +77,8 @@ impl<A: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send> TypedAssetSt
         unsafe {
             std::mem::transmute(
                 self.storage
-                    .borrow()
+                    .lock()
+                    .unwrap()
                     .get(&AssetTypeId(A::UUID))
                     .expect("unknown asset type")
                     .as_ref()
@@ -92,7 +93,8 @@ impl<A: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send> TypedAssetSt
         handle: &T,
     ) -> Option<u32> {
         self.storage
-            .borrow()
+            .lock()
+            .unwrap()
             .get(&AssetTypeId(A::UUID))
             .expect("unknown asset type")
             .as_ref()
@@ -108,7 +110,8 @@ impl<A: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send> TypedAssetSt
         unsafe {
             std::mem::transmute(
                 self.storage
-                    .borrow()
+                    .lock()
+                    .unwrap()
                     .get(&AssetTypeId(A::UUID))
                     .expect("unknown asset type")
                     .as_ref()
@@ -200,7 +203,8 @@ impl AssetStorage for GenericAssetStorage {
         version: u32,
     ) -> Result<(), Box<dyn Error>> {
         self.storage
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_mut(asset_type_id)
             .expect("unknown asset type")
             .update_asset(loader_info, data, load_handle, load_op, version)
@@ -212,7 +216,8 @@ impl AssetStorage for GenericAssetStorage {
         version: u32,
     ) {
         self.storage
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_mut(asset_type)
             .expect("unknown asset type")
             .commit_asset_version(load_handle, version)
@@ -223,7 +228,8 @@ impl AssetStorage for GenericAssetStorage {
         load_handle: LoadHandle,
     ) {
         self.storage
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .get_mut(asset_type_id)
             .expect("unknown asset type")
             .free(load_handle)

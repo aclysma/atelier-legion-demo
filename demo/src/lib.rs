@@ -3,7 +3,7 @@ extern crate nalgebra as na;
 
 use legion::prelude::*;
 
-use skulpin::{skia_safe, AppUpdateArgs, AppDrawArgs};
+use skulpin::skia_safe;
 
 use skulpin::VirtualKeyCode;
 use skulpin::imgui;
@@ -189,14 +189,10 @@ fn quit_if_escape_pressed() -> Box<dyn Schedulable> {
 }
 
 fn update_asset_manager() -> Box<dyn Schedulable> {
-//    SystemBuilder::new("update asset manager")
-//        .write_resource::<AssetManager>()
-//        .build(|_, _, asset_manager, _| {
-//            asset_manager.update();
-//        })
     SystemBuilder::new("update asset manager")
-        .build(|_, _, _, _| {
-
+        .write_resource::<AssetManager>()
+        .build(|_, _, asset_manager, _| {
+            asset_manager.update();
         })
 }
 
@@ -257,7 +253,7 @@ fn draw() -> Box<dyn Schedulable> {
         .read_resource::<FpsText>()
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query())
-        .build(|_, mut world, (draw_context, imgui_manager, fps_text), (draw_boxes_query, draw_circles_query)| {
+        .build(|_, world, (draw_context, imgui_manager, fps_text), (draw_boxes_query, draw_circles_query)| {
             imgui_manager.with_ui(|ui| {
                 draw_context.with_canvas(|canvas, coordinate_system_helper| {
 
@@ -410,7 +406,7 @@ impl app::AppHandler for DemoApp {
 
         world.resources.insert(physics);
         world.resources.insert(FpsText::new());
-        //world.resources.insert(asset_manager);
+        world.resources.insert(asset_manager);
     }
 
     fn update(
