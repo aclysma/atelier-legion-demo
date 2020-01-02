@@ -19,7 +19,7 @@ impl GenericAssetStorage {
         }
     }
 
-    pub fn add_storage<T: TypeUuid + for<'a> serde::Deserialize<'a> + 'static>(&self) {
+    pub fn add_storage<T: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send>(&self) {
         let mut storages = self.storage.borrow_mut();
         storages.insert(
             AssetTypeId(T::UUID),
@@ -66,7 +66,7 @@ impl<A: TypeUuid> Storage<A> {
             .map(|a| (&a.asset, a.version))
     }
 }
-impl<A: TypeUuid + for<'a> serde::Deserialize<'a> + 'static> TypedAssetStorage<A>
+impl<A: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send> TypedAssetStorage<A>
     for GenericAssetStorage
 {
     fn get<T: AssetHandle>(
@@ -119,7 +119,7 @@ impl<A: TypeUuid + for<'a> serde::Deserialize<'a> + 'static> TypedAssetStorage<A
         }
     }
 }
-pub trait TypedStorage: Any {
+pub trait TypedStorage: Any + Send {
     fn update_asset(
         &mut self,
         loader_info: &dyn LoaderInfoProvider,
@@ -139,7 +139,7 @@ pub trait TypedStorage: Any {
     );
 }
 mopafy!(TypedStorage);
-impl<A: for<'a> serde::Deserialize<'a> + 'static + TypeUuid> TypedStorage for Storage<A> {
+impl<A: for<'a> serde::Deserialize<'a> + 'static + TypeUuid + Send> TypedStorage for Storage<A> {
     fn update_asset(
         &mut self,
         loader_info: &dyn LoaderInfoProvider,

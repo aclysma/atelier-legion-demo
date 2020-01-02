@@ -27,9 +27,9 @@ fn main() {
 
     // Build the app and run it
     let example_app = DemoApp::new();
-    skulpin::AppBuilder::new()
+    let renderer_builder = skulpin::RendererBuilder::new()
         .app_name(CString::new("Skulpin Example App").unwrap())
-        .use_vulkan_debug_layer(true)
-        .logical_size(LogicalSize::new(900.0, 600.0))
-        .run(example_app);
+        .use_vulkan_debug_layer(true);
+
+    atelier_legion_demo::app::App::run(example_app, LogicalSize::new(900.0, 600.0), &renderer_builder);
 }

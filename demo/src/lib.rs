@@ -5,7 +5,6 @@ use legion::prelude::*;
 
 use skulpin::{skia_safe, AppUpdateArgs, AppDrawArgs};
 
-use skulpin::AppHandler;
 use skulpin::VirtualKeyCode;
 use skulpin::imgui;
 
@@ -44,6 +43,8 @@ use components::RigidBodyComponent;
 
 mod prefab;
 mod prefab_cooking;
+
+pub mod app;
 
 const GROUND_THICKNESS: f32 = 0.2;
 const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
@@ -162,206 +163,274 @@ pub fn create_asset_manager() -> AssetManager {
     asset_manager
 }
 
+struct FpsText {
+    pub last_fps_text_change: Option<std::time::Instant>,
+    pub fps_text: String,
+}
+
+impl FpsText {
+    fn new() -> Self {
+        FpsText {
+            last_fps_text_change: None,
+            fps_text: "".to_string(),
+        }
+    }
+}
+
+fn quit_if_escape_pressed() -> Box<dyn Schedulable> {
+    SystemBuilder::new("quit_if_escape_pressed")
+        .read_resource::<skulpin::InputState>()
+        .write_resource::<skulpin::AppControl>()
+        .build(|_, _, (input_state, app_control), _| {
+            if input_state.is_key_down(VirtualKeyCode::Escape) {
+                app_control.enqueue_terminate_process();
+            }
+        })
+}
+
+fn update_asset_manager() -> Box<dyn Schedulable> {
+//    SystemBuilder::new("update asset manager")
+//        .write_resource::<AssetManager>()
+//        .build(|_, _, asset_manager, _| {
+//            asset_manager.update();
+//        })
+    SystemBuilder::new("update asset manager")
+        .build(|_, _, _, _| {
+
+        })
+}
+
+fn update_fps_text() -> Box<dyn Schedulable> {
+    SystemBuilder::new("update fps text")
+        .read_resource::<skulpin::TimeState>()
+        .write_resource::<FpsText>()
+        .build(|_, _, (time_state, fps_text), _| {
+            let now = time_state.current_instant();
+            //
+            // Update FPS once a second
+            //
+            let update_text_string = match fps_text.last_fps_text_change {
+                Some(last_update_instant) => (now - last_update_instant).as_secs_f32() >= 1.0,
+                None => true,
+            };
+
+            // Refresh FPS text
+            if update_text_string {
+                let fps = time_state.updates_per_second();
+                fps_text.fps_text = format!("Fps: {:.1}", fps);
+                fps_text.last_fps_text_change = Some(now);
+            }
+        })
+}
+
+fn update_physics() -> Box<dyn Schedulable> {
+    // Do a physics simulation timestep
+    SystemBuilder::new("update physics")
+        .write_resource::<Physics>()
+        .build(|_, _, physics, _| {
+            physics.step();
+        })
+}
+
+fn read_from_physics() -> Box<dyn Schedulable> {
+    SystemBuilder::new("read physics data")
+        .read_resource::<Physics>()
+        .with_query(<(Write<Position2DComponent>, Read<RigidBodyComponent>)>::query())
+        .build(|_, mut world, physics, query| {
+            for (mut pos, body) in query.iter(&mut world) {
+                pos.position = physics
+                    .bodies
+                    .rigid_body(body.handle)
+                    .unwrap()
+                    .position()
+                    .translation
+                    .vector;
+            }
+        })
+}
+
+fn draw() -> Box<dyn Schedulable> {
+    // Copy the data from physics rigid bodies into position components
+    SystemBuilder::new("draw")
+        .write_resource::<app::DrawContext>()
+        .write_resource::<skulpin::ImguiManager>()
+        .read_resource::<FpsText>()
+        .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
+        .with_query(<(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query())
+        .build(|_, mut world, (draw_context, imgui_manager, fps_text), (draw_boxes_query, draw_circles_query)| {
+            imgui_manager.with_ui(|ui| {
+                draw_context.with_canvas(|canvas, coordinate_system_helper| {
+
+                    let mut show_demo = true;
+                    ui.show_demo_window(&mut show_demo);
+
+                    ui.main_menu_bar(|| {
+                        ui.menu(imgui::im_str!("File"), true, || {
+                            if imgui::MenuItem::new(imgui::im_str!("New")).build(ui) {
+                                log::info!("clicked");
+                            }
+                        });
+                    });
+
+                    // Set up the coordinate system such that Y position is in the upward direction
+                    let x_half_extents = GROUND_HALF_EXTENTS_WIDTH * 1.5;
+                    let y_half_extents = x_half_extents
+                        / (coordinate_system_helper.surface_extents().width as f32
+                        / coordinate_system_helper.surface_extents().height as f32);
+
+                    coordinate_system_helper
+                        .use_visible_range(
+                            canvas,
+                            skia_safe::Rect {
+                                left: -x_half_extents,
+                                right: x_half_extents,
+                                top: y_half_extents + 1.0,
+                                bottom: -y_half_extents + 1.0,
+                            },
+                            skia_safe::matrix::ScaleToFit::Center,
+                        )
+                        .unwrap();
+
+                    // Generally would want to clear data every time we draw
+                    canvas.clear(skia_safe::Color::from_argb(0, 0, 0, 255));
+
+                    // Draw all the boxes
+                    for (pos, skia_box) in draw_boxes_query.iter(world) {
+                        let color = skia_safe::Color4f::new(
+                            skia_box.paint.color.x,
+                            skia_box.paint.color.y,
+                            skia_box.paint.color.z,
+                            skia_box.paint.color.w,
+                        );
+
+                        let mut paint = skia_safe::Paint::new(color, None);
+                        paint.set_anti_alias(true);
+                        paint.set_style(skia_safe::paint::Style::Stroke);
+                        paint.set_stroke_width(skia_box.paint.stroke_width);
+
+                        canvas.draw_rect(
+                            skia_safe::Rect {
+                                left: pos.position.x - skia_box.half_extents.x,
+                                right: pos.position.x + skia_box.half_extents.x,
+                                top: pos.position.y - skia_box.half_extents.y,
+                                bottom: pos.position.y + skia_box.half_extents.y,
+                            },
+                            &paint,
+                        );
+                    }
+
+                    // Draw all the circles
+                    for (pos, skia_circle) in draw_circles_query.iter(world) {
+                        let color = skia_safe::Color4f::new(
+                            skia_circle.paint.color.x,
+                            skia_circle.paint.color.y,
+                            skia_circle.paint.color.z,
+                            skia_circle.paint.color.w,
+                        );
+
+                        let mut paint = skia_safe::Paint::new(color, None);
+                        paint.set_anti_alias(true);
+                        paint.set_style(skia_safe::paint::Style::Stroke);
+                        paint.set_stroke_width(skia_circle.paint.stroke_width);
+
+                        canvas.draw_circle(
+                            skia_safe::Point::new(pos.position.x, pos.position.y),
+                            skia_circle.radius,
+                            &paint,
+                        );
+                    }
+
+                    // Switch to using logical screen-space coordinates
+                    coordinate_system_helper.use_logical_coordinates(canvas);
+
+                    //
+                    // Draw FPS text
+                    //
+                    let mut text_paint =
+                        skia_safe::Paint::new(skia_safe::Color4f::new(1.0, 1.0, 0.0, 1.0), None);
+                    text_paint.set_anti_alias(true);
+                    text_paint.set_style(skia_safe::paint::Style::StrokeAndFill);
+                    text_paint.set_stroke_width(1.0);
+
+                    let mut font = skia_safe::Font::default();
+                    font.set_size(20.0);
+                    //canvas.draw_str(self.fps_text.clone(), (50, 50), &font, &text_paint);
+                    canvas.draw_str(fps_text.fps_text.clone(), (50, 50), &font, &text_paint);
+                });
+            });
+        })
+}
+
+
 pub struct DemoApp {
-    last_fps_text_change: Option<std::time::Instant>,
-    fps_text: String,
-    physics: Physics,
-    #[allow(dead_code)]
-    universe: Universe,
-    world: World,
-    asset_manager: AssetManager,
+    update_schedule: Schedule,
+    draw_schedule: Schedule
 }
 
 impl DemoApp {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        let asset_manager = create_asset_manager();
+        let update_steps = vec![
+            quit_if_escape_pressed(),
+            update_asset_manager(),
+            update_fps_text(),
+            update_physics(),
+            read_from_physics()
+        ];
 
-        let mut physics = Physics::new(Vector2::y() * GRAVITY);
+        let mut update_schedule = Schedule::builder();
+        for step in update_steps {
+            update_schedule = update_schedule.add_system(step);
+        }
+        let update_schedule = update_schedule.build();
 
-        let universe = Universe::new();
-        let mut world = universe.create_world();
-
-        spawn_ground(&mut physics, &mut world);
-        spawn_balls(&mut physics, &mut world);
+        let draw_schedule = Schedule::builder()
+            .add_system(draw())
+            .build();
 
         DemoApp {
-            last_fps_text_change: None,
-            fps_text: "".to_string(),
-            physics,
-            universe,
-            world,
-            asset_manager,
+            update_schedule,
+            draw_schedule
         }
     }
 }
 
-impl AppHandler for DemoApp {
+impl app::AppHandler for DemoApp {
+    fn init(
+        &mut self,
+        world: &mut World
+    ) {
+
+        let asset_manager = create_asset_manager();
+
+        let mut physics = Physics::new(Vector2::y() * GRAVITY);
+
+        spawn_ground(&mut physics, world);
+        spawn_balls(&mut physics, world);
+
+        world.resources.insert(physics);
+        world.resources.insert(FpsText::new());
+        //world.resources.insert(asset_manager);
+    }
+
     fn update(
         &mut self,
-        update_args: AppUpdateArgs
+        world: &mut World
     ) {
-        let time_state = update_args.time_state;
-        let input_state = update_args.input_state;
-        let app_control = update_args.app_control;
-
-        let now = time_state.current_instant();
-
-        //
-        // Quit if user hits escape
-        //
-        if input_state.is_key_down(VirtualKeyCode::Escape) {
-            app_control.enqueue_terminate_process();
-        }
-
-        //
-        // Process asset loading/storage operations
-        //
-        self.asset_manager.update();
-
-        //
-        // Update FPS once a second
-        //
-        let update_text_string = match self.last_fps_text_change {
-            Some(last_update_instant) => (now - last_update_instant).as_secs_f32() >= 1.0,
-            None => true,
-        };
-
-        // Refresh FPS text
-        if update_text_string {
-            let fps = time_state.updates_per_second();
-            self.fps_text = format!("Fps: {:.1}", fps);
-            self.last_fps_text_change = Some(now);
-        }
-
-        // Update physics
-        self.physics.step();
-
-        // Copy the position of all rigid bodies into their position component
-        let query = <(Write<Position2DComponent>, Read<RigidBodyComponent>)>::query();
-        for (mut pos, body) in query.iter(&mut self.world) {
-            pos.position = self
-                .physics
-                .bodies
-                .rigid_body(body.handle)
-                .unwrap()
-                .position()
-                .translation
-                .vector;
-        }
+        self.update_schedule.execute(world);
     }
 
     fn draw(
         &mut self,
-        draw_args: AppDrawArgs
+        world: &mut World
     ) {
-        let imgui_manager = draw_args.imgui_manager;
-        let coordinate_system_helper = draw_args.coordinate_system_helper;
-        let canvas = draw_args.canvas;
-
-        imgui_manager.with_ui(|ui: &mut imgui::Ui| {
-            let mut show_demo = true;
-            ui.show_demo_window(&mut show_demo);
-
-            ui.main_menu_bar(|| {
-                ui.menu(imgui::im_str!("File"), true, || {
-                    if imgui::MenuItem::new(imgui::im_str!("New")).build(ui) {
-                        log::info!("clicked");
-                    }
-                });
-            });
-        });
-
-        // Set up the coordinate system such that Y position is in the upward direction
-        let x_half_extents = GROUND_HALF_EXTENTS_WIDTH * 1.5;
-        let y_half_extents = x_half_extents
-            / (coordinate_system_helper.surface_extents().width as f32
-                / coordinate_system_helper.surface_extents().height as f32);
-
-        coordinate_system_helper
-            .use_visible_range(
-                canvas,
-                skia_safe::Rect {
-                    left: -x_half_extents,
-                    right: x_half_extents,
-                    top: y_half_extents + 1.0,
-                    bottom: -y_half_extents + 1.0,
-                },
-                skia_safe::matrix::ScaleToFit::Center,
-            )
-            .unwrap();
-
-        // Generally would want to clear data every time we draw
-        canvas.clear(skia_safe::Color::from_argb(0, 0, 0, 255));
-
-        // Draw all the boxes
-        let query = <(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query();
-        for (pos, skia_box) in query.iter(&mut self.world) {
-            let color = skia_safe::Color4f::new(
-                skia_box.paint.color.x,
-                skia_box.paint.color.y,
-                skia_box.paint.color.z,
-                skia_box.paint.color.w,
-            );
-
-            let mut paint = skia_safe::Paint::new(color, None);
-            paint.set_anti_alias(true);
-            paint.set_style(skia_safe::paint::Style::Stroke);
-            paint.set_stroke_width(skia_box.paint.stroke_width);
-
-            canvas.draw_rect(
-                skia_safe::Rect {
-                    left: pos.position.x - skia_box.half_extents.x,
-                    right: pos.position.x + skia_box.half_extents.x,
-                    top: pos.position.y - skia_box.half_extents.y,
-                    bottom: pos.position.y + skia_box.half_extents.y,
-                },
-                &paint,
-            );
-        }
-
-        // Draw all the circles
-        let query = <(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query();
-        for (pos, skia_circle) in query.iter(&mut self.world) {
-            let color = skia_safe::Color4f::new(
-                skia_circle.paint.color.x,
-                skia_circle.paint.color.y,
-                skia_circle.paint.color.z,
-                skia_circle.paint.color.w,
-            );
-
-            let mut paint = skia_safe::Paint::new(color, None);
-            paint.set_anti_alias(true);
-            paint.set_style(skia_safe::paint::Style::Stroke);
-            paint.set_stroke_width(skia_circle.paint.stroke_width);
-
-            canvas.draw_circle(
-                skia_safe::Point::new(pos.position.x, pos.position.y),
-                skia_circle.radius,
-                &paint,
-            );
-        }
-
-        // Switch to using logical screen-space coordinates
-        coordinate_system_helper.use_logical_coordinates(canvas);
-
-        //
-        // Draw FPS text
-        //
-        let mut text_paint =
-            skia_safe::Paint::new(skia_safe::Color4f::new(1.0, 1.0, 0.0, 1.0), None);
-        text_paint.set_anti_alias(true);
-        text_paint.set_style(skia_safe::paint::Style::StrokeAndFill);
-        text_paint.set_stroke_width(1.0);
-
-        let mut font = skia_safe::Font::default();
-        font.set_size(20.0);
-        canvas.draw_str(self.fps_text.clone(), (50, 50), &font, &text_paint);
+        // Copy the data from physics rigid bodies into position components
+        self.draw_schedule.execute(world);
     }
 
     fn fatal_error(
         &mut self,
-        error: &skulpin::AppError,
+        error: &app::AppError,
     ) {
         println!("{}", error);
     }

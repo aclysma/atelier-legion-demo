@@ -36,7 +36,7 @@ impl Default for AssetManager {
 }
 
 impl AssetManager {
-    pub fn add_storage<T: TypeUuid + for<'a> serde::Deserialize<'a> + 'static>(&mut self) {
+    pub fn add_storage<T: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send>(&mut self) {
         self.storage.add_storage::<T>();
     }
 
