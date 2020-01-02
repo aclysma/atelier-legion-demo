@@ -31,9 +31,6 @@ legion_prefab::register_component_type!(PositionReference);
 //
 //legion_prefab::register_tag_type!(ModelId);
 
-
-
-
 #[derive(Clone, Copy, Debug)]
 pub struct PaintDesc {
     pub color: na::Vector4<f32>,
@@ -60,9 +57,7 @@ pub struct Position2DComponent {
 impl From<Position2DComponentDefinition> for Position2DComponent {
     fn from(from: Position2DComponentDefinition) -> Self {
         Position2DComponent {
-            position: {
-                from.position
-            }
+            position: { from.position },
         }
     }
 }

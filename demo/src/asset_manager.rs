@@ -1,15 +1,10 @@
-use atelier_loader::{
-    handle::RefOp,
-    rpc_loader::RpcLoader,
-    Loader
-};
+use atelier_loader::{handle::RefOp, rpc_loader::RpcLoader, Loader};
 
 use std::sync::Arc;
 
 use crate::asset_storage::GenericAssetStorage;
 
 use type_uuid::TypeUuid;
-
 
 pub struct AssetManager {
     loader: RpcLoader,

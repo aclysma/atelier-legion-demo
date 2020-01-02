@@ -96,23 +96,27 @@ pub trait AppHandler {
 
 struct DrawContextInner {
     canvas: *mut skia_safe::Canvas,
-    coordinate_system_helper: CoordinateSystemHelper
+    coordinate_system_helper: CoordinateSystemHelper,
 }
 
 #[derive(Default)]
 pub struct DrawContext {
-    inner: std::sync::Mutex<Option<DrawContextInner>>
+    inner: std::sync::Mutex<Option<DrawContextInner>>,
 }
 
 unsafe impl Send for DrawContext {}
 unsafe impl Sync for DrawContext {}
 
 impl DrawContext {
-    pub fn begin_draw_context(&mut self, canvas: &mut skia_safe::Canvas, coordinate_system_helper: skulpin::CoordinateSystemHelper) {
+    pub fn begin_draw_context(
+        &mut self,
+        canvas: &mut skia_safe::Canvas,
+        coordinate_system_helper: skulpin::CoordinateSystemHelper,
+    ) {
         let mut lock = self.inner.lock().unwrap();
         *lock = Some(DrawContextInner {
             canvas: canvas as *mut skia_safe::Canvas,
-            coordinate_system_helper
+            coordinate_system_helper,
         });
     }
 
@@ -171,10 +175,7 @@ impl App {
         let imgui_manager = init_imgui_manager(&window);
         imgui_manager.begin_frame(&window);
 
-        let renderer_result = renderer_builder.build(
-            &window,
-            imgui_manager.clone(),
-        );
+        let renderer_result = renderer_builder.build(&window, imgui_manager.clone());
         let mut renderer = match renderer_result {
             Ok(renderer) => renderer,
             Err(e) => {
@@ -250,12 +251,18 @@ impl App {
                     if let Err(e) = renderer.draw(
                         &window,
                         imgui_manager,
-                        |canvas,
-                         coordinate_system_helper,
-                         _imgui_manager| {
-                            world.resources.get_mut::<DrawContext>().unwrap().begin_draw_context(canvas, coordinate_system_helper);
+                        |canvas, coordinate_system_helper, _imgui_manager| {
+                            world
+                                .resources
+                                .get_mut::<DrawContext>()
+                                .unwrap()
+                                .begin_draw_context(canvas, coordinate_system_helper);
                             app_handler.draw(&mut world);
-                            world.resources.get_mut::<DrawContext>().unwrap().end_draw_context();
+                            world
+                                .resources
+                                .get_mut::<DrawContext>()
+                                .unwrap()
+                                .end_draw_context();
                         },
                     ) {
                         log::warn!("Passing Renderer::draw() error to app {}", e);

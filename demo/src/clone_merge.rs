@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use legion_prefab::ComponentRegistration;
 use legion::storage::{ComponentMeta, ComponentTypeId, Component};
@@ -19,7 +18,7 @@ impl CloneMergeImpl {
     pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>) -> Self {
         Self {
             components,
-            .. Default::default()
+            ..Default::default()
         }
     }
 
@@ -29,12 +28,11 @@ impl CloneMergeImpl {
     /// of the memory
     pub fn add_mapping<FromT, IntoT, F>(
         &mut self,
-        clone_fn: F
-    )
-        where
-            FromT: Component,
-            IntoT: Component,
-            F: Fn(&Resources, &[Entity], &[FromT], &mut [IntoT]) + 'static
+        clone_fn: F,
+    ) where
+        FromT: Component,
+        IntoT: Component,
+        F: Fn(&Resources, &[Entity], &[FromT], &mut [IntoT]) + 'static,
     {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
@@ -43,13 +41,20 @@ impl CloneMergeImpl {
         let handler = Box::new(CloneMergeMappingImpl::new(
             into_type_id,
             into_type_meta,
-            move |resources, entities, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+            move |resources,
+                  entities,
+                  src_data: *const u8,
+                  dst_data: *mut u8,
+                  num_components: usize| {
                 unsafe {
-                    let from_slice = std::slice::from_raw_parts(src_data as *const FromT, num_components);
-                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+                    let from_slice =
+                        std::slice::from_raw_parts(src_data as *const FromT, num_components);
+                    let to_slice =
+                        std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
                     (clone_fn)(resources, entities, from_slice, to_slice);
                 }
-            }));
+            },
+        ));
 
         self.handlers.insert(from_type_id, handler);
     }
@@ -57,7 +62,7 @@ impl CloneMergeImpl {
     /// Adds a mapping from one component type to another. Rust's standard library into() will be
     /// used. This is a safe and idiomatic way to define mapping from one component type to another
     /// but has the downside of not providing access to the new world's resources
-    pub fn add_mapping_into<FromT : Component + Clone, IntoT : Component + From<FromT>>(&mut self) {
+    pub fn add_mapping_into<FromT: Component + Clone, IntoT: Component + From<FromT>>(&mut self) {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
         let into_type_meta = ComponentMeta::of::<IntoT>();
@@ -65,23 +70,33 @@ impl CloneMergeImpl {
         let handler = Box::new(CloneMergeMappingImpl::new(
             into_type_id,
             into_type_meta,
-            |_entities, _resources, src_data: *const u8, dst_data: *mut u8, num_components: usize| {
+            |_entities,
+             _resources,
+             src_data: *const u8,
+             dst_data: *mut u8,
+             num_components: usize| {
                 unsafe {
-                    let from_slice = std::slice::from_raw_parts(src_data as *const FromT, num_components);
-                    let to_slice = std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+                    let from_slice =
+                        std::slice::from_raw_parts(src_data as *const FromT, num_components);
+                    let to_slice =
+                        std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
 
                     from_slice.iter().zip(to_slice).for_each(|(from, to)| {
                         *to = (*from).clone().into();
                     });
                 }
-            }));
+            },
+        ));
 
         self.handlers.insert(from_type_id, handler);
     }
 }
 
 impl legion::world::CloneImpl for CloneMergeImpl {
-    fn map_component_type(&self, component_type: ComponentTypeId) -> (ComponentTypeId, ComponentMeta) {
+    fn map_component_type(
+        &self,
+        component_type: ComponentTypeId,
+    ) -> (ComponentTypeId, ComponentMeta) {
         // We expect any type we will encounter to be registered either as an explicit mapping or
         // registered in the component registrations
         let handler = &self.handlers.get(&component_type);
@@ -93,7 +108,15 @@ impl legion::world::CloneImpl for CloneMergeImpl {
         }
     }
 
-    fn clone_components(&self, resources: &Resources, src_type: ComponentTypeId, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+    fn clone_components(
+        &self,
+        resources: &Resources,
+        src_type: ComponentTypeId,
+        entities: &[Entity],
+        src_data: *const u8,
+        dst_data: *mut u8,
+        num_components: usize,
+    ) {
         // We expect any type we will encounter to be registered either as an explicit mapping or
         // registered in the component registrations
         let handler = &self.handlers.get(&src_type);
@@ -108,60 +131,68 @@ impl legion::world::CloneImpl for CloneMergeImpl {
     }
 }
 
-
-
 /// Used internally to dynamic dispatch into a Box<CloneMergeMappingImpl<T>>
 /// These are created as mappings are added to CloneMergeImpl
 trait CloneMergeMapping {
     fn dst_type_id(&self) -> ComponentTypeId;
     fn dst_type_meta(&self) -> ComponentMeta;
-    fn clone_components(&self, resources: &Resources, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize);
+    fn clone_components(
+        &self,
+        resources: &Resources,
+        entities: &[Entity],
+        src_data: *const u8,
+        dst_data: *mut u8,
+        num_components: usize,
+    );
 }
 
 struct CloneMergeMappingImpl<F>
-    where F: Fn(
+where
+    F: Fn(
         &Resources, // resources
-        &[Entity], // entities
-        *const u8, // src_data
-        *mut u8, // dst_data
-        usize // num_components
-    )
+        &[Entity],  // entities
+        *const u8,  // src_data
+        *mut u8,    // dst_data
+        usize,      // num_components
+    ),
 {
     dst_type_id: ComponentTypeId,
     dst_type_meta: ComponentMeta,
-    clone_fn: F
+    clone_fn: F,
 }
 
 impl<F> CloneMergeMappingImpl<F>
-    where F: Fn(
+where
+    F: Fn(
         &Resources, // resources
-        &[Entity], // entities
-        *const u8, // src_data
-        *mut u8, // dst_data
-        usize // num_components
-    )
+        &[Entity],  // entities
+        *const u8,  // src_data
+        *mut u8,    // dst_data
+        usize,      // num_components
+    ),
 {
     fn new(
         dst_type_id: ComponentTypeId,
         dst_type_meta: ComponentMeta,
-        clone_fn: F
+        clone_fn: F,
     ) -> Self {
         CloneMergeMappingImpl {
             dst_type_id,
             dst_type_meta,
-            clone_fn
+            clone_fn,
         }
     }
 }
 
 impl<F> CloneMergeMapping for CloneMergeMappingImpl<F>
-    where F: Fn(
+where
+    F: Fn(
         &Resources, // resources
-        &[Entity], // entities
-        *const u8, // src_data
-        *mut u8, // dst_data
-        usize // num_components
-    )
+        &[Entity],  // entities
+        *const u8,  // src_data
+        *mut u8,    // dst_data
+        usize,      // num_components
+    ),
 {
     fn dst_type_id(&self) -> ComponentTypeId {
         self.dst_type_id
@@ -171,7 +202,14 @@ impl<F> CloneMergeMapping for CloneMergeMappingImpl<F>
         self.dst_type_meta
     }
 
-    fn clone_components(&self, resources: &Resources, entities: &[Entity], src_data: *const u8, dst_data: *mut u8, num_components: usize) {
+    fn clone_components(
+        &self,
+        resources: &Resources,
+        entities: &[Entity],
+        src_data: *const u8,
+        dst_data: *mut u8,
+        num_components: usize,
+    ) {
         (self.clone_fn)(resources, entities, src_data, dst_data, num_components);
     }
 }
