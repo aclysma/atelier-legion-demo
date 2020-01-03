@@ -5,6 +5,10 @@ use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
 use skulpin::skia_safe;
+use crate::clone_merge::CloneMergeFrom;
+use na::Vector2;
+use crate::physics::Physics;
+use legion::prelude::*;
 
 //
 // Temporary component for testing.. a separate definition component for this is unnecessary
@@ -171,4 +175,100 @@ legion_prefab::register_component_type!(RigidBodyBoxComponentDefinition);
 
 pub struct RigidBodyComponent {
     pub handle: DefaultBodyHandle,
+}
+
+fn transform_shape_to_rigid_body(
+    src_world: &World,
+    src_entity: &Entity,
+    into: &mut std::mem::MaybeUninit<RigidBodyComponent>,
+    shape_handle: ncollide2d::shape::ShapeHandle<f32>,
+    is_static: bool,
+    physics: &mut Physics,
+) {
+    let position =
+        if let Some(position) = src_world.get_component::<Position2DComponent>(*src_entity) {
+            position.position
+        } else {
+            Vector2::new(0.0, 0.0)
+        };
+
+    let mut collider_offset = Vector2::new(0.0, 0.0);
+
+    // Build the rigid body.
+    let rigid_body_handle = if is_static {
+        collider_offset += position;
+        physics.bodies.insert(nphysics2d::object::Ground::new())
+    } else {
+        physics.bodies.insert(
+            nphysics2d::object::RigidBodyDesc::new()
+                .translation(position)
+                .build(),
+        )
+    };
+
+    // Build the collider.
+    let collider = nphysics2d::object::ColliderDesc::new(shape_handle.clone())
+        .density(1.0)
+        .translation(collider_offset)
+        .build(nphysics2d::object::BodyPartHandle(rigid_body_handle, 0));
+
+    // Insert the collider to the body set.
+    physics.colliders.insert(collider);
+
+    *into = std::mem::MaybeUninit::new(RigidBodyComponent {
+        handle: rigid_body_handle,
+    })
+}
+
+impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
+    fn clone_merge_from(
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        _dst_entities: &[Entity],
+        from: &[RigidBodyBallComponentDefinition],
+        into: &mut [std::mem::MaybeUninit<Self>],
+    ) {
+        let mut physics = dst_resources.get_mut::<Physics>().unwrap();
+
+        for (src_entity, from, into) in izip!(src_entities, from, into) {
+            let shape_handle =
+                ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(from.radius));
+            transform_shape_to_rigid_body(
+                src_world,
+                src_entity,
+                into,
+                shape_handle,
+                from.is_static,
+                &mut physics,
+            );
+        }
+    }
+}
+
+impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
+    fn clone_merge_from(
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        _dst_entities: &[Entity],
+        from: &[RigidBodyBoxComponentDefinition],
+        into: &mut [std::mem::MaybeUninit<Self>],
+    ) {
+        let mut physics = dst_resources.get_mut::<Physics>().unwrap();
+
+        for (src_entity, from, into) in izip!(src_entities, from, into) {
+            let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Cuboid::new(
+                from.half_extents,
+            ));
+            transform_shape_to_rigid_body(
+                src_world,
+                src_entity,
+                into,
+                shape_handle,
+                from.is_static,
+                &mut physics,
+            );
+        }
+    }
 }

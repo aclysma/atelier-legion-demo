@@ -110,15 +110,16 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
         clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
 
-        clone_merge_impl.add_mapping::<Position2DComponentDefinition, Position2DComponent, _>(
-            |_src_world, _dst_resources, _src_entities, _dst_entities, from, into| {
-                for (f, t) in from.iter().zip(into) {
-                    *t = std::mem::MaybeUninit::new(Position2DComponent {
-                        position: f.position,
-                    });
-                }
-            },
-        );
+        clone_merge_impl
+            .add_mapping_closure::<Position2DComponentDefinition, Position2DComponent, _>(
+                |_src_world, _dst_resources, _src_entities, _dst_entities, from, into| {
+                    for (f, t) in from.iter().zip(into) {
+                        *t = std::mem::MaybeUninit::new(Position2DComponent {
+                            position: f.position,
+                        });
+                    }
+                },
+            );
 
         world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
 

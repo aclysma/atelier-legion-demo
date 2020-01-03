@@ -4,6 +4,58 @@ use legion::storage::{ComponentMeta, ComponentTypeId, Component};
 use legion::prelude::*;
 use std::mem::MaybeUninit;
 
+pub trait CloneMergeFrom<FromT: Sized>
+where
+    Self: Sized,
+{
+    fn clone_merge_from(
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
+        from: &[FromT],
+        into: &mut [MaybeUninit<Self>],
+    );
+}
+
+pub trait CloneMergeInto<IntoT: Sized>
+where
+    Self: Sized,
+{
+    fn clone_merge_into(
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
+        from: &[Self],
+        into: &mut [MaybeUninit<IntoT>],
+    );
+}
+
+// From implies Into
+impl<FromT, IntoT> CloneMergeInto<IntoT> for FromT
+where
+    IntoT: CloneMergeFrom<FromT>,
+{
+    fn clone_merge_into(
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
+        from: &[Self],
+        into: &mut [MaybeUninit<IntoT>],
+    ) {
+        IntoT::clone_merge_from(
+            src_world,
+            dst_resources,
+            src_entities,
+            dst_entities,
+            from,
+            into,
+        );
+    }
+}
+
 /// An implementation passed into legion::world::World::clone_merge. This implementation supports
 /// providing custom mappings with add_mapping (which takes a closure) and add_mapping_into (which
 /// uses Rust standard library's .into(). If a mapping isn't provided for a type, the component
@@ -23,11 +75,101 @@ impl CloneMergeImpl {
         }
     }
 
-    /// Adds a mapping from one component type to another. The closure will be passed the new
-    /// world's resources and all the memory that holds the components. THe memory passed into
+    /// Adds a mapping from one component type to another. Rust's standard library into() will be
+    /// used. This is a safe and idiomatic way to define mapping from one component type to another
+    /// but has the downside of not providing access to the new world's resources
+    pub fn add_mapping_into<FromT: Component + Clone + Into<IntoT>, IntoT: Component>(&mut self) {
+        let from_type_id = ComponentTypeId::of::<FromT>();
+        let into_type_id = ComponentTypeId::of::<IntoT>();
+        let into_type_meta = ComponentMeta::of::<IntoT>();
+
+        let handler = Box::new(CloneMergeMappingImpl::new(
+            into_type_id,
+            into_type_meta,
+            |_src_world,
+             _dst_resources,
+             _src_entities,
+             _dst_entities,
+             src_data: *const u8,
+             dst_data: *mut u8,
+             num_components: usize| {
+                println!(
+                    "Clone type {} -> {}",
+                    std::any::type_name::<FromT>(),
+                    std::any::type_name::<IntoT>()
+                );
+                unsafe {
+                    let from_slice =
+                        std::slice::from_raw_parts(src_data as *const FromT, num_components);
+                    let to_slice = std::slice::from_raw_parts_mut(
+                        dst_data as *mut MaybeUninit<IntoT>,
+                        num_components,
+                    );
+
+                    from_slice.iter().zip(to_slice).for_each(|(from, to)| {
+                        *to = MaybeUninit::new((*from).clone().into());
+                    });
+                }
+            },
+        ));
+
+        self.handlers.insert(from_type_id, handler);
+    }
+
+    /// Adds a mapping from one component type to another. The trait impl will be passed the new
+    /// world's resources and all the memory that holds the components. The memory passed into
     /// the closure as IntoT MUST be initialized or undefined behavior could happen on future access
     /// of the memory
-    pub fn add_mapping<FromT, IntoT, F>(
+    pub fn add_mapping<FromT: Component + Clone + CloneMergeInto<IntoT>, IntoT: Component>(
+        &mut self
+    ) {
+        let from_type_id = ComponentTypeId::of::<FromT>();
+        let into_type_id = ComponentTypeId::of::<IntoT>();
+        let into_type_meta = ComponentMeta::of::<IntoT>();
+
+        let handler = Box::new(CloneMergeMappingImpl::new(
+            into_type_id,
+            into_type_meta,
+            |src_world,
+             dst_resources,
+             src_entities,
+             dst_entities,
+             src_data: *const u8,
+             dst_data: *mut u8,
+             num_components: usize| {
+                println!(
+                    "Clone type {} -> {}",
+                    std::any::type_name::<FromT>(),
+                    std::any::type_name::<IntoT>()
+                );
+                unsafe {
+                    let from_slice =
+                        std::slice::from_raw_parts(src_data as *const FromT, num_components);
+                    let to_slice = std::slice::from_raw_parts_mut(
+                        dst_data as *mut MaybeUninit<IntoT>,
+                        num_components,
+                    );
+
+                    <FromT as CloneMergeInto<IntoT>>::clone_merge_into(
+                        src_world,
+                        dst_resources,
+                        src_entities,
+                        dst_entities,
+                        from_slice,
+                        to_slice,
+                    );
+                }
+            },
+        ));
+
+        self.handlers.insert(from_type_id, handler);
+    }
+
+    /// Adds a mapping from one component type to another. The closure will be passed the new
+    /// world's resources and all the memory that holds the components. The memory passed into
+    /// the closure as IntoT MUST be initialized or undefined behavior could happen on future access
+    /// of the memory
+    pub fn add_mapping_closure<FromT, IntoT, F>(
         &mut self,
         clone_fn: F,
     ) where
@@ -76,47 +218,6 @@ impl CloneMergeImpl {
                         from_slice,
                         to_slice,
                     );
-                }
-            },
-        ));
-
-        self.handlers.insert(from_type_id, handler);
-    }
-
-    /// Adds a mapping from one component type to another. Rust's standard library into() will be
-    /// used. This is a safe and idiomatic way to define mapping from one component type to another
-    /// but has the downside of not providing access to the new world's resources
-    pub fn add_mapping_into<FromT: Component + Clone, IntoT: Component + From<FromT>>(&mut self) {
-        let from_type_id = ComponentTypeId::of::<FromT>();
-        let into_type_id = ComponentTypeId::of::<IntoT>();
-        let into_type_meta = ComponentMeta::of::<IntoT>();
-
-        let handler = Box::new(CloneMergeMappingImpl::new(
-            into_type_id,
-            into_type_meta,
-            |_src_world,
-             _dst_resources,
-             _src_entities,
-             _dst_entities,
-             src_data: *const u8,
-             dst_data: *mut u8,
-             num_components: usize| {
-                println!(
-                    "Clone type {} -> {}",
-                    std::any::type_name::<FromT>(),
-                    std::any::type_name::<IntoT>()
-                );
-                unsafe {
-                    let from_slice =
-                        std::slice::from_raw_parts(src_data as *const FromT, num_components);
-                    let to_slice = std::slice::from_raw_parts_mut(
-                        dst_data as *mut MaybeUninit<IntoT>,
-                        num_components,
-                    );
-
-                    from_slice.iter().zip(to_slice).for_each(|(from, to)| {
-                        *to = MaybeUninit::new((*from).clone().into());
-                    });
                 }
             },
         ));

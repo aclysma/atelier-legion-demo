@@ -10,10 +10,7 @@ use skulpin::skia_safe;
 use skulpin::VirtualKeyCode;
 use skulpin::imgui;
 
-// Used for physics
 use na::Vector2;
-use ncollide2d::shape::{Cuboid, ShapeHandle, Ball};
-use nphysics2d::object::{ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle};
 
 use std::collections::HashMap;
 use legion::storage::ComponentTypeId;
@@ -96,7 +93,7 @@ fn spawn_ground(world: &mut World) {
 }
 
 fn spawn_balls(world: &mut World) {
-    let shift = (BALL_RADIUS + ColliderDesc::<f32>::default_margin()) * 2.0;
+    let shift = (BALL_RADIUS + nphysics2d::object::ColliderDesc::<f32>::default_margin()) * 2.0;
     let centerx = shift * (BALL_COUNT as f32) / 2.0;
     let centery = shift / 2.0;
     let height = 3.0;
@@ -162,90 +159,14 @@ pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistra
     component_types
 }
 
-fn transform_shape_to_rigid_body(
-    src_world: &World,
-    src_entity: &Entity,
-    into: &mut std::mem::MaybeUninit<RigidBodyComponent>,
-    shape_handle: ncollide2d::shape::ShapeHandle<f32>,
-    is_static: bool,
-    physics: &mut Physics,
-) {
-    let position =
-        if let Some(position) = src_world.get_component::<Position2DComponent>(*src_entity) {
-            position.position
-        } else {
-            Vector2::new(0.0, 0.0)
-        };
-
-    let mut collider_offset = Vector2::new(0.0, 0.0);
-
-    // Build the rigid body.
-    let rigid_body_handle = if is_static {
-        collider_offset += position;
-        physics.bodies.insert(Ground::new())
-    } else {
-        physics
-            .bodies
-            .insert(RigidBodyDesc::new().translation(position).build())
-    };
-
-    // Build the collider.
-    let collider = ColliderDesc::new(shape_handle.clone())
-        .density(1.0)
-        .translation(collider_offset)
-        .build(BodyPartHandle(rigid_body_handle, 0));
-
-    // Insert the collider to the body set.
-    physics.colliders.insert(collider);
-
-    *into = std::mem::MaybeUninit::new(RigidBodyComponent {
-        handle: rigid_body_handle,
-    })
-}
-
 pub fn create_spawn_clone_impl() -> CloneMergeImpl {
     let component_registry = create_component_registry();
     let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
     clone_merge_impl
         .add_mapping_into::<DrawSkiaCircleComponentDefinition, DrawSkiaCircleComponent>();
     clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDefinition, DrawSkiaBoxComponent>();
-
-    clone_merge_impl.add_mapping::<RigidBodyBallComponentDefinition, RigidBodyComponent, _>(
-        |src_world, dst_resources, src_entities, _dst_entities, from, into| {
-            let mut physics = dst_resources.get_mut::<Physics>().unwrap();
-
-            for (src_entity, from, into) in izip!(src_entities, from, into) {
-                let shape_handle = ShapeHandle::new(Ball::new(from.radius));
-                transform_shape_to_rigid_body(
-                    src_world,
-                    src_entity,
-                    into,
-                    shape_handle,
-                    from.is_static,
-                    &mut physics,
-                );
-            }
-        },
-    );
-
-    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDefinition, RigidBodyComponent, _>(
-        |src_world, dst_resources, src_entities, _dst_entities, from, into| {
-            let mut physics = dst_resources.get_mut::<Physics>().unwrap();
-
-            for (src_entity, from, into) in izip!(src_entities, from, into) {
-                let shape_handle = ShapeHandle::new(Cuboid::new(from.half_extents));
-                transform_shape_to_rigid_body(
-                    src_world,
-                    src_entity,
-                    into,
-                    shape_handle,
-                    from.is_static,
-                    &mut physics,
-                );
-            }
-        },
-    );
-
+    clone_merge_impl.add_mapping::<RigidBodyBallComponentDefinition, RigidBodyComponent>();
+    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDefinition, RigidBodyComponent>();
     clone_merge_impl
 }
 
