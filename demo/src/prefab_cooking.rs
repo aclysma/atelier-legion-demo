@@ -128,26 +128,11 @@ pub fn cook_prefab(
                     let component_registration =
                         &registered_components_by_uuid[&component_override.component_type];
 
-                    // Apply the override data to the component
-                    //TODO: Implement this
-                    match &component_override.data.0 {
-                        legion_prefab::BincodeOrSerdeValue::Bincode(x) => {
-                            println!("deserialize bincode");
+                    let mut deserializer =
+                        ron::de::Deserializer::from_str(&component_override.data).unwrap();
 
-                            let slice_reader = bincode::SliceReader::new(x);
-                            let de_acceptor = ApplyComponentDiffDeserializerAcceptor {
-                                component_registration: component_registration,
-                                world: &mut world,
-                                entity: cooked_entity,
-                            };
-
-                            bincode::with_deserializer(slice_reader, de_acceptor);
-                        }
-                        legion_prefab::BincodeOrSerdeValue::SerdeValue(_value) => {
-                            println!("deserialize serde_value");
-                            unimplemented!();
-                        }
-                    }
+                    let mut de = erased_serde::Deserializer::erase(&mut deserializer);
+                    component_registration.apply_diff(&mut de, &mut world, cooked_entity);
                 }
             }
         }
