@@ -35,6 +35,7 @@ image2 = { version = "0.11", features = [ "ser" ] }
 inventory = "0.1"
 bincode = "1.2"
 mopa = "0.2"
+itertools = "0.8"
 
 serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
 legion-prefab = { path = "../legion-prefab" }

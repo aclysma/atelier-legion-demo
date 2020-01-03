@@ -5,8 +5,6 @@ use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
 use skulpin::skia_safe;
-use serde::export::Formatter;
-use serde::export::fmt::Error;
 
 //
 // Temporary component for testing.. a separate definition component for this is unnecessary
@@ -82,12 +80,7 @@ unsafe impl Sync for Paint {}
 
 impl From<PaintDefinition> for Paint {
     fn from(from: PaintDefinition) -> Self {
-        let color = skia_safe::Color4f::new(
-            from.color.x,
-            from.color.y,
-            from.color.z,
-            from.color.w,
-        );
+        let color = skia_safe::Color4f::new(from.color.x, from.color.y, from.color.z, from.color.w);
 
         let mut paint = skia_safe::Paint::new(color, None);
         paint.set_anti_alias(true);
@@ -121,7 +114,7 @@ impl From<DrawSkiaBoxComponentDefinition> for DrawSkiaBoxComponent {
     fn from(from: DrawSkiaBoxComponentDefinition) -> Self {
         DrawSkiaBoxComponent {
             half_extents: from.half_extents,
-            paint: from.paint.into()
+            paint: from.paint.into(),
         }
     }
 }
@@ -146,16 +139,13 @@ pub struct DrawSkiaCircleComponent {
 
 impl From<DrawSkiaCircleComponentDefinition> for DrawSkiaCircleComponent {
     fn from(from: DrawSkiaCircleComponentDefinition) -> Self {
-        println!("enter DrawSkiaCircleComponent");
         let c = DrawSkiaCircleComponent {
             radius: from.radius,
-            paint: from.paint.into()
+            paint: from.paint.into(),
         };
-        println!("leave DrawSkiaCircleComponent");
         c
     }
 }
-
 
 //
 // Add a ball rigid body
@@ -164,7 +154,7 @@ impl From<DrawSkiaCircleComponentDefinition> for DrawSkiaCircleComponent {
 #[uuid = "fa518c0a-a65a-44c8-9d35-3f4f336b4de4"]
 pub struct RigidBodyBallComponentDefinition {
     pub radius: f32,
-    pub is_static: bool
+    pub is_static: bool,
 }
 
 legion_prefab::register_component_type!(RigidBodyBallComponentDefinition);
@@ -174,7 +164,7 @@ legion_prefab::register_component_type!(RigidBodyBallComponentDefinition);
 pub struct RigidBodyBoxComponentDefinition {
     #[serde_diff(inline)]
     pub half_extents: na::Vector2<f32>,
-    pub is_static: bool
+    pub is_static: bool,
 }
 
 legion_prefab::register_component_type!(RigidBodyBoxComponentDefinition);

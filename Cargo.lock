@@ -173,6 +173,7 @@ dependencies = [
  "erased-serde",
  "image2",
  "inventory",
+ "itertools",
  "legion",
  "legion-prefab",
  "log",

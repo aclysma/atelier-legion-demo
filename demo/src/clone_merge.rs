@@ -33,7 +33,14 @@ impl CloneMergeImpl {
     ) where
         FromT: Component,
         IntoT: Component,
-        F: Fn(&Resources, &[Entity], &[FromT], &mut [MaybeUninit<IntoT>]) + 'static,
+        F: Fn(
+                &World,                    // src_world
+                &Resources,                // dst_resources
+                &[Entity],                 // src_entities
+                &[Entity],                 // dst_entities
+                &[FromT],                  // src_data
+                &mut [MaybeUninit<IntoT>], // dst_data
+            ) + 'static,
     {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
@@ -42,19 +49,33 @@ impl CloneMergeImpl {
         let handler = Box::new(CloneMergeMappingImpl::new(
             into_type_id,
             into_type_meta,
-            move |resources,
-                  entities,
+            move |src_world,
+                  dst_resources,
+                  src_entities,
+                  dst_entities,
                   src_data: *const u8,
                   dst_data: *mut u8,
                   num_components: usize| {
-
-                println!("Clone type {} -> {}", std::any::type_name::<FromT>(), std::any::type_name::<IntoT>());
+                println!(
+                    "Clone type {} -> {}",
+                    std::any::type_name::<FromT>(),
+                    std::any::type_name::<IntoT>()
+                );
                 unsafe {
                     let from_slice =
                         std::slice::from_raw_parts(src_data as *const FromT, num_components);
-                    let to_slice =
-                        std::slice::from_raw_parts_mut(dst_data as *mut MaybeUninit<IntoT>, num_components);
-                    (clone_fn)(resources, entities, from_slice, to_slice);
+                    let to_slice = std::slice::from_raw_parts_mut(
+                        dst_data as *mut MaybeUninit<IntoT>,
+                        num_components,
+                    );
+                    (clone_fn)(
+                        src_world,
+                        dst_resources,
+                        src_entities,
+                        dst_entities,
+                        from_slice,
+                        to_slice,
+                    );
                 }
             },
         ));
@@ -73,17 +94,25 @@ impl CloneMergeImpl {
         let handler = Box::new(CloneMergeMappingImpl::new(
             into_type_id,
             into_type_meta,
-            |_entities,
-             _resources,
+            |_src_world,
+             _dst_resources,
+             _src_entities,
+             _dst_entities,
              src_data: *const u8,
              dst_data: *mut u8,
              num_components: usize| {
-                println!("Clone type {} -> {}", std::any::type_name::<FromT>(), std::any::type_name::<IntoT>());
+                println!(
+                    "Clone type {} -> {}",
+                    std::any::type_name::<FromT>(),
+                    std::any::type_name::<IntoT>()
+                );
                 unsafe {
                     let from_slice =
                         std::slice::from_raw_parts(src_data as *const FromT, num_components);
-                    let to_slice =
-                        std::slice::from_raw_parts_mut(dst_data as *mut MaybeUninit<IntoT>, num_components);
+                    let to_slice = std::slice::from_raw_parts_mut(
+                        dst_data as *mut MaybeUninit<IntoT>,
+                        num_components,
+                    );
 
                     from_slice.iter().zip(to_slice).for_each(|(from, to)| {
                         *to = MaybeUninit::new((*from).clone().into());
@@ -96,7 +125,7 @@ impl CloneMergeImpl {
     }
 }
 
-impl legion::world::CloneImpl for CloneMergeImpl {
+impl legion::world::CloneMergeImpl for CloneMergeImpl {
     fn map_component_type(
         &self,
         component_type: ComponentTypeId,
@@ -114,9 +143,11 @@ impl legion::world::CloneImpl for CloneMergeImpl {
 
     fn clone_components(
         &self,
-        resources: &Resources,
+        src_world: &World,
+        dst_resources: &Resources,
         src_type: ComponentTypeId,
-        entities: &[Entity],
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
         src_data: *const u8,
         dst_data: *mut u8,
         num_components: usize,
@@ -125,7 +156,15 @@ impl legion::world::CloneImpl for CloneMergeImpl {
         // registered in the component registrations
         let handler = &self.handlers.get(&src_type);
         if let Some(handler) = handler {
-            handler.clone_components(resources, entities, src_data, dst_data, num_components);
+            handler.clone_components(
+                src_world,
+                dst_resources,
+                src_entities,
+                dst_entities,
+                src_data,
+                dst_data,
+                num_components,
+            );
         } else {
             let comp_reg = &self.components[&src_type];
             unsafe {
@@ -142,8 +181,10 @@ trait CloneMergeMapping {
     fn dst_type_meta(&self) -> ComponentMeta;
     fn clone_components(
         &self,
-        resources: &Resources,
-        entities: &[Entity],
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
         src_data: *const u8,
         dst_data: *mut u8,
         num_components: usize,
@@ -153,8 +194,10 @@ trait CloneMergeMapping {
 struct CloneMergeMappingImpl<F>
 where
     F: Fn(
-        &Resources, // resources
-        &[Entity],  // entities
+        &World,     // src_world
+        &Resources, // dst_resources
+        &[Entity],  // src_entities
+        &[Entity],  // dst_entities
         *const u8,  // src_data
         *mut u8,    // dst_data
         usize,      // num_components
@@ -168,8 +211,10 @@ where
 impl<F> CloneMergeMappingImpl<F>
 where
     F: Fn(
-        &Resources, // resources
-        &[Entity],  // entities
+        &World,     // src_world
+        &Resources, // dst_resources
+        &[Entity],  // src_entities
+        &[Entity],  // dst_entities
         *const u8,  // src_data
         *mut u8,    // dst_data
         usize,      // num_components
@@ -191,8 +236,10 @@ where
 impl<F> CloneMergeMapping for CloneMergeMappingImpl<F>
 where
     F: Fn(
-        &Resources, // resources
-        &[Entity],  // entities
+        &World,     // src_world
+        &Resources, // dst_resources
+        &[Entity],  // src_entities
+        &[Entity],  // dst_entities
         *const u8,  // src_data
         *mut u8,    // dst_data
         usize,      // num_components
@@ -208,12 +255,22 @@ where
 
     fn clone_components(
         &self,
-        resources: &Resources,
-        entities: &[Entity],
+        src_world: &World,
+        dst_resources: &Resources,
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
         src_data: *const u8,
         dst_data: *mut u8,
         num_components: usize,
     ) {
-        (self.clone_fn)(resources, entities, src_data, dst_data, num_components);
+        (self.clone_fn)(
+            src_world,
+            dst_resources,
+            src_entities,
+            dst_entities,
+            src_data,
+            dst_data,
+            num_components,
+        );
     }
 }

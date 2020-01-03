@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate itertools;
+
 extern crate nalgebra as na;
 
 use legion::prelude::*;
@@ -13,7 +16,6 @@ use ncollide2d::shape::{Cuboid, ShapeHandle, Ball};
 use nphysics2d::object::{ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle};
 
 use std::collections::HashMap;
-use prefab_format::ComponentTypeUuid;
 use legion::storage::ComponentTypeId;
 use legion_prefab::ComponentRegistration;
 
@@ -45,7 +47,10 @@ use components::PaintDefinition;
 use components::DrawSkiaBoxComponent;
 use components::DrawSkiaCircleComponent;
 use components::RigidBodyComponent;
-use crate::components::{DrawSkiaBoxComponentDefinition, DrawSkiaCircleComponentDefinition, RigidBodyBallComponentDefinition, RigidBodyBoxComponentDefinition};
+use crate::components::{
+    DrawSkiaBoxComponentDefinition, DrawSkiaCircleComponentDefinition,
+    RigidBodyBallComponentDefinition, RigidBodyBoxComponentDefinition,
+};
 
 mod prefab;
 mod prefab_cooking;
@@ -58,9 +63,7 @@ const BALL_RADIUS: f32 = 0.2;
 const GRAVITY: f32 = -9.81;
 const BALL_COUNT: usize = 5;
 
-fn spawn_ground(
-    world: &mut World,
-) {
+fn spawn_ground(world: &mut World) {
     let position = Vector2::y() * -GROUND_THICKNESS;
     let paint = PaintDefinition {
         color: na::Vector4::new(0.0, 1.0, 0.0, 1.0),
@@ -82,7 +85,7 @@ fn spawn_ground(
                 },
                 RigidBodyBoxComponentDefinition {
                     half_extents: half_extents,
-                    is_static: true
+                    is_static: true,
                 },
             )
         }),
@@ -92,11 +95,7 @@ fn spawn_ground(
     world.clone_merge(&prefab_world, &clone_impl, None, None);
 }
 
-fn spawn_balls(
-    world: &mut World,
-) {
-    let ball_shape_handle = ShapeHandle::new(Ball::new(BALL_RADIUS));
-
+fn spawn_balls(world: &mut World) {
     let shift = (BALL_RADIUS + ColliderDesc::<f32>::default_margin()) * 2.0;
     let centerx = shift * (BALL_COUNT as f32) / 2.0;
     let centery = shift / 2.0;
@@ -135,7 +134,7 @@ fn spawn_balls(
                 },
                 RigidBodyBallComponentDefinition {
                     radius: BALL_RADIUS,
-                    is_static: false
+                    is_static: false,
                 },
             )
         }),
@@ -163,78 +162,89 @@ pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistra
     component_types
 }
 
+fn transform_shape_to_rigid_body(
+    src_world: &World,
+    src_entity: &Entity,
+    into: &mut std::mem::MaybeUninit<RigidBodyComponent>,
+    shape_handle: ncollide2d::shape::ShapeHandle<f32>,
+    is_static: bool,
+    physics: &mut Physics,
+) {
+    let position =
+        if let Some(position) = src_world.get_component::<Position2DComponent>(*src_entity) {
+            position.position
+        } else {
+            Vector2::new(0.0, 0.0)
+        };
+
+    let mut collider_offset = Vector2::new(0.0, 0.0);
+
+    // Build the rigid body.
+    let rigid_body_handle = if is_static {
+        collider_offset += position;
+        physics.bodies.insert(Ground::new())
+    } else {
+        physics
+            .bodies
+            .insert(RigidBodyDesc::new().translation(position).build())
+    };
+
+    // Build the collider.
+    let collider = ColliderDesc::new(shape_handle.clone())
+        .density(1.0)
+        .translation(collider_offset)
+        .build(BodyPartHandle(rigid_body_handle, 0));
+
+    // Insert the collider to the body set.
+    physics.colliders.insert(collider);
+
+    *into = std::mem::MaybeUninit::new(RigidBodyComponent {
+        handle: rigid_body_handle,
+    })
+}
+
 pub fn create_spawn_clone_impl() -> CloneMergeImpl {
     let component_registry = create_component_registry();
     let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
-    clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDefinition, DrawSkiaCircleComponent>();
+    clone_merge_impl
+        .add_mapping_into::<DrawSkiaCircleComponentDefinition, DrawSkiaCircleComponent>();
     clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDefinition, DrawSkiaBoxComponent>();
 
-    clone_merge_impl.add_mapping::<RigidBodyBallComponentDefinition, RigidBodyComponent, _>(|resources, entities, from, into| {
-        let mut physics = resources.get_mut::<Physics>().unwrap();
+    clone_merge_impl.add_mapping::<RigidBodyBallComponentDefinition, RigidBodyComponent, _>(
+        |src_world, dst_resources, src_entities, _dst_entities, from, into| {
+            let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        for (from, into) in from.iter().zip(into) {
-            let ball_shape_handle = ShapeHandle::new(Ball::new(from.radius));
+            for (src_entity, from, into) in izip!(src_entities, from, into) {
+                let shape_handle = ShapeHandle::new(Ball::new(from.radius));
+                transform_shape_to_rigid_body(
+                    src_world,
+                    src_entity,
+                    into,
+                    shape_handle,
+                    from.is_static,
+                    &mut physics,
+                );
+            }
+        },
+    );
 
-            //TODO: Need to initialize the position
-            let position = Vector2::new(0.0, 0.0);
-            let mut collider_offset = Vector2::new(0.0, 0.0);
+    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDefinition, RigidBodyComponent, _>(
+        |src_world, dst_resources, src_entities, _dst_entities, from, into| {
+            let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-            // Build the rigid body.
-            let rigid_body_handle = if from.is_static {
-                collider_offset += position;
-                physics.bodies.insert(Ground::new())
-            } else {
-                physics.bodies.insert(RigidBodyDesc::new().translation(position).build())
-            };
-
-            // Build the collider.
-            let ball_collider = ColliderDesc::new(ball_shape_handle.clone())
-                .density(1.0)
-                .translation(collider_offset)
-                .build(BodyPartHandle(rigid_body_handle, 0));
-
-            // Insert the collider to the body set.
-            physics.colliders.insert(ball_collider);
-
-            *into = std::mem::MaybeUninit::new(RigidBodyComponent {
-                handle: rigid_body_handle
-            })
-        }
-    });
-
-
-    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDefinition, RigidBodyComponent, _>(|resources, entities, from, into| {
-        let mut physics = resources.get_mut::<Physics>().unwrap();
-
-        for (from, into) in from.iter().zip(into) {
-            let box_shape_handle = ShapeHandle::new(Cuboid::new(from.half_extents));
-
-            //TODO: Need to initialize the position
-            let position = Vector2::new(0.0, 0.0);
-            let mut collider_offset = Vector2::new(0.0, 0.0);
-
-            // Build the rigid body.
-            let rigid_body_handle = if from.is_static {
-                collider_offset += position;
-                physics.bodies.insert(Ground::new())
-            } else {
-                physics.bodies.insert(RigidBodyDesc::new().translation(position).build())
-            };
-
-            // Build the collider.
-            let box_collider = ColliderDesc::new(box_shape_handle.clone())
-                .density(1.0)
-                .translation(collider_offset)
-                .build(BodyPartHandle(rigid_body_handle, 0));
-
-            // Insert the collider to the body set.
-            physics.colliders.insert(box_collider);
-
-            *into = std::mem::MaybeUninit::new(RigidBodyComponent {
-                handle: rigid_body_handle
-            })
-        }
-    });
+            for (src_entity, from, into) in izip!(src_entities, from, into) {
+                let shape_handle = ShapeHandle::new(Cuboid::new(from.half_extents));
+                transform_shape_to_rigid_body(
+                    src_world,
+                    src_entity,
+                    into,
+                    shape_handle,
+                    from.is_static,
+                    &mut physics,
+                );
+            }
+        },
+    );
 
     clone_merge_impl
 }
@@ -311,11 +321,7 @@ fn read_from_physics() -> Box<dyn Schedulable> {
         .build(|_, mut world, physics, query| {
             for (mut pos, body) in query.iter(&mut world) {
                 if let Some(rigid_body) = physics.bodies.rigid_body(body.handle) {
-                    println!("rigid body found");
-                    pos.position = rigid_body
-                        .position()
-                        .translation
-                        .vector
+                    pos.position = rigid_body.position().translation.vector
                 }
             }
         })
@@ -454,8 +460,7 @@ impl app::AppHandler for DemoApp {
         world: &mut World,
     ) {
         let asset_manager = create_asset_manager();
-
-        let mut physics = Physics::new(Vector2::y() * GRAVITY);
+        let physics = Physics::new(Vector2::y() * GRAVITY);
 
         world.resources.insert(physics);
         world.resources.insert(FpsText::new());
@@ -463,7 +468,6 @@ impl app::AppHandler for DemoApp {
 
         spawn_ground(world);
         spawn_balls(world);
-
     }
 
     fn update(
