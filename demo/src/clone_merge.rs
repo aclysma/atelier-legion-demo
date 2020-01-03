@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use legion_prefab::ComponentRegistration;
 use legion::storage::{ComponentMeta, ComponentTypeId, Component};
 use legion::prelude::*;
+use std::mem::MaybeUninit;
 
 /// An implementation passed into legion::world::World::clone_merge. This implementation supports
 /// providing custom mappings with add_mapping (which takes a closure) and add_mapping_into (which
@@ -32,7 +33,7 @@ impl CloneMergeImpl {
     ) where
         FromT: Component,
         IntoT: Component,
-        F: Fn(&Resources, &[Entity], &[FromT], &mut [IntoT]) + 'static,
+        F: Fn(&Resources, &[Entity], &[FromT], &mut [MaybeUninit<IntoT>]) + 'static,
     {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
@@ -46,11 +47,13 @@ impl CloneMergeImpl {
                   src_data: *const u8,
                   dst_data: *mut u8,
                   num_components: usize| {
+
+                println!("Clone type {} -> {}", std::any::type_name::<FromT>(), std::any::type_name::<IntoT>());
                 unsafe {
                     let from_slice =
                         std::slice::from_raw_parts(src_data as *const FromT, num_components);
                     let to_slice =
-                        std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+                        std::slice::from_raw_parts_mut(dst_data as *mut MaybeUninit<IntoT>, num_components);
                     (clone_fn)(resources, entities, from_slice, to_slice);
                 }
             },
@@ -75,14 +78,15 @@ impl CloneMergeImpl {
              src_data: *const u8,
              dst_data: *mut u8,
              num_components: usize| {
+                println!("Clone type {} -> {}", std::any::type_name::<FromT>(), std::any::type_name::<IntoT>());
                 unsafe {
                     let from_slice =
                         std::slice::from_raw_parts(src_data as *const FromT, num_components);
                     let to_slice =
-                        std::slice::from_raw_parts_mut(dst_data as *mut IntoT, num_components);
+                        std::slice::from_raw_parts_mut(dst_data as *mut MaybeUninit<IntoT>, num_components);
 
                     from_slice.iter().zip(to_slice).for_each(|(from, to)| {
-                        *to = (*from).clone().into();
+                        *to = MaybeUninit::new((*from).clone().into());
                     });
                 }
             },

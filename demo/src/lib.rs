@@ -12,6 +12,11 @@ use na::Vector2;
 use ncollide2d::shape::{Cuboid, ShapeHandle, Ball};
 use nphysics2d::object::{ColliderDesc, RigidBodyDesc, Ground, BodyPartHandle};
 
+use std::collections::HashMap;
+use prefab_format::ComponentTypeUuid;
+use legion::storage::ComponentTypeId;
+use legion_prefab::ComponentRegistration;
+
 mod physics;
 use physics::Physics;
 
@@ -27,6 +32,7 @@ pub use temp_test::temp_force_prefab_cook;
 mod asset_storage;
 
 mod clone_merge;
+use clone_merge::CloneMergeImpl;
 
 pub mod components;
 
@@ -35,10 +41,11 @@ pub mod daemon;
 mod prefab_importer;
 
 use components::Position2DComponent;
-use components::PaintDesc;
+use components::PaintDefinition;
 use components::DrawSkiaBoxComponent;
 use components::DrawSkiaCircleComponent;
 use components::RigidBodyComponent;
+use crate::components::{DrawSkiaBoxComponentDefinition, DrawSkiaCircleComponentDefinition, RigidBodyBallComponentDefinition, RigidBodyBoxComponentDefinition};
 
 mod prefab;
 mod prefab_cooking;
@@ -52,49 +59,40 @@ const GRAVITY: f32 = -9.81;
 const BALL_COUNT: usize = 5;
 
 fn spawn_ground(
-    physics: &mut Physics,
     world: &mut World,
 ) {
     let position = Vector2::y() * -GROUND_THICKNESS;
-
-    // A rectangle that the balls will fall on
-    let ground_shape = ShapeHandle::new(Cuboid::new(Vector2::new(
-        GROUND_HALF_EXTENTS_WIDTH,
-        GROUND_THICKNESS,
-    )));
-
-    // Build a static ground body and add it to the body set.
-    let ground_body_handle = physics.bodies.insert(Ground::new());
-
-    // Build the collider.
-    let ground_collider = ColliderDesc::new(ground_shape)
-        .translation(position)
-        .build(BodyPartHandle(ground_body_handle, 0));
-
-    // Add the collider to the collider set.
-    physics.colliders.insert(ground_collider);
-
-    let paint = PaintDesc {
+    let paint = PaintDefinition {
         color: na::Vector4::new(0.0, 1.0, 0.0, 1.0),
         stroke_width: 0.02,
     };
 
-    world.insert(
+    let half_extents = na::Vector2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS);
+
+    let universe = Universe::new();
+    let mut prefab_world = universe.create_world();
+    prefab_world.insert(
         (),
         (0..1).map(|_| {
             (
                 Position2DComponent { position },
-                DrawSkiaBoxComponent {
-                    half_extents: na::Vector2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS),
+                DrawSkiaBoxComponentDefinition {
+                    half_extents: half_extents,
                     paint,
+                },
+                RigidBodyBoxComponentDefinition {
+                    half_extents: half_extents,
+                    is_static: true
                 },
             )
         }),
     );
+
+    let clone_impl = create_spawn_clone_impl();
+    world.clone_merge(&prefab_world, &clone_impl, None, None);
 }
 
 fn spawn_balls(
-    physics: &mut Physics,
     world: &mut World,
 ) {
     let ball_shape_handle = ShapeHandle::new(Ball::new(BALL_RADIUS));
@@ -111,7 +109,11 @@ fn spawn_balls(
         na::Vector4::new(0.2, 0.2, 1.0, 1.0),
     ];
 
-    world.insert(
+    let universe = Universe::new();
+    let mut prefab_world = universe.create_world();
+
+    // Pretend this is a cooked prefab
+    prefab_world.insert(
         (),
         (0usize..BALL_COUNT * BALL_COUNT).map(|index| {
             let i = index / BALL_COUNT;
@@ -122,35 +124,25 @@ fn spawn_balls(
 
             let position = Vector2::new(x, y);
 
-            // Build the rigid body.
-            let rigid_body = RigidBodyDesc::new().translation(position).build();
-
-            // Insert the rigid body to the body set.
-            let rigid_body_handle = physics.bodies.insert(rigid_body);
-
-            // Build the collider.
-            let ball_collider = ColliderDesc::new(ball_shape_handle.clone())
-                .density(1.0)
-                .build(BodyPartHandle(rigid_body_handle, 0));
-
-            // Insert the collider to the body set.
-            physics.colliders.insert(ball_collider);
-
             (
                 Position2DComponent { position },
-                DrawSkiaCircleComponent {
+                DrawSkiaCircleComponentDefinition {
                     radius: BALL_RADIUS,
-                    paint: PaintDesc {
+                    paint: PaintDefinition {
                         color: circle_colors[index % circle_colors.len()],
                         stroke_width: 0.02,
                     },
                 },
-                RigidBodyComponent {
-                    handle: rigid_body_handle,
+                RigidBodyBallComponentDefinition {
+                    radius: BALL_RADIUS,
+                    is_static: false
                 },
             )
         }),
     );
+
+    let clone_impl = create_spawn_clone_impl();
+    world.clone_merge(&prefab_world, &clone_impl, None, None);
 }
 
 /// Create the asset manager that has all the required types registered
@@ -159,6 +151,92 @@ pub fn create_asset_manager() -> AssetManager {
     asset_manager.add_storage::<components::Position2DComponentDefinition>();
     asset_manager.add_storage::<prefab::PrefabAsset>();
     asset_manager
+}
+
+pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistration> {
+    let comp_registrations = legion_prefab::iter_component_registrations();
+    use std::iter::FromIterator;
+    let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
+        comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone()), reg.clone())),
+    );
+
+    component_types
+}
+
+pub fn create_spawn_clone_impl() -> CloneMergeImpl {
+    let component_registry = create_component_registry();
+    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
+    clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDefinition, DrawSkiaCircleComponent>();
+    clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDefinition, DrawSkiaBoxComponent>();
+
+    clone_merge_impl.add_mapping::<RigidBodyBallComponentDefinition, RigidBodyComponent, _>(|resources, entities, from, into| {
+        let mut physics = resources.get_mut::<Physics>().unwrap();
+
+        for (from, into) in from.iter().zip(into) {
+            let ball_shape_handle = ShapeHandle::new(Ball::new(from.radius));
+
+            //TODO: Need to initialize the position
+            let position = Vector2::new(0.0, 0.0);
+            let mut collider_offset = Vector2::new(0.0, 0.0);
+
+            // Build the rigid body.
+            let rigid_body_handle = if from.is_static {
+                collider_offset += position;
+                physics.bodies.insert(Ground::new())
+            } else {
+                physics.bodies.insert(RigidBodyDesc::new().translation(position).build())
+            };
+
+            // Build the collider.
+            let ball_collider = ColliderDesc::new(ball_shape_handle.clone())
+                .density(1.0)
+                .translation(collider_offset)
+                .build(BodyPartHandle(rigid_body_handle, 0));
+
+            // Insert the collider to the body set.
+            physics.colliders.insert(ball_collider);
+
+            *into = std::mem::MaybeUninit::new(RigidBodyComponent {
+                handle: rigid_body_handle
+            })
+        }
+    });
+
+
+    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDefinition, RigidBodyComponent, _>(|resources, entities, from, into| {
+        let mut physics = resources.get_mut::<Physics>().unwrap();
+
+        for (from, into) in from.iter().zip(into) {
+            let box_shape_handle = ShapeHandle::new(Cuboid::new(from.half_extents));
+
+            //TODO: Need to initialize the position
+            let position = Vector2::new(0.0, 0.0);
+            let mut collider_offset = Vector2::new(0.0, 0.0);
+
+            // Build the rigid body.
+            let rigid_body_handle = if from.is_static {
+                collider_offset += position;
+                physics.bodies.insert(Ground::new())
+            } else {
+                physics.bodies.insert(RigidBodyDesc::new().translation(position).build())
+            };
+
+            // Build the collider.
+            let box_collider = ColliderDesc::new(box_shape_handle.clone())
+                .density(1.0)
+                .translation(collider_offset)
+                .build(BodyPartHandle(rigid_body_handle, 0));
+
+            // Insert the collider to the body set.
+            physics.colliders.insert(box_collider);
+
+            *into = std::mem::MaybeUninit::new(RigidBodyComponent {
+                handle: rigid_body_handle
+            })
+        }
+    });
+
+    clone_merge_impl
 }
 
 struct FpsText {
@@ -232,13 +310,13 @@ fn read_from_physics() -> Box<dyn Schedulable> {
         .with_query(<(Write<Position2DComponent>, Read<RigidBodyComponent>)>::query())
         .build(|_, mut world, physics, query| {
             for (mut pos, body) in query.iter(&mut world) {
-                pos.position = physics
-                    .bodies
-                    .rigid_body(body.handle)
-                    .unwrap()
-                    .position()
-                    .translation
-                    .vector;
+                if let Some(rigid_body) = physics.bodies.rigid_body(body.handle) {
+                    println!("rigid body found");
+                    pos.position = rigid_body
+                        .position()
+                        .translation
+                        .vector
+                }
             }
         })
 }
@@ -293,18 +371,7 @@ fn draw() -> Box<dyn Schedulable> {
 
                         // Draw all the boxes
                         for (pos, skia_box) in draw_boxes_query.iter(world) {
-                            let color = skia_safe::Color4f::new(
-                                skia_box.paint.color.x,
-                                skia_box.paint.color.y,
-                                skia_box.paint.color.z,
-                                skia_box.paint.color.w,
-                            );
-
-                            let mut paint = skia_safe::Paint::new(color, None);
-                            paint.set_anti_alias(true);
-                            paint.set_style(skia_safe::paint::Style::Stroke);
-                            paint.set_stroke_width(skia_box.paint.stroke_width);
-
+                            let paint = skia_box.paint.0.lock().unwrap();
                             canvas.draw_rect(
                                 skia_safe::Rect {
                                     left: pos.position.x - skia_box.half_extents.x,
@@ -318,18 +385,7 @@ fn draw() -> Box<dyn Schedulable> {
 
                         // Draw all the circles
                         for (pos, skia_circle) in draw_circles_query.iter(world) {
-                            let color = skia_safe::Color4f::new(
-                                skia_circle.paint.color.x,
-                                skia_circle.paint.color.y,
-                                skia_circle.paint.color.z,
-                                skia_circle.paint.color.w,
-                            );
-
-                            let mut paint = skia_safe::Paint::new(color, None);
-                            paint.set_anti_alias(true);
-                            paint.set_style(skia_safe::paint::Style::Stroke);
-                            paint.set_stroke_width(skia_circle.paint.stroke_width);
-
+                            let paint = skia_circle.paint.0.lock().unwrap();
                             canvas.draw_circle(
                                 skia_safe::Point::new(pos.position.x, pos.position.y),
                                 skia_circle.radius,
@@ -401,12 +457,13 @@ impl app::AppHandler for DemoApp {
 
         let mut physics = Physics::new(Vector2::y() * GRAVITY);
 
-        spawn_ground(&mut physics, world);
-        spawn_balls(&mut physics, world);
-
         world.resources.insert(physics);
         world.resources.insert(FpsText::new());
         world.resources.insert(asset_manager);
+
+        spawn_ground(world);
+        spawn_balls(world);
+
     }
 
     fn update(

@@ -108,14 +108,14 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         println!("--- CLONE MERGE 2 ---");
         println!("This test transforms Position2DComponentDefinition into Position2DComponent");
         let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
-        //clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
+        clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
 
         clone_merge_impl.add_mapping::<Position2DComponentDefinition, Position2DComponent, _>(
             |_resources, _entities, from, into| {
                 for (f, t) in from.iter().zip(into) {
-                    *t = Position2DComponent {
+                    *t = std::mem::MaybeUninit::new(Position2DComponent {
                         position: f.position,
-                    };
+                    });
                 }
             },
         );
