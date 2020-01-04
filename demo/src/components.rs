@@ -235,20 +235,18 @@ impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
     ) {
         let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        let all_position_components =
-            get_components_slice::<Position2DComponent>(src_component_storage);
+        let position_components = try_iter_components_in_storage::<Position2DComponent>(
+            src_component_storage,
+            src_component_storage_indexes,
+        );
 
-        for (idx, from, into) in izip!(
-            src_component_storage_indexes.clone().into_iter(),
-            from,
-            into
-        ) {
+        for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle =
                 ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(from.radius));
             transform_shape_to_rigid_body(
                 &mut physics,
                 into,
-                all_position_components.map(|x| &x[idx]),
+                src_position,
                 shape_handle,
                 from.is_static,
             );
@@ -269,7 +267,7 @@ impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
     ) {
         let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        let position_components = get_components_iter::<Position2DComponent>(
+        let position_components = try_iter_components_in_storage::<Position2DComponent>(
             src_component_storage,
             src_component_storage_indexes,
         );
@@ -289,7 +287,11 @@ impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
     }
 }
 
-// Given an optional iterator, this will return
+// Given an optional iterator, this will return Some(iter.next()) or Some(None) up to n times.
+// For a simpler interface for a slice/range use create_option_iter_from_slice, which will return
+// Some(&T) for each element in the range, or Some(None) for each element.
+//
+// This iterator is intended for zipping an Option<Iter> with other Iters
 struct OptionIter<T, U>
 where
     T: std::iter::Iterator<Item = U>,
@@ -328,15 +330,17 @@ where
     }
 }
 
-fn new_option_iter_from_slice<'a, X>(
-    opt: Option<&'a [X]>,
+fn create_option_iter_from_slice<X>(
+    opt: Option<&[X]>,
     range: Range<usize>,
-) -> OptionIter<std::slice::Iter<'a, X>, &'a X> {
+) -> OptionIter<std::slice::Iter<X>, &X> {
     let mapped = opt.map(|x| (x[range.clone()]).iter());
     OptionIter::new(mapped, range.end - range.start)
 }
 
-fn get_components_slice<T: Component>(component_storage: &ComponentStorage) -> Option<&[T]> {
+fn try_get_components_in_storage<T: Component>(
+    component_storage: &ComponentStorage
+) -> Option<&[T]> {
     unsafe {
         component_storage
             .components(ComponentTypeId::of::<T>())
@@ -344,14 +348,10 @@ fn get_components_slice<T: Component>(component_storage: &ComponentStorage) -> O
     }
 }
 
-fn get_components_iter<'a, T: Component>(
-    component_storage: &'a ComponentStorage,
+fn try_iter_components_in_storage<T: Component>(
+    component_storage: &ComponentStorage,
     component_storage_indexes: Range<usize>,
-) -> OptionIter<core::slice::Iter<'a, T>, &'a T> {
-    let all_position_components = get_components_slice::<T>(component_storage);
-    //    OptionIter::new(
-    //        all_position_components.map(|x| (x[component_storage_indexes.clone()]).iter()),
-    //        component_storage_indexes.end - component_storage_indexes.start
-    //    )
-    new_option_iter_from_slice(all_position_components, component_storage_indexes)
+) -> OptionIter<core::slice::Iter<T>, &T> {
+    let all_position_components = try_get_components_in_storage::<T>(component_storage);
+    create_option_iter_from_slice(all_position_components, component_storage_indexes)
 }
