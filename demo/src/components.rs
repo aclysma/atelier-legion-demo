@@ -9,6 +9,10 @@ use crate::clone_merge::CloneMergeFrom;
 use na::Vector2;
 use crate::physics::Physics;
 use legion::prelude::*;
+use std::ops::Range;
+use legion::storage::ComponentStorage;
+use legion::storage::ComponentTypeId;
+use legion::storage::Component;
 
 //
 // Temporary component for testing.. a separate definition component for this is unnecessary
@@ -178,19 +182,17 @@ pub struct RigidBodyComponent {
 }
 
 fn transform_shape_to_rigid_body(
-    src_world: &World,
-    src_entity: &Entity,
+    physics: &mut Physics,
     into: &mut std::mem::MaybeUninit<RigidBodyComponent>,
+    src_position: Option<&Position2DComponent>,
     shape_handle: ncollide2d::shape::ShapeHandle<f32>,
     is_static: bool,
-    physics: &mut Physics,
 ) {
-    let position =
-        if let Some(position) = src_world.get_component::<Position2DComponent>(*src_entity) {
-            position.position
-        } else {
-            Vector2::new(0.0, 0.0)
-        };
+    let position = if let Some(position) = src_position {
+        position.position
+    } else {
+        Vector2::new(0.0, 0.0)
+    };
 
     let mut collider_offset = Vector2::new(0.0, 0.0);
 
@@ -222,25 +224,33 @@ fn transform_shape_to_rigid_body(
 
 impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
     fn clone_merge_from(
-        src_world: &World,
+        _src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
-        src_entities: &[Entity],
+        _src_entities: &[Entity],
         _dst_entities: &[Entity],
         from: &[RigidBodyBallComponentDefinition],
         into: &mut [std::mem::MaybeUninit<Self>],
     ) {
         let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        for (src_entity, from, into) in izip!(src_entities, from, into) {
+        let all_position_components =
+            get_components_slice::<Position2DComponent>(src_component_storage);
+
+        for (idx, from, into) in izip!(
+            src_component_storage_indexes.clone().into_iter(),
+            from,
+            into
+        ) {
             let shape_handle =
                 ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(from.radius));
             transform_shape_to_rigid_body(
-                src_world,
-                src_entity,
+                &mut physics,
                 into,
+                all_position_components.map(|x| &x[idx]),
                 shape_handle,
                 from.is_static,
-                &mut physics,
             );
         }
     }
@@ -248,27 +258,100 @@ impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
 
 impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
     fn clone_merge_from(
-        src_world: &World,
+        _src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
-        src_entities: &[Entity],
+        _src_entities: &[Entity],
         _dst_entities: &[Entity],
         from: &[RigidBodyBoxComponentDefinition],
         into: &mut [std::mem::MaybeUninit<Self>],
     ) {
         let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        for (src_entity, from, into) in izip!(src_entities, from, into) {
+        let position_components = get_components_iter::<Position2DComponent>(
+            src_component_storage,
+            src_component_storage_indexes,
+        );
+
+        for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Cuboid::new(
                 from.half_extents,
             ));
             transform_shape_to_rigid_body(
-                src_world,
-                src_entity,
+                &mut physics,
                 into,
+                src_position,
                 shape_handle,
                 from.is_static,
-                &mut physics,
             );
         }
     }
+}
+
+// Given an optional iterator, this will return
+struct OptionIter<T, U>
+where
+    T: std::iter::Iterator<Item = U>,
+{
+    opt: Option<T>,
+    count: usize,
+}
+
+impl<T, U> OptionIter<T, U>
+where
+    T: std::iter::Iterator<Item = U>,
+{
+    fn new(
+        opt: Option<T>,
+        count: usize,
+    ) -> Self {
+        OptionIter::<T, U> { opt, count }
+    }
+}
+
+impl<T, U> std::iter::Iterator for OptionIter<T, U>
+where
+    T: std::iter::Iterator<Item = U>,
+{
+    type Item = Option<U>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.count <= 0 {
+            return None;
+        }
+
+        self.count -= 1;
+        self.opt
+            .as_mut()
+            .map_or_else(|| Some(None), |x| Some(x.next()))
+    }
+}
+
+fn new_option_iter_from_slice<'a, X>(
+    opt: Option<&'a [X]>,
+    range: Range<usize>,
+) -> OptionIter<std::slice::Iter<'a, X>, &'a X> {
+    let mapped = opt.map(|x| (x[range.clone()]).iter());
+    OptionIter::new(mapped, range.end - range.start)
+}
+
+fn get_components_slice<T: Component>(component_storage: &ComponentStorage) -> Option<&[T]> {
+    unsafe {
+        component_storage
+            .components(ComponentTypeId::of::<T>())
+            .map(|x| *x.data_slice::<T>())
+    }
+}
+
+fn get_components_iter<'a, T: Component>(
+    component_storage: &'a ComponentStorage,
+    component_storage_indexes: Range<usize>,
+) -> OptionIter<core::slice::Iter<'a, T>, &'a T> {
+    let all_position_components = get_components_slice::<T>(component_storage);
+    //    OptionIter::new(
+    //        all_position_components.map(|x| (x[component_storage_indexes.clone()]).iter()),
+    //        component_storage_indexes.end - component_storage_indexes.start
+    //    )
+    new_option_iter_from_slice(all_position_components, component_storage_indexes)
 }

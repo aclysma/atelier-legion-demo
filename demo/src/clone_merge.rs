@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use legion_prefab::ComponentRegistration;
-use legion::storage::{ComponentMeta, ComponentTypeId, Component};
+use legion::storage::{ComponentMeta, ComponentTypeId, Component, ComponentStorage};
 use legion::prelude::*;
 use std::mem::MaybeUninit;
+use std::ops::Range;
 
 pub trait CloneMergeFrom<FromT: Sized>
 where
@@ -10,6 +11,8 @@ where
 {
     fn clone_merge_from(
         src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -24,6 +27,8 @@ where
 {
     fn clone_merge_into(
         src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -39,6 +44,8 @@ where
 {
     fn clone_merge_into(
         src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -47,6 +54,8 @@ where
     ) {
         IntoT::clone_merge_from(
             src_world,
+            src_component_storage,
+            src_component_storage_indexes,
             dst_resources,
             src_entities,
             dst_entities,
@@ -87,6 +96,8 @@ impl CloneMergeImpl {
             into_type_id,
             into_type_meta,
             |_src_world,
+             _src_component_storage,
+             _src_component_storage_indexes,
              _dst_resources,
              _src_entities,
              _dst_entities,
@@ -131,6 +142,8 @@ impl CloneMergeImpl {
             into_type_id,
             into_type_meta,
             |src_world,
+             src_component_storage,
+             src_component_storage_indexes,
              dst_resources,
              src_entities,
              dst_entities,
@@ -152,6 +165,8 @@ impl CloneMergeImpl {
 
                     <FromT as CloneMergeInto<IntoT>>::clone_merge_into(
                         src_world,
+                        src_component_storage,
+                        src_component_storage_indexes,
                         dst_resources,
                         src_entities,
                         dst_entities,
@@ -177,6 +192,8 @@ impl CloneMergeImpl {
         IntoT: Component,
         F: Fn(
                 &World,                    // src_world
+                &ComponentStorage,         // src_component_storage
+                Range<usize>,              // src_component_storage_indexes
                 &Resources,                // dst_resources
                 &[Entity],                 // src_entities
                 &[Entity],                 // dst_entities
@@ -192,6 +209,8 @@ impl CloneMergeImpl {
             into_type_id,
             into_type_meta,
             move |src_world,
+                  src_component_storage,
+                  src_component_storage_indexes,
                   dst_resources,
                   src_entities,
                   dst_entities,
@@ -212,6 +231,8 @@ impl CloneMergeImpl {
                     );
                     (clone_fn)(
                         src_world,
+                        src_component_storage,
+                        src_component_storage_indexes,
                         dst_resources,
                         src_entities,
                         dst_entities,
@@ -245,6 +266,8 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
     fn clone_components(
         &self,
         src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
         src_type: ComponentTypeId,
         src_entities: &[Entity],
@@ -259,6 +282,8 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
         if let Some(handler) = handler {
             handler.clone_components(
                 src_world,
+                src_component_storage,
+                src_component_storage_indexes,
                 dst_resources,
                 src_entities,
                 dst_entities,
@@ -283,6 +308,8 @@ trait CloneMergeMapping {
     fn clone_components(
         &self,
         src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -295,13 +322,15 @@ trait CloneMergeMapping {
 struct CloneMergeMappingImpl<F>
 where
     F: Fn(
-        &World,     // src_world
-        &Resources, // dst_resources
-        &[Entity],  // src_entities
-        &[Entity],  // dst_entities
-        *const u8,  // src_data
-        *mut u8,    // dst_data
-        usize,      // num_components
+        &World,            // src_world
+        &ComponentStorage, // src_component_storage
+        Range<usize>,      // src_component_storage_indexes
+        &Resources,        // dst_resources
+        &[Entity],         // src_entities
+        &[Entity],         // dst_entities
+        *const u8,         // src_data
+        *mut u8,           // dst_data
+        usize,             // num_components
     ),
 {
     dst_type_id: ComponentTypeId,
@@ -312,13 +341,15 @@ where
 impl<F> CloneMergeMappingImpl<F>
 where
     F: Fn(
-        &World,     // src_world
-        &Resources, // dst_resources
-        &[Entity],  // src_entities
-        &[Entity],  // dst_entities
-        *const u8,  // src_data
-        *mut u8,    // dst_data
-        usize,      // num_components
+        &World,            // src_world
+        &ComponentStorage, // src_component_storage
+        Range<usize>,      // src_component_storage_indexes
+        &Resources,        // dst_resources
+        &[Entity],         // src_entities
+        &[Entity],         // dst_entities
+        *const u8,         // src_data
+        *mut u8,           // dst_data
+        usize,             // num_components
     ),
 {
     fn new(
@@ -337,13 +368,15 @@ where
 impl<F> CloneMergeMapping for CloneMergeMappingImpl<F>
 where
     F: Fn(
-        &World,     // src_world
-        &Resources, // dst_resources
-        &[Entity],  // src_entities
-        &[Entity],  // dst_entities
-        *const u8,  // src_data
-        *mut u8,    // dst_data
-        usize,      // num_components
+        &World,            // src_world
+        &ComponentStorage, // src_component_storage
+        Range<usize>,      // src_component_storage_indexes
+        &Resources,        // dst_resources
+        &[Entity],         // src_entities
+        &[Entity],         // dst_entities
+        *const u8,         // src_data
+        *mut u8,           // dst_data
+        usize,             // num_components
     ),
 {
     fn dst_type_id(&self) -> ComponentTypeId {
@@ -357,6 +390,8 @@ where
     fn clone_components(
         &self,
         src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
         dst_resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -366,6 +401,8 @@ where
     ) {
         (self.clone_fn)(
             src_world,
+            src_component_storage,
+            src_component_storage_indexes,
             dst_resources,
             src_entities,
             dst_entities,
