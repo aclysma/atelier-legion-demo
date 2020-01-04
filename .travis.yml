@@ -1,7 +1,9 @@
 language: rust
 addons:
   apt:
-    packages: capnproto
+    packages:
+     - capnproto
+     - libgl1-mesa-dev
   homebrew:
     packages: capnp
     update: true
@@ -16,8 +18,8 @@ script:
   - if [ $SKIP_CLIPPY = 0 ]; then cargo clippy -- -D warnings; fi
 matrix:
   include:
-    - name: "Windows Stable"
-      rust: stable
+    - name: "Windows Stable (MSVC)"
+      rust: stable-msvc
       os: windows
       env: SKIP_FORMAT_CHECK=1 SKIP_CLIPPY=1
     - name: "OSX Stable"
