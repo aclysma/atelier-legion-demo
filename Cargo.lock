@@ -2577,8 +2577,8 @@ dependencies = [
 
 [[package]]
 name = "skulpin"
-version = "0.4.0"
-source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support#4b897123886dd54973369693da0c2073f23fb8a0"
+version = "0.5.0"
+source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support#5ef5c1d3050c169ec924a3decd72c8c8d7364076"
 dependencies = [
  "ash",
  "cocoa",
@@ -3189,9 +3189,9 @@ dependencies = [
 
 [[package]]
 name = "winit"
-version = "0.20.0-alpha5"
+version = "0.20.0-alpha6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14fbf7c84c8c1ff9d72982cb382c1a78fbe0f7556f49b1ca98de212d018c5b82"
+checksum = "bfa4308ca09f50e2f4688c631c36879521bffc39b949238b288ffd932864acbc"
 dependencies = [
  "android_glue",
  "bitflags",

@@ -219,7 +219,7 @@ impl App {
             }
 
             match event {
-                winit::event::Event::EventsCleared => {
+                winit::event::Event::MainEventsCleared => {
                     {
                         let mut time_state = world.resources.get_mut::<TimeState>().unwrap();
                         time_state.update();
@@ -243,10 +243,7 @@ impl App {
                     // Queue a RedrawRequested event.
                     window.request_redraw();
                 }
-                winit::event::Event::WindowEvent {
-                    event: winit::event::WindowEvent::RedrawRequested,
-                    ..
-                } => {
+                winit::event::Event::RedrawRequested(_window_id) => {
                     let imgui_manager = world.resources.get::<ImguiManager>().unwrap().clone();
                     if let Err(e) = renderer.draw(
                         &window,
