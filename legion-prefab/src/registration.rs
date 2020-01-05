@@ -171,6 +171,11 @@ pub struct ComponentRegistration {
     pub(crate) register_comp_fn: fn(&mut ArchetypeDescription),
     pub(crate) deserialize_single_fn:
         fn(&mut dyn erased_serde::Deserializer, &mut legion::world::World, legion::entity::Entity),
+    pub(crate) serialize_single_fn: fn(
+        &legion::world::World,
+        legion::entity::Entity,
+        &mut dyn FnMut(&dyn erased_serde::Serialize),
+    ),
     pub(crate) apply_diff:
         fn(&mut dyn erased_serde::Deserializer, &mut legion::world::World, legion::entity::Entity),
     pub(crate) comp_clone_fn: fn(*const u8, *mut u8, usize),
@@ -207,6 +212,15 @@ impl ComponentRegistration {
         (self.comp_clone_fn)(src, dst, num_components);
     }
 
+    pub fn serialize(
+        &self,
+        world: &legion::world::World,
+        entity: legion::entity::Entity,
+        serialize: &mut dyn FnMut(&dyn erased_serde::Serialize),
+    ) {
+        (self.serialize_single_fn)(world, entity, serialize);
+    }
+
     pub fn of<
         T: TypeUuid
             + Clone
@@ -241,6 +255,12 @@ impl ComponentRegistration {
                 let comp =
                     erased_serde::deserialize::<T>(d).expect("failed to deserialize component");
                 world.add_component(entity, comp);
+            },
+            serialize_single_fn: |world, entity, s_fn| {
+                let comp = world
+                    .get_component::<T>(entity)
+                    .expect("entity not present when serializing component");
+                s_fn(&*comp)
             },
             apply_diff: |d, world, entity| {
                 // TODO propagate error

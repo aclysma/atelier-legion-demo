@@ -70,7 +70,7 @@ impl Importer for PrefabImporter {
             component_types
         };
 
-        let prefab_serde_context = legion_prefab::PrefabDeserializeContext {
+        let prefab_serde_context = legion_prefab::PrefabSerdeContext {
             registered_components,
         };
 
@@ -99,6 +99,11 @@ impl Importer for PrefabImporter {
 
             println!("Serialized legion world:");
             println!("legion_world_str {}", legion_world_str);
+
+            let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), false);
+            let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &prefab_asset.prefab);
+            prefab_format::serialize(&mut ron_ser, &prefab_ser, prefab_asset.prefab.prefab_id()).expect("failed to round-trip prefab");
+            println!("Round-tripped legion world: {}", ron_ser.into_output_string());
         }
 
         // Add the ID to the .meta

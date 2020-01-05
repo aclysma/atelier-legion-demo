@@ -1,6 +1,7 @@
-use crate::format::{ComponentTypeUuid, EntityUuid, PrefabUuid, StorageDeserializer};
+use crate::format::{ComponentTypeUuid, EntityUuid, PrefabUuid, StorageDeserializer, StorageSerializer};
 use crate::ComponentRegistration;
-use serde::{Deserializer};
+use legion::storage::ComponentTypeId;
+use serde::{Deserializer, Serializer};
 use std::{
     cell::{RefCell, RefMut},
     collections::HashMap,
@@ -56,16 +57,16 @@ impl Prefab {
     }
 }
 
-pub struct PrefabDeserializeContext {
+pub struct PrefabSerdeContext {
     pub registered_components: HashMap<ComponentTypeUuid, ComponentRegistration>,
 }
 
 pub struct PrefabFormatDeserializer<'a> {
     prefab: RefCell<Option<Prefab>>,
-    context: &'a PrefabDeserializeContext,
+    context: &'a PrefabSerdeContext,
 }
 impl<'a> PrefabFormatDeserializer<'a> {
-    pub fn new(context: &'a PrefabDeserializeContext) -> Self {
+    pub fn new(context: &'a PrefabSerdeContext) -> Self {
         Self {
             prefab: RefCell::new(None),
             context,
@@ -330,5 +331,104 @@ impl<'de> Deserialize<'de> for WorldDeser {
         let deserializable_world = legion::de::deserializable(&mut world, &deserialize_impl);
         serde::de::DeserializeSeed::deserialize(deserializable_world, deserializer)?;
         Ok(WorldDeser(world, deserialize_impl.entity_map.into_inner()))
+    }
+}
+
+pub struct PrefabFormatSerializer<'a, 'b> {
+    prefab: &'b Prefab,
+    context: &'a PrefabSerdeContext,
+    type_id_to_uuid: HashMap<ComponentTypeId, ComponentTypeUuid>,
+}
+impl<'a, 'b> PrefabFormatSerializer<'a, 'b> {
+    pub fn new(
+        context: &'a PrefabSerdeContext,
+        prefab: &'b Prefab,
+    ) -> Self {
+        use std::iter::FromIterator;
+        Self {
+            prefab,
+            context,
+            type_id_to_uuid: HashMap::from_iter(
+                context
+                    .registered_components
+                    .iter()
+                    .map(|(type_id, reg)| (ComponentTypeId(reg.ty()), *type_id)),
+            ),
+        }
+    }
+}
+impl StorageSerializer for PrefabFormatSerializer<'_, '_> {
+    fn entities(&self) -> Vec<EntityUuid> {
+        self.prefab.prefab_meta.entities.keys().cloned().collect()
+    }
+    fn component_types(
+        &self,
+        entity_uuid: &EntityUuid,
+    ) -> Vec<ComponentTypeUuid> {
+        let entity = self.prefab.prefab_meta.entities[entity_uuid];
+        self.prefab
+            .world
+            .entity_component_types(entity)
+            .expect("entity not in World when serializing prefab")
+            .iter()
+            .filter_map(|(type_id, _)| self.type_id_to_uuid.get(type_id).cloned())
+            .filter(|type_id| self.context.registered_components.contains_key(type_id))
+            .collect()
+    }
+    fn serialize_entity_component<S: Serializer>(
+        &self,
+        serializer: S,
+        entity_uuid: &EntityUuid,
+        component: &ComponentTypeUuid,
+    ) -> Result<S::Ok, S::Error> {
+        let mut result = None;
+        let mut serializer = Some(serializer);
+        let entity = self.prefab.prefab_meta.entities[entity_uuid];
+        self.context.registered_components[component].serialize(
+            &self.prefab.world,
+            entity,
+            &mut |comp| {
+                result = Some(erased_serde::serialize(comp, serializer.take().unwrap()));
+            },
+        );
+        result.unwrap()
+    }
+    fn prefab_refs(&self) -> Vec<PrefabUuid> {
+        self.prefab
+            .prefab_meta
+            .prefab_refs
+            .keys()
+            .cloned()
+            .collect()
+    }
+    fn prefab_ref_overrides(
+        &self,
+        uuid: &PrefabUuid,
+    ) -> Vec<(EntityUuid, Vec<ComponentTypeUuid>)> {
+        let prefab_ref = &self.prefab.prefab_meta.prefab_refs[uuid];
+        prefab_ref
+            .overrides
+            .iter()
+            .map(|(entity_uuid, comps)| {
+                (
+                    *entity_uuid,
+                    comps.iter().map(|comp| comp.component_type).collect(),
+                )
+            })
+            .collect()
+    }
+    fn serialize_component_override_diff<S: Serializer>(
+        &self,
+        serializer: S,
+        prefab_ref: &PrefabUuid,
+        entity: &EntityUuid,
+        component: &ComponentTypeUuid,
+    ) -> Result<S::Ok, S::Error> {
+        let prefab_ref = &self.prefab.prefab_meta.prefab_refs[prefab_ref];
+        let comp_override = prefab_ref.overrides[entity]
+            .iter()
+            .find(|o| &o.component_type == component)
+            .expect("invalid component type when serializing component override diff");
+        comp_override.data.serialize(serializer)
     }
 }
