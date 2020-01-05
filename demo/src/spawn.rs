@@ -1,9 +1,14 @@
 use legion::prelude::*;
 use na::Vector2;
 use crate::components::*;
+use std::collections::HashMap;
+
+use legion_prefab::{Prefab, PrefabMeta};
 
 const GROUND_THICKNESS: f32 = 0.2;
 use crate::GROUND_HALF_EXTENTS_WIDTH;
+use prefab_format::EntityUuid;
+
 const BALL_RADIUS: f32 = 0.2;
 const BALL_COUNT: usize = 5;
 
@@ -16,9 +21,7 @@ pub fn spawn_ground(world: &mut World) {
 
     let half_extents = na::Vector2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS);
 
-    let universe = Universe::new();
-    let mut prefab_world = universe.create_world();
-    prefab_world.insert(
+    world.insert(
         (),
         (0..1).map(|_| {
             (
@@ -34,9 +37,6 @@ pub fn spawn_ground(world: &mut World) {
             )
         }),
     );
-
-    let clone_impl = crate::create_spawn_clone_impl();
-    world.clone_merge(&prefab_world, &clone_impl, None, None);
 }
 
 pub fn spawn_balls(world: &mut World) {
@@ -52,11 +52,8 @@ pub fn spawn_balls(world: &mut World) {
         na::Vector4::new(0.2, 0.2, 1.0, 1.0),
     ];
 
-    let universe = Universe::new();
-    let mut prefab_world = universe.create_world();
-
     // Pretend this is a cooked prefab
-    prefab_world.insert(
+    world.insert(
         (),
         (0usize..BALL_COUNT * BALL_COUNT).map(|index| {
             let i = index / BALL_COUNT;
@@ -83,7 +80,29 @@ pub fn spawn_balls(world: &mut World) {
             )
         }),
     );
+}
 
-    let clone_impl = crate::create_spawn_clone_impl();
-    world.clone_merge(&prefab_world, &clone_impl, None, None);
+pub fn create_demo_prefab(universe: &Universe) -> Prefab {
+    // Populate a world with data
+    let mut world = universe.create_world();
+    spawn_ground(&mut world);
+    spawn_balls(&mut world);
+
+    // Assign all entities a random UUID
+    let mut entities = HashMap::<EntityUuid, Entity>::default();
+    let query = <legion::prelude::Read<()>>::query();
+    for (entity, _) in query.iter_entities_immutable(&world) {
+        println!("position: {:?}", entity);
+        entities.insert(*uuid::Uuid::new_v4().as_bytes(), entity);
+    }
+
+    // Create the metadata
+    let prefab_meta = PrefabMeta {
+        id: *uuid::Uuid::new_v4().as_bytes(),
+        prefab_refs: Default::default(),
+        entities,
+    };
+
+    // Create the prefab
+    Prefab { world, prefab_meta }
 }

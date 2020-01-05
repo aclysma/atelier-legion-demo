@@ -32,6 +32,7 @@ use systems::*;
 mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
+use std::borrow::BorrowMut;
 
 pub mod daemon;
 
@@ -73,39 +74,50 @@ pub fn create_spawn_clone_impl() -> CloneMergeImpl {
 }
 
 pub struct DemoApp {
-    update_schedule: Schedule,
-    draw_schedule: Schedule,
+    update_schedules: HashMap<ScheduleCriteria, Schedule>,
+    draw_schedules: HashMap<ScheduleCriteria, Schedule>,
 }
 
 impl DemoApp {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        let update_steps = vec![
-            advance_time(),
-            quit_if_escape_pressed(),
-            update_asset_manager(),
-            update_fps_text(),
-            update_physics(),
-            read_from_physics(),
-            // --- Editor stuff here ---
-            editor_keyboard_shortcuts(),
-            editor_imgui_menu(),
-            // --- End editor stuff ---
-            input_reset_for_next_frame(),
+        // The expected states for which we will generate schedules
+        let expected_criteria = vec![
+            ScheduleCriteria::new(false, EditorMode::Inactive),
+            ScheduleCriteria::new(true, EditorMode::Active),
         ];
 
-        let mut update_schedule = Schedule::builder();
-        for step in update_steps {
-            update_schedule = update_schedule.add_system(step);
-        }
-        let update_schedule = update_schedule.build();
+        // Populate a lookup for the schedules.. on each update/draw, we will check the current
+        // state of the application, create an appropriate ScheduleCriteria, and use it to look
+        // up the correct schedule to run
+        let mut update_schedules = HashMap::default();
+        let mut draw_schedules = HashMap::default();
 
-        let draw_schedule = Schedule::builder().add_system(draw()).build();
+        for criteria in &expected_criteria {
+            update_schedules.insert(criteria.clone(), systems::create_update_schedule(&criteria));
+            draw_schedules.insert(criteria.clone(), systems::create_draw_schedule(&criteria));
+        }
 
         DemoApp {
-            update_schedule,
-            draw_schedule,
+            update_schedules,
+            draw_schedules,
         }
+    }
+
+    // Determine the current state of the game
+    fn get_current_schedule_criteria(world: &World) -> ScheduleCriteria {
+        ScheduleCriteria::new(
+            world
+                .resources
+                .get::<TimeResource>()
+                .unwrap()
+                .is_simulation_paused(),
+            world
+                .resources
+                .get::<EditorStateResource>()
+                .unwrap()
+                .editor_mode(),
+        )
     }
 }
 
@@ -122,28 +134,38 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(asset_manager);
         world.resources.insert(EditorStateResource::new());
 
+        // Create a dummy prefab (this could be loaded from an asset instead)
+        let prefab = {
+            let universe = world.resources.get::<UniverseResource>().unwrap();
+            spawn::create_demo_prefab(&universe)
+        };
+
+        // Spawn it into the world
+        let clone_impl = crate::create_spawn_clone_impl();
+        world.clone_merge(&prefab.world, &clone_impl, None, None);
+
         // Start the application with the editor paused
         let mut command_buffer = legion::command::CommandBuffer::default();
         EditorStateResource::reset(&mut command_buffer);
         command_buffer.write(world);
-
-        spawn::spawn_ground(world);
-        spawn::spawn_balls(world);
     }
 
     fn update(
         &mut self,
         world: &mut World,
     ) {
-        self.update_schedule.execute(world);
+        let current_criteria = Self::get_current_schedule_criteria(world);
+        let mut schedule = self.update_schedules.get_mut(&current_criteria).unwrap();
+        schedule.execute(world);
     }
 
     fn draw(
         &mut self,
         world: &mut World,
     ) {
-        // Copy the data from physics rigid bodies into position components
-        self.draw_schedule.execute(world);
+        let current_criteria = Self::get_current_schedule_criteria(world);
+        let mut schedule = self.draw_schedules.get_mut(&current_criteria).unwrap();
+        schedule.execute(world);
     }
 
     fn fatal_error(

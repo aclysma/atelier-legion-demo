@@ -150,6 +150,7 @@ impl App {
             .resources
             .insert(InputResource::new(skulpin::InputState::new(&window)));
         world.resources.insert(CanvasDrawResource::default());
+        world.resources.insert(UniverseResource::new(universe));
 
         app_handler.init(&mut world);
 
