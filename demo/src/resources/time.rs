@@ -4,7 +4,7 @@ pub use skulpin::TimeContext;
 // For now just wrap the input helper that skulpin provides
 pub struct TimeResource {
     pub time_state: TimeState,
-    pub game_time: TimeContext,
+    //pub game_time: TimeContext, //TODO: Add support for a pausable game time
     pub print_fps_event: skulpin::PeriodicEvent,
 }
 
@@ -14,7 +14,7 @@ impl TimeResource {
     pub fn new() -> Self {
         TimeResource {
             time_state: TimeState::new(),
-            game_time: TimeContext::new(),
+            //game_time: TimeContext::new(),
             print_fps_event: Default::default(),
         }
     }

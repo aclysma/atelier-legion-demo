@@ -5,7 +5,7 @@ use crate::resources::TimeResource;
 pub fn advance_time() -> Box<dyn Schedulable> {
     SystemBuilder::new("advance_time")
         .write_resource::<TimeResource>()
-        .build(|_, _, (time_resource), _| {
+        .build(|_, _, time_resource, _| {
             time_resource.time_state.update();
 
             let now = time_resource.time_state.current_instant();

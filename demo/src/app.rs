@@ -1,9 +1,5 @@
-//! Contains the main types a user needs to interact with to configure and run a skulpin app
-use skulpin::PeriodicEvent;
-
 use skulpin::RendererBuilder;
 
-use skulpin::ImguiManager;
 use skulpin::LogicalSize;
 
 use skulpin::CreateRendererError;
@@ -142,13 +138,10 @@ impl App {
             }
         };
 
-        // To print fps once per second
-        let mut print_fps_event = PeriodicEvent::default();
-
         let universe = Universe::new();
         let mut world = universe.create_world();
 
-        world.resources.insert(imgui_manager);
+        world.resources.insert(ImguiResource::new(imgui_manager));
         world
             .resources
             .insert(AppControlResource::new(skulpin::AppControl::default()));
@@ -172,7 +165,7 @@ impl App {
             }
 
             {
-                let imgui_manager = world.resources.get_mut::<ImguiManager>().unwrap();
+                let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
                 imgui_manager.handle_event(&window, &event);
             }
 
@@ -184,7 +177,7 @@ impl App {
                     window.request_redraw();
                 }
                 winit::event::Event::RedrawRequested(_window_id) => {
-                    let imgui_manager = world.resources.get::<ImguiManager>().unwrap().clone();
+                    let imgui_manager = world.resources.get::<ImguiResource>().unwrap().clone();
                     if let Err(e) = renderer.draw(
                         &window,
                         imgui_manager,
@@ -261,7 +254,7 @@ fn init_imgui(window: &winit::window::Window) -> imgui::Context {
     return imgui;
 }
 
-pub fn init_imgui_manager(window: &winit::window::Window) -> ImguiManager {
+pub fn init_imgui_manager(window: &winit::window::Window) -> skulpin::ImguiManager {
     let mut imgui_context = init_imgui(&window);
     let mut imgui_platform = imgui_winit_support::WinitPlatform::init(&mut imgui_context);
 
@@ -271,5 +264,5 @@ pub fn init_imgui_manager(window: &winit::window::Window) -> ImguiManager {
         imgui_winit_support::HiDpiMode::Rounded,
     );
 
-    ImguiManager::new(imgui_context, imgui_platform)
+    skulpin::ImguiManager::new(imgui_context, imgui_platform)
 }

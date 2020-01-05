@@ -18,3 +18,6 @@ pub use time::TimeResource;
 
 mod app_control;
 pub use app_control::AppControlResource;
+
+mod imgui;
+pub use imgui::ImguiResource;

@@ -1,13 +1,14 @@
 use legion::prelude::*;
 
 use crate::resources::FpsTextResource;
+use crate::resources::TimeResource;
 
 pub fn update_fps_text() -> Box<dyn Schedulable> {
     SystemBuilder::new("update fps text")
-        .read_resource::<skulpin::TimeState>()
+        .read_resource::<TimeResource>()
         .write_resource::<FpsTextResource>()
-        .build(|_, _, (time_state, fps_text), _| {
-            let now = time_state.current_instant();
+        .build(|_, _, (time_resource, fps_text), _| {
+            let now = time_resource.time_state.current_instant();
             //
             // Update FPS once a second
             //
@@ -18,7 +19,7 @@ pub fn update_fps_text() -> Box<dyn Schedulable> {
 
             // Refresh FPS text
             if update_text_string {
-                let fps = time_state.updates_per_second();
+                let fps = time_resource.time_state.updates_per_second();
                 fps_text.fps_text = format!("Fps: {:.1}", fps);
                 fps_text.last_fps_text_change = Some(now);
             }

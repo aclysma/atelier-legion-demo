@@ -8,13 +8,14 @@ use crate::components::DrawSkiaBoxComponent;
 use crate::components::DrawSkiaCircleComponent;
 
 use crate::resources::CanvasDrawResource;
+use crate::resources::ImguiResource;
 use crate::resources::FpsTextResource;
 
 pub fn draw() -> Box<dyn Schedulable> {
     // Copy the data from physics rigid bodies into position components
     SystemBuilder::new("draw")
         .write_resource::<CanvasDrawResource>()
-        .write_resource::<skulpin::ImguiManager>()
+        .write_resource::<ImguiResource>()
         .read_resource::<FpsTextResource>()
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query())
