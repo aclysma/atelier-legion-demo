@@ -80,11 +80,13 @@ impl DemoApp {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let update_steps = vec![
+            advance_time(),
             quit_if_escape_pressed(),
             update_asset_manager(),
             update_fps_text(),
             update_physics(),
             read_from_physics(),
+            input_reset_for_next_frame(),
         ];
 
         let mut update_schedule = Schedule::builder();

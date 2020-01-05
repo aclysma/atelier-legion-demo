@@ -1102,9 +1102,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f629dc602392d3ec14bfc8a09b5e644d7ffd725102b48b81e59f90f2633621d7"
+checksum = "eff2656d88f158ce120947499e971d743c05dbcbed62e5bd2f38f1698bbc3772"
 dependencies = [
  "libc",
 ]
@@ -1381,9 +1381,9 @@ dependencies = [
 
 [[package]]
 name = "lock_api"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e57b3997725d2b60dbec1297f6c2e2957cc383db1cebd6be812163f969c7d586"
+checksum = "79b2de95ecb4691949fea4716ca53cdbcfccb2c612e19644a8bad05edcf9f47b"
 dependencies = [
  "owning_ref",
  "scopeguard",
@@ -2549,9 +2549,9 @@ checksum = "83da420ee8d1a89e640d0948c646c1c088758d3a3c538f943bfa97bdac17929d"
 
 [[package]]
 name = "skia-bindings"
-version = "0.21.2"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "906d3203c5e627b0f8f5fbb72d663162fa5d0b0ac12788ed45683227e27ddde9"
+checksum = "8205511fbd62dad726b7f815f7365b667158e152a1d745625de0b0b359f8385c"
 dependencies = [
  "bindgen",
  "cc",
@@ -2566,9 +2566,9 @@ dependencies = [
 
 [[package]]
 name = "skia-safe"
-version = "0.21.2"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ab918e359f73774f0efbc570ae1e59c4a139101928027830eda6fe22301049e"
+checksum = "11e07db3343b213531316c18f8be16e540ef3f5bbda794a3aac0f3226ce9d23d"
 dependencies = [
  "bitflags",
  "lazy_static",
@@ -2578,7 +2578,7 @@ dependencies = [
 [[package]]
 name = "skulpin"
 version = "0.5.0"
-source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support#5ef5c1d3050c169ec924a3decd72c8c8d7364076"
+source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support#00cf96365d21c5195a976f423f7e7d668917a8a7"
 dependencies = [
  "ash",
  "cocoa",

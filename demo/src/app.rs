@@ -1,7 +1,4 @@
 //! Contains the main types a user needs to interact with to configure and run a skulpin app
-use skulpin::AppControl;
-use skulpin::InputState;
-use skulpin::TimeState;
 use skulpin::PeriodicEvent;
 
 use skulpin::RendererBuilder;
@@ -16,7 +13,7 @@ use skulpin::winit;
 use skulpin::imgui;
 use skulpin::imgui_winit_support;
 
-use crate::resources::CanvasDrawResource;
+use crate::resources::*;
 
 use legion::prelude::*;
 
@@ -152,9 +149,13 @@ impl App {
         let mut world = universe.create_world();
 
         world.resources.insert(imgui_manager);
-        world.resources.insert(AppControl::default());
-        world.resources.insert(TimeState::new());
-        world.resources.insert(InputState::new(&window));
+        world
+            .resources
+            .insert(AppControlResource::new(skulpin::AppControl::default()));
+        world.resources.insert(TimeResource::new());
+        world
+            .resources
+            .insert(InputResource::new(skulpin::InputState::new(&window)));
         world.resources.insert(CanvasDrawResource::default());
 
         app_handler.init(&mut world);
@@ -163,9 +164,11 @@ impl App {
         // the update loop should send the appropriate event via the channel
         event_loop.run(move |event, window_target, control_flow| {
             {
-                let mut input_state = world.resources.get_mut::<InputState>().unwrap();
-                let mut app_control = world.resources.get_mut::<AppControl>().unwrap();
-                input_state.handle_winit_event(&mut app_control, &event, window_target);
+                let mut input_state = world.resources.get_mut::<InputResource>().unwrap();
+                let mut app_control = world.resources.get_mut::<AppControlResource>().unwrap();
+                input_state
+                    .input_state
+                    .handle_winit_event(&mut app_control, &event, window_target);
             }
 
             {
@@ -175,25 +178,7 @@ impl App {
 
             match event {
                 winit::event::Event::MainEventsCleared => {
-                    {
-                        let mut time_state = world.resources.get_mut::<TimeState>().unwrap();
-                        time_state.update();
-
-                        if print_fps_event.try_take_event(
-                            time_state.current_instant(),
-                            std::time::Duration::from_secs(1),
-                        ) {
-                            log::debug!("fps: {}", time_state.updates_per_second());
-                        }
-                    }
-
                     app_handler.update(&mut world);
-
-                    // Call this to mark the start of the next frame (i.e. "key just down" will return false)
-                    {
-                        let mut input_state = world.resources.get_mut::<InputState>().unwrap();
-                        input_state.end_frame();
-                    }
 
                     // Queue a RedrawRequested event.
                     window.request_redraw();
@@ -220,7 +205,8 @@ impl App {
                         log::warn!("Passing Renderer::draw() error to app {}", e);
                         app_handler.fatal_error(&e.into());
                         {
-                            let mut app_control = world.resources.get_mut::<AppControl>().unwrap();
+                            let mut app_control =
+                                world.resources.get_mut::<AppControlResource>().unwrap();
                             app_control.enqueue_terminate_process();
                         }
                     }
@@ -229,7 +215,7 @@ impl App {
             }
 
             {
-                let app_control = world.resources.get::<AppControl>().unwrap();
+                let app_control = world.resources.get::<AppControlResource>().unwrap();
                 if app_control.should_terminate_process() {
                     *control_flow = winit::event_loop::ControlFlow::Exit
                 }
