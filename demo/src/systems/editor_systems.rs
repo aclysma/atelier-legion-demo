@@ -28,6 +28,17 @@ fn imgui_menu_tool_button(
         color_stack_token.pop(ui);
     }
 }
+//
+//struct EditorImguiMenu {
+//
+//}
+//
+//impl super::EditorSystem for EditorImguiMenu {
+//
+//    fn build(_state: &super::SystemSelectionCriteria) -> Box<dyn legion::schedule::Schedulable> {
+//        editor_imgui_menu()
+//    }
+//}
 
 pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
     SystemBuilder::new("editor_imgui_menu")

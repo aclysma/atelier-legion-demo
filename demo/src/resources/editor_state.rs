@@ -46,7 +46,7 @@ pub enum EditorTool {
     Rotate,
 }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Eq, Hash)]
 pub enum EditorMode {
     Inactive,
     Active,
@@ -73,6 +73,10 @@ impl EditorStateResource {
 
     pub fn is_editor_active(&self) -> bool {
         self.editor_mode != EditorMode::Inactive
+    }
+
+    pub fn editor_mode(&self) -> EditorMode {
+        self.editor_mode
     }
 
     pub fn window_options(&self) -> &WindowOptions {
