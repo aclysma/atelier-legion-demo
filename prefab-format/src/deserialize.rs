@@ -419,7 +419,7 @@ impl<'de, 'a, S: Storage> DeserializeSeed<'de> for EntityComponent<'a, S> {
             }
         }
         const FIELDS: &'static [&'static str] = &["id", "components"];
-        deserializer.deserialize_struct("Entity", FIELDS, self)
+        deserializer.deserialize_struct("EntityComponent", FIELDS, self)
     }
 }
 
@@ -494,7 +494,7 @@ impl<'de, 'a, S: Storage> DeserializeSeed<'de> for EntityPrefabObject<'a, S> {
             }
         }
         const FIELDS: &'static [&'static str] = &["id", "components"];
-        deserializer.deserialize_struct("Entity", FIELDS, self)
+        deserializer.deserialize_struct("PrefabEntity", FIELDS, self)
     }
 }
 
