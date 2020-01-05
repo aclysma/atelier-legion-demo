@@ -27,3 +27,6 @@ mod editor_state;
 pub use editor_state::EditorStateResource;
 pub use editor_state::EditorTool;
 pub use editor_state::EditorMode;
+
+mod universe;
+pub use universe::UniverseResource;

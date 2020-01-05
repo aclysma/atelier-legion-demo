@@ -32,6 +32,7 @@ use systems::*;
 mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
+use std::borrow::BorrowMut;
 
 pub mod daemon;
 
@@ -133,13 +134,20 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(asset_manager);
         world.resources.insert(EditorStateResource::new());
 
+        // Create a dummy prefab (this could be loaded from an asset instead)
+        let prefab = {
+            let universe = world.resources.get::<UniverseResource>().unwrap();
+            spawn::create_demo_prefab(&universe)
+        };
+
+        // Spawn it into the world
+        let clone_impl = crate::create_spawn_clone_impl();
+        world.clone_merge(&prefab.world, &clone_impl, None, None);
+
         // Start the application with the editor paused
         let mut command_buffer = legion::command::CommandBuffer::default();
         EditorStateResource::reset(&mut command_buffer);
         command_buffer.write(world);
-
-        spawn::spawn_ground(world);
-        spawn::spawn_balls(world);
     }
 
     fn update(
