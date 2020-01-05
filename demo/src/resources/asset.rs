@@ -6,14 +6,14 @@ use crate::asset_storage::GenericAssetStorage;
 
 use type_uuid::TypeUuid;
 
-pub struct AssetManager {
+pub struct AssetResource {
     loader: RpcLoader,
     storage: GenericAssetStorage,
     tx: Arc<atelier_loader::crossbeam_channel::Sender<RefOp>>,
     rx: atelier_loader::crossbeam_channel::Receiver<RefOp>,
 }
 
-impl Default for AssetManager {
+impl Default for AssetResource {
     fn default() -> Self {
         let (tx, rx) = atelier_loader::crossbeam_channel::unbounded();
         let tx = Arc::new(tx);
@@ -21,7 +21,7 @@ impl Default for AssetManager {
 
         let loader = RpcLoader::default();
 
-        AssetManager {
+        AssetResource {
             loader,
             storage,
             tx,
@@ -30,7 +30,7 @@ impl Default for AssetManager {
     }
 }
 
-impl AssetManager {
+impl AssetResource {
     pub fn add_storage<T: TypeUuid + for<'a> serde::Deserialize<'a> + 'static + Send>(&mut self) {
         self.storage.add_storage::<T>();
     }

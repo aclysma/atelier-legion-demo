@@ -5,7 +5,7 @@ use nphysics2d::joint::DefaultJointConstraintSet;
 use nphysics2d::world::{DefaultMechanicalWorld, DefaultGeometricalWorld};
 
 // Handles setting up the physics system and stepping it
-pub struct Physics {
+pub struct PhysicsResource {
     pub geometrical_world: DefaultGeometricalWorld<f32>,
     pub mechanical_world: DefaultMechanicalWorld<f32>,
     pub bodies: DefaultBodySet<f32>,
@@ -14,7 +14,7 @@ pub struct Physics {
     pub force_generators: DefaultForceGeneratorSet<f32>,
 }
 
-impl Physics {
+impl PhysicsResource {
     pub fn new(gravity: Vector2<f32>) -> Self {
         let geometrical_world = DefaultGeometricalWorld::<f32>::new();
         let mechanical_world = DefaultMechanicalWorld::new(gravity);
@@ -24,7 +24,7 @@ impl Physics {
         let joint_constraints = DefaultJointConstraintSet::<f32>::new();
         let force_generators = DefaultForceGeneratorSet::<f32>::new();
 
-        Physics {
+        PhysicsResource {
             geometrical_world,
             mechanical_world,
             bodies,

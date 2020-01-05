@@ -5,7 +5,7 @@ use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
 use crate::clone_merge::CloneMergeFrom;
 use na::Vector2;
-use crate::resources::Physics;
+use crate::resources::PhysicsResource;
 use legion::prelude::*;
 use std::ops::Range;
 use legion::storage::ComponentStorage;
@@ -17,29 +17,29 @@ use crate::components::Position2DComponent;
 //
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
 #[uuid = "fa518c0a-a65a-44c8-9d35-3f4f336b4de4"]
-pub struct RigidBodyBallComponentDefinition {
+pub struct RigidBodyBallComponentDef {
     pub radius: f32,
     pub is_static: bool,
 }
 
-legion_prefab::register_component_type!(RigidBodyBallComponentDefinition);
+legion_prefab::register_component_type!(RigidBodyBallComponentDef);
 
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
 #[uuid = "36df3006-a5ad-4997-9ccc-0860f49195ad"]
-pub struct RigidBodyBoxComponentDefinition {
+pub struct RigidBodyBoxComponentDef {
     #[serde_diff(inline)]
     pub half_extents: na::Vector2<f32>,
     pub is_static: bool,
 }
 
-legion_prefab::register_component_type!(RigidBodyBoxComponentDefinition);
+legion_prefab::register_component_type!(RigidBodyBoxComponentDef);
 
 pub struct RigidBodyComponent {
     pub handle: DefaultBodyHandle,
 }
 
 fn transform_shape_to_rigid_body(
-    physics: &mut Physics,
+    physics: &mut PhysicsResource,
     into: &mut std::mem::MaybeUninit<RigidBodyComponent>,
     src_position: Option<&Position2DComponent>,
     shape_handle: ncollide2d::shape::ShapeHandle<f32>,
@@ -79,7 +79,7 @@ fn transform_shape_to_rigid_body(
     })
 }
 
-impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
+impl CloneMergeFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
     fn clone_merge_from(
         _src_world: &World,
         src_component_storage: &ComponentStorage,
@@ -87,10 +87,10 @@ impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
         dst_resources: &Resources,
         _src_entities: &[Entity],
         _dst_entities: &[Entity],
-        from: &[RigidBodyBallComponentDefinition],
+        from: &[RigidBodyBallComponentDef],
         into: &mut [std::mem::MaybeUninit<Self>],
     ) {
-        let mut physics = dst_resources.get_mut::<Physics>().unwrap();
+        let mut physics = dst_resources.get_mut::<PhysicsResource>().unwrap();
 
         let position_components = crate::components::try_iter_components_in_storage::<
             Position2DComponent,
@@ -110,7 +110,7 @@ impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
     }
 }
 
-impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
+impl CloneMergeFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
     fn clone_merge_from(
         _src_world: &World,
         src_component_storage: &ComponentStorage,
@@ -118,10 +118,10 @@ impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
         dst_resources: &Resources,
         _src_entities: &[Entity],
         _dst_entities: &[Entity],
-        from: &[RigidBodyBoxComponentDefinition],
+        from: &[RigidBodyBoxComponentDef],
         into: &mut [std::mem::MaybeUninit<Self>],
     ) {
-        let mut physics = dst_resources.get_mut::<Physics>().unwrap();
+        let mut physics = dst_resources.get_mut::<PhysicsResource>().unwrap();
 
         let position_components = crate::components::try_iter_components_in_storage::<
             Position2DComponent,

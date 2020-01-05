@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::io::Read;
 use type_uuid::TypeUuid;
 
-use crate::prefab::PrefabAsset;
+use crate::pipeline::PrefabAsset;
 
 use legion::prelude::*;
 use legion_prefab::ComponentRegistration;
@@ -79,8 +79,7 @@ impl Importer for PrefabImporter {
         let prefab = prefab_deser.prefab();
 
         println!("IMPORTER: iterate positions");
-        let query =
-            <legion::prelude::Read<crate::components::Position2DComponentDefinition>>::query();
+        let query = <legion::prelude::Read<crate::components::Position2DComponentDef>>::query();
         for pos in query.iter_immutable(&prefab.world) {
             println!("position: {:?}", pos);
         }

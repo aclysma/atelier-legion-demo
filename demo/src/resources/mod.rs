@@ -1,11 +1,11 @@
 mod fps_text;
-pub use fps_text::FpsText;
+pub use fps_text::FpsTextResource;
 
-mod asset_manager;
-pub use asset_manager::AssetManager;
+mod asset;
+pub use asset::AssetResource;
 
-mod canvas_draw_context;
-pub use canvas_draw_context::CanvasDrawContext;
+mod canvas_draw;
+pub use canvas_draw::CanvasDrawResource;
 
 mod physics;
-pub use physics::Physics;
+pub use physics::PhysicsResource;

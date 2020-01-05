@@ -1,11 +1,11 @@
-pub struct FpsText {
+pub struct FpsTextResource {
     pub last_fps_text_change: Option<std::time::Instant>,
     pub fps_text: String,
 }
 
-impl FpsText {
+impl FpsTextResource {
     pub fn new() -> Self {
-        FpsText {
+        FpsTextResource {
             last_fps_text_change: None,
             fps_text: "".to_string(),
         }

@@ -1,6 +1,6 @@
 use legion::prelude::*;
 
-use crate::resources::Physics;
+use crate::resources::PhysicsResource;
 
 use crate::components::Position2DComponent;
 use crate::components::RigidBodyComponent;
@@ -8,7 +8,7 @@ use crate::components::RigidBodyComponent;
 pub fn update_physics() -> Box<dyn Schedulable> {
     // Do a physics simulation timestep
     SystemBuilder::new("update physics")
-        .write_resource::<Physics>()
+        .write_resource::<PhysicsResource>()
         .build(|_, _, physics, _| {
             physics.step();
         })
@@ -16,7 +16,7 @@ pub fn update_physics() -> Box<dyn Schedulable> {
 
 pub fn read_from_physics() -> Box<dyn Schedulable> {
     SystemBuilder::new("read physics data")
-        .read_resource::<Physics>()
+        .read_resource::<PhysicsResource>()
         .with_query(<(Write<Position2DComponent>, Read<RigidBodyComponent>)>::query())
         .build(|_, mut world, physics, query| {
             for (mut pos, body) in query.iter(&mut world) {

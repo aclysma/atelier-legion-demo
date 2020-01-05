@@ -1,11 +1,11 @@
 use legion::prelude::*;
 
-use crate::resources::FpsText;
+use crate::resources::FpsTextResource;
 
 pub fn update_fps_text() -> Box<dyn Schedulable> {
     SystemBuilder::new("update fps text")
         .read_resource::<skulpin::TimeState>()
-        .write_resource::<FpsText>()
+        .write_resource::<FpsTextResource>()
         .build(|_, _, (time_state, fps_text), _| {
             let now = time_state.current_instant();
             //

@@ -7,14 +7,14 @@ struct CanvasDrawContextInner {
 }
 
 #[derive(Default)]
-pub struct CanvasDrawContext {
+pub struct CanvasDrawResource {
     inner: std::sync::Mutex<Option<CanvasDrawContextInner>>,
 }
 
-unsafe impl Send for CanvasDrawContext {}
-unsafe impl Sync for CanvasDrawContext {}
+unsafe impl Send for CanvasDrawResource {}
+unsafe impl Sync for CanvasDrawResource {}
 
-impl CanvasDrawContext {
+impl CanvasDrawResource {
     pub fn begin_draw_context(
         &mut self,
         canvas: &mut skia_safe::Canvas,

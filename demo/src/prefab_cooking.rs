@@ -1,4 +1,4 @@
-use crate::resources::AssetManager;
+use crate::resources::AssetResource;
 
 use atelier_loader::{
     handle::{AssetHandle, Handle},
@@ -12,11 +12,11 @@ use crate::clone_merge::CloneMergeImpl;
 use legion::storage::ComponentTypeId;
 use prefab_format::ComponentTypeUuid;
 use legion_prefab::{ComponentRegistration, CookedPrefab};
-use crate::prefab::PrefabAsset;
+use crate::pipeline::PrefabAsset;
 use atelier_core::AssetUuid;
 
 pub fn cook_prefab(
-    asset_manager: &mut AssetManager,
+    asset_manager: &mut AssetResource,
     registered_components: &HashMap<ComponentTypeId, ComponentRegistration>,
     registered_components_by_uuid: &HashMap<ComponentTypeUuid, ComponentRegistration>,
     prefab_uuid: AssetUuid,
@@ -165,7 +165,7 @@ pub fn cook_prefab(
 // This function does a recursive blocking load on the provided prefab asset and all prefabs
 // that it references. As it does this, prefab_lookup and prefab_cook_order are populated
 fn request_prefab_dependency(
-    asset_manager: &mut AssetManager,
+    asset_manager: &mut AssetResource,
     id: AssetUuid,
     prefab_lookup: &mut HashMap<AssetUuid, Handle<PrefabAsset>>,
     prefab_cook_order: &mut Vec<AssetUuid>,

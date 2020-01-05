@@ -5,20 +5,20 @@ use legion::storage::Component;
 
 mod physics;
 pub use physics::RigidBodyComponent;
-pub use physics::RigidBodyBoxComponentDefinition;
-pub use physics::RigidBodyBallComponentDefinition;
+pub use physics::RigidBodyBoxComponentDef;
+pub use physics::RigidBodyBallComponentDef;
 
 mod transform;
 pub use transform::Position2DComponent;
-pub use transform::Position2DComponentDefinition;
+pub use transform::Position2DComponentDef;
 pub use transform::PositionReference;
 
 mod draw;
 pub use draw::DrawSkiaCircleComponent;
-pub use draw::DrawSkiaCircleComponentDefinition;
+pub use draw::DrawSkiaCircleComponentDef;
 pub use draw::DrawSkiaBoxComponent;
-pub use draw::DrawSkiaBoxComponentDefinition;
-pub use draw::PaintDefinition;
+pub use draw::DrawSkiaBoxComponentDef;
+pub use draw::PaintDef;
 pub use draw::Paint;
 
 // Given an optional iterator, this will return Some(iter.next()) or Some(None) up to n times.

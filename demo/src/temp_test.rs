@@ -1,4 +1,4 @@
-use crate::resources::AssetManager;
+use crate::resources::AssetResource;
 use atelier_loader::{
     asset_uuid,
     handle::{AssetHandle, Handle},
@@ -9,26 +9,25 @@ use std::collections::HashMap;
 use legion::prelude::*;
 use crate::clone_merge::CloneMergeImpl;
 use crate::components::PositionReference;
-use crate::components::Position2DComponentDefinition;
+use crate::components::Position2DComponentDef;
 use crate::components::Position2DComponent;
 
 use legion::storage::ComponentTypeId;
 use prefab_format::ComponentTypeUuid;
 use legion_prefab::ComponentRegistration;
-use crate::prefab::PrefabAsset;
+use crate::pipeline::PrefabAsset;
 
-pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
+pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
     // Demonstrate loading a component as an asset (probably won't do this in practice)
     {
         let handle = asset_manager
             .loader()
             .add_ref(asset_uuid!("df3a8294-ffce-4ecc-81ad-a96867aa3f8a"));
-        let handle =
-            Handle::<Position2DComponentDefinition>::new(asset_manager.tx().clone(), handle);
+        let handle = Handle::<Position2DComponentDef>::new(asset_manager.tx().clone(), handle);
         loop {
             asset_manager.update();
             if let LoadStatus::Loaded = handle.load_status::<RpcLoader>(asset_manager.loader()) {
-                let custom_asset: &Position2DComponentDefinition = handle
+                let custom_asset: &Position2DComponentDef = handle
                     .asset(asset_manager.storage())
                     .expect("failed to get asset");
                 log::info!("Loaded a component {:?}", custom_asset);
@@ -70,7 +69,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         // Print legion contents to prove that it worked
         //
         println!("GAME: iterate positions");
-        let query = <legion::prelude::Read<Position2DComponentDefinition>>::query();
+        let query = <legion::prelude::Read<Position2DComponentDef>>::query();
         for pos in query.iter_immutable(&prefab_asset.prefab.world) {
             println!("position: {:?}", pos);
         }
@@ -89,12 +88,12 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         let mut world = universe.create_world();
 
         println!("--- CLONE MERGE 1 ---");
-        println!("This test just clones Position2DComponentDefinition");
+        println!("This test just clones Position2DComponentDef");
         let clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
         world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
 
         println!("MERGED: iterate positions");
-        let query = <legion::prelude::Read<Position2DComponentDefinition>>::query();
+        let query = <legion::prelude::Read<Position2DComponentDef>>::query();
         for (e, pos_def) in query.iter_entities_immutable(&world) {
             println!("entity: {:?} position_def: {:?}", e, pos_def);
         }
@@ -105,32 +104,31 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         println!("MERGED: done iterating positions");
 
         println!("--- CLONE MERGE 2 ---");
-        println!("This test transforms Position2DComponentDefinition into Position2DComponent");
+        println!("This test transforms Position2DComponentDef into Position2DComponent");
         let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
-        clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
+        clone_merge_impl.add_mapping_into::<Position2DComponentDef, Position2DComponent>();
 
-        clone_merge_impl
-            .add_mapping_closure::<Position2DComponentDefinition, Position2DComponent, _>(
-                |_src_world,
-                 _src_component_storage,
-                 _src_component_storage_indexes,
-                 _dst_resources,
-                 _src_entities,
-                 _dst_entities,
-                 from,
-                 into| {
-                    for (f, t) in from.iter().zip(into) {
-                        *t = std::mem::MaybeUninit::new(Position2DComponent {
-                            position: f.position,
-                        });
-                    }
-                },
-            );
+        clone_merge_impl.add_mapping_closure::<Position2DComponentDef, Position2DComponent, _>(
+            |_src_world,
+             _src_component_storage,
+             _src_component_storage_indexes,
+             _dst_resources,
+             _src_entities,
+             _dst_entities,
+             from,
+             into| {
+                for (f, t) in from.iter().zip(into) {
+                    *t = std::mem::MaybeUninit::new(Position2DComponent {
+                        position: f.position,
+                    });
+                }
+            },
+        );
 
         world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
 
         println!("MERGED: iterate positions");
-        let query = <legion::prelude::Read<Position2DComponentDefinition>>::query();
+        let query = <legion::prelude::Read<Position2DComponentDef>>::query();
         for (e, pos_def) in query.iter_entities_immutable(&world) {
             println!("entity: {:?} position_def: {:?}", e, pos_def);
         }
@@ -143,11 +141,11 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         println!("--- CLONE MERGE 3 ---");
         println!("This test demonstrates replacing existing entities rather than making new ones");
         let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
-        clone_merge_impl.add_mapping_into::<Position2DComponentDefinition, Position2DComponent>();
+        clone_merge_impl.add_mapping_into::<Position2DComponentDef, Position2DComponent>();
 
         // Get a list of entities in the prefab
         let mut prefab_entities = vec![];
-        let query = <legion::prelude::Read<Position2DComponentDefinition>>::query();
+        let query = <legion::prelude::Read<Position2DComponentDef>>::query();
         for (e, _) in query.iter_entities_immutable(&prefab_asset.prefab.world) {
             prefab_entities.push(e);
         }
@@ -174,7 +172,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         );
 
         println!("MERGED: iterate positions");
-        let query = <legion::prelude::Read<Position2DComponentDefinition>>::query();
+        let query = <legion::prelude::Read<Position2DComponentDef>>::query();
         for (e, pos_def) in query.iter_entities_immutable(&world) {
             println!("entity: {:?} position_def: {:?}", e, pos_def);
         }
@@ -184,7 +182,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
         }
         let query = <legion::prelude::Read<PositionReference>>::query();
         for (e, pos_ref) in query.iter_entities_immutable(&world) {
-            let ref_component: &Position2DComponentDefinition =
+            let ref_component: &Position2DComponentDef =
                 pos_ref.handle.asset(asset_manager.storage()).unwrap();
             println!(
                 "entity: {:?} position_ref: {:?} ({:?})",
@@ -195,7 +193,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetManager) {
     }
 }
 
-pub fn temp_force_prefab_cook(asset_manager: &mut AssetManager) {
+pub fn temp_force_prefab_cook(asset_manager: &mut AssetResource) {
     // Create the component registry
     let registered_components = {
         let comp_registrations = legion_prefab::iter_component_registrations();

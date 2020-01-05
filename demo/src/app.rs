@@ -16,7 +16,7 @@ use skulpin::winit;
 use skulpin::imgui;
 use skulpin::imgui_winit_support;
 
-use crate::resources::CanvasDrawContext;
+use crate::resources::CanvasDrawResource;
 
 use legion::prelude::*;
 
@@ -155,7 +155,7 @@ impl App {
         world.resources.insert(AppControl::default());
         world.resources.insert(TimeState::new());
         world.resources.insert(InputState::new(&window));
-        world.resources.insert(CanvasDrawContext::default());
+        world.resources.insert(CanvasDrawResource::default());
 
         app_handler.init(&mut world);
 
@@ -206,13 +206,13 @@ impl App {
                         |canvas, coordinate_system_helper, _imgui_manager| {
                             world
                                 .resources
-                                .get_mut::<CanvasDrawContext>()
+                                .get_mut::<CanvasDrawResource>()
                                 .unwrap()
                                 .begin_draw_context(canvas, coordinate_system_helper);
                             app_handler.draw(&mut world);
                             world
                                 .resources
-                                .get_mut::<CanvasDrawContext>()
+                                .get_mut::<CanvasDrawResource>()
                                 .unwrap()
                                 .end_draw_context();
                         },

@@ -11,8 +11,6 @@ use std::collections::HashMap;
 use legion::storage::ComponentTypeId;
 use legion_prefab::ComponentRegistration;
 
-mod image;
-
 mod temp_test;
 pub use temp_test::temp_force_load_asset;
 pub use temp_test::temp_force_prefab_cook;
@@ -23,6 +21,7 @@ mod clone_merge;
 use clone_merge::CloneMergeImpl;
 
 mod components;
+use components::*;
 
 mod resources;
 use resources::*;
@@ -30,21 +29,21 @@ use resources::*;
 mod systems;
 use systems::*;
 
+mod pipeline;
+use pipeline::*;
+
 pub mod daemon;
 
-mod prefab_importer;
-
 use components::Position2DComponent;
-use components::PaintDefinition;
+use components::PaintDef;
 use components::DrawSkiaBoxComponent;
 use components::DrawSkiaCircleComponent;
 use components::RigidBodyComponent;
 use crate::components::{
-    DrawSkiaBoxComponentDefinition, DrawSkiaCircleComponentDefinition,
-    RigidBodyBallComponentDefinition, RigidBodyBoxComponentDefinition,
+    DrawSkiaBoxComponentDef, DrawSkiaCircleComponentDef, RigidBodyBallComponentDef,
+    RigidBodyBoxComponentDef,
 };
 
-mod prefab;
 mod prefab_cooking;
 
 pub mod app;
@@ -57,7 +56,7 @@ const BALL_COUNT: usize = 5;
 
 fn spawn_ground(world: &mut World) {
     let position = Vector2::y() * -GROUND_THICKNESS;
-    let paint = PaintDefinition {
+    let paint = PaintDef {
         color: na::Vector4::new(0.0, 1.0, 0.0, 1.0),
         stroke_width: 0.02,
     };
@@ -71,11 +70,11 @@ fn spawn_ground(world: &mut World) {
         (0..1).map(|_| {
             (
                 Position2DComponent { position },
-                DrawSkiaBoxComponentDefinition {
+                DrawSkiaBoxComponentDef {
                     half_extents: half_extents,
                     paint,
                 },
-                RigidBodyBoxComponentDefinition {
+                RigidBodyBoxComponentDef {
                     half_extents: half_extents,
                     is_static: true,
                 },
@@ -117,14 +116,14 @@ fn spawn_balls(world: &mut World) {
 
             (
                 Position2DComponent { position },
-                DrawSkiaCircleComponentDefinition {
+                DrawSkiaCircleComponentDef {
                     radius: BALL_RADIUS,
-                    paint: PaintDefinition {
+                    paint: PaintDef {
                         color: circle_colors[index % circle_colors.len()],
                         stroke_width: 0.02,
                     },
                 },
-                RigidBodyBallComponentDefinition {
+                RigidBodyBallComponentDef {
                     radius: BALL_RADIUS,
                     is_static: false,
                 },
@@ -137,10 +136,10 @@ fn spawn_balls(world: &mut World) {
 }
 
 /// Create the asset manager that has all the required types registered
-pub fn create_asset_manager() -> AssetManager {
-    let mut asset_manager = AssetManager::default();
-    asset_manager.add_storage::<components::Position2DComponentDefinition>();
-    asset_manager.add_storage::<prefab::PrefabAsset>();
+pub fn create_asset_manager() -> AssetResource {
+    let mut asset_manager = AssetResource::default();
+    asset_manager.add_storage::<Position2DComponentDef>();
+    asset_manager.add_storage::<PrefabAsset>();
     asset_manager
 }
 
@@ -157,11 +156,10 @@ pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistra
 pub fn create_spawn_clone_impl() -> CloneMergeImpl {
     let component_registry = create_component_registry();
     let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
-    clone_merge_impl
-        .add_mapping_into::<DrawSkiaCircleComponentDefinition, DrawSkiaCircleComponent>();
-    clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDefinition, DrawSkiaBoxComponent>();
-    clone_merge_impl.add_mapping::<RigidBodyBallComponentDefinition, RigidBodyComponent>();
-    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDefinition, RigidBodyComponent>();
+    clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDef, DrawSkiaCircleComponent>();
+    clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDef, DrawSkiaBoxComponent>();
+    clone_merge_impl.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();
+    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDef, RigidBodyComponent>();
     clone_merge_impl
 }
 
@@ -202,10 +200,10 @@ impl app::AppHandler for DemoApp {
         world: &mut World,
     ) {
         let asset_manager = create_asset_manager();
-        let physics = Physics::new(Vector2::y() * GRAVITY);
+        let physics = PhysicsResource::new(Vector2::y() * GRAVITY);
 
         world.resources.insert(physics);
-        world.resources.insert(FpsText::new());
+        world.resources.insert(FpsTextResource::new());
         world.resources.insert(asset_manager);
 
         spawn_ground(world);
