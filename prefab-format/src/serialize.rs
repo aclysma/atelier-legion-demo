@@ -44,13 +44,13 @@ pub trait StorageSerializer {
 
 #[derive(Serialize)]
 struct PrefabEntity<'a, SS: StorageSerializer> {
-    id: EntityUuid,
+    id: uuid::Uuid,
     #[serde(bound(serialize = "SS: StorageSerializer"))]
     components: &'a [EntityComponent<'a, SS>],
 }
 #[derive(Serialize)]
 struct EntityComponent<'a, SS: StorageSerializer> {
-    r#type: ComponentTypeUuid,
+    r#type: uuid::Uuid,
     #[serde(bound(serialize = "SS: StorageSerializer"))]
     data: EntityComponentSerializer<'a, SS>,
 }
@@ -74,20 +74,20 @@ struct ComponentOverrideDiff<'a, SS: StorageSerializer> {
 }
 #[derive(Serialize)]
 struct ComponentOverride<'a, SS: StorageSerializer> {
-    component_type: ComponentTypeUuid,
+    component_type: uuid::Uuid,
     #[serde(bound(serialize = "SS: StorageSerializer"))]
     diff: ComponentOverrideDiff<'a, SS>,
 }
 #[derive(Serialize)]
 struct EntityOverride<'a, SS: StorageSerializer> {
-    entity_id: EntityUuid,
+    entity_id: uuid::Uuid,
     #[serde(bound(serialize = "SS: StorageSerializer"))]
     component_overrides: Vec<ComponentOverride<'a, SS>>,
 }
 
 #[derive(Serialize)]
 struct PrefabRef<'a, SS: StorageSerializer> {
-    prefab_id: PrefabUuid,
+    prefab_id: uuid::Uuid,
     #[serde(bound(serialize = "SS: StorageSerializer"))]
     entity_overrides: &'a [EntityOverride<'a, SS>],
 }
@@ -125,13 +125,13 @@ impl<'a, SS: StorageSerializer> Serialize for EntityPrefabObjectSerializer<'a, S
             0,
             "Entity",
             &PrefabEntity {
-                id: self.id,
+                id: uuid::Uuid::from_bytes(self.id),
                 components: &self
                     .storage
                     .component_types(&self.id)
                     .iter()
                     .map(|c| EntityComponent {
-                        r#type: *c,
+                        r#type: uuid::Uuid::from_bytes(*c),
                         data: EntityComponentSerializer {
                             storage: self.storage,
                             id: self.id,
@@ -174,17 +174,17 @@ impl<'a, SS: StorageSerializer> Serialize for PrefabRefObjectSerializer<'a, SS> 
             0,
             "PrefabRef",
             &PrefabRef {
-                prefab_id: self.id,
+                prefab_id: uuid::Uuid::from_bytes(self.id),
                 entity_overrides: &self
                     .storage
                     .prefab_ref_overrides(&self.id)
                     .iter()
                     .map(|(entity, component_types)| EntityOverride {
-                        entity_id: *entity,
+                        entity_id: uuid::Uuid::from_bytes(*entity),
                         component_overrides: component_types
                             .iter()
                             .map(|component_type| ComponentOverride {
-                                component_type: *component_type,
+                                component_type: uuid::Uuid::from_bytes(*component_type),
                                 diff: ComponentOverrideDiff {
                                     storage: self.storage,
                                     prefab_ref: self.id,
@@ -240,7 +240,7 @@ impl<'a, SS: StorageSerializer> Serialize for PrefabSerializer<'a, SS> {
         S: Serializer,
     {
         let mut s = serializer.serialize_struct("Prefab", 2)?;
-        s.serialize_field("id", &self.prefab_id)?;
+        s.serialize_field("id", &uuid::Uuid::from_bytes(self.prefab_id))?;
         s.serialize_field(
             "objects",
             &ObjectArraySerializer {
