@@ -31,6 +31,7 @@ use systems::*;
 
 mod pipeline;
 use pipeline::*;
+use std::sync::mpsc::RecvTimeoutError::Timeout;
 
 pub mod daemon;
 
@@ -86,6 +87,10 @@ impl DemoApp {
             update_fps_text(),
             update_physics(),
             read_from_physics(),
+            // --- Editor stuff here ---
+            editor_keyboard_shortcuts(),
+            editor_imgui_menu(),
+            // --- End editor stuff ---
             input_reset_for_next_frame(),
         ];
 
@@ -115,6 +120,12 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(physics);
         world.resources.insert(FpsTextResource::new());
         world.resources.insert(asset_manager);
+        world.resources.insert(EditorStateResource::new());
+
+        // Start the application with the editor paused
+        let mut command_buffer = legion::command::CommandBuffer::default();
+        EditorStateResource::reset(&mut command_buffer);
+        command_buffer.write(world);
 
         spawn::spawn_ground(world);
         spawn::spawn_balls(world);

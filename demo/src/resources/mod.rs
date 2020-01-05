@@ -15,9 +15,14 @@ pub use input::InputResource;
 
 mod time;
 pub use time::TimeResource;
+pub use time::SimulationTimePauseReason;
 
 mod app_control;
 pub use app_control::AppControlResource;
 
 mod imgui;
 pub use imgui::ImguiResource;
+
+mod editor_state;
+pub use editor_state::EditorStateResource;
+pub use editor_state::EditorTool;

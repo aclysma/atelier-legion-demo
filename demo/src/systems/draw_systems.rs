@@ -26,17 +26,6 @@ pub fn draw() -> Box<dyn Schedulable> {
              (draw_boxes_query, draw_circles_query)| {
                 imgui_manager.with_ui(|ui| {
                     draw_context.with_canvas(|canvas, coordinate_system_helper| {
-                        let mut show_demo = true;
-                        ui.show_demo_window(&mut show_demo);
-
-                        ui.main_menu_bar(|| {
-                            ui.menu(imgui::im_str!("File"), true, || {
-                                if imgui::MenuItem::new(imgui::im_str!("New")).build(ui) {
-                                    log::info!("clicked");
-                                }
-                            });
-                        });
-
                         // Set up the coordinate system such that Y position is in the upward direction
                         let x_half_extents = crate::GROUND_HALF_EXTENTS_WIDTH * 1.5;
                         let y_half_extents = x_half_extents
