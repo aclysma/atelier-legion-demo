@@ -21,24 +21,22 @@ pub use draw::DrawSkiaBoxComponentDefinition;
 pub use draw::PaintDefinition;
 pub use draw::Paint;
 
-
-
 // Given an optional iterator, this will return Some(iter.next()) or Some(None) up to n times.
 // For a simpler interface for a slice/range use create_option_iter_from_slice, which will return
 // Some(&T) for each element in the range, or Some(None) for each element.
 //
 // This iterator is intended for zipping an Option<Iter> with other Iters
 struct OptionIter<T, U>
-    where
-        T: std::iter::Iterator<Item = U>,
+where
+    T: std::iter::Iterator<Item = U>,
 {
     opt: Option<T>,
     count: usize,
 }
 
 impl<T, U> OptionIter<T, U>
-    where
-        T: std::iter::Iterator<Item = U>,
+where
+    T: std::iter::Iterator<Item = U>,
 {
     fn new(
         opt: Option<T>,
@@ -49,8 +47,8 @@ impl<T, U> OptionIter<T, U>
 }
 
 impl<T, U> std::iter::Iterator for OptionIter<T, U>
-    where
-        T: std::iter::Iterator<Item = U>,
+where
+    T: std::iter::Iterator<Item = U>,
 {
     type Item = Option<U>;
 

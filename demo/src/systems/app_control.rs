@@ -1,4 +1,3 @@
-
 use legion::prelude::*;
 use skulpin::winit::event::VirtualKeyCode;
 

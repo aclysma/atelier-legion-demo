@@ -92,10 +92,9 @@ impl CloneMergeFrom<RigidBodyBallComponentDefinition> for RigidBodyComponent {
     ) {
         let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        let position_components = crate::components::try_iter_components_in_storage::<Position2DComponent>(
-            src_component_storage,
-            src_component_storage_indexes,
-        );
+        let position_components = crate::components::try_iter_components_in_storage::<
+            Position2DComponent,
+        >(src_component_storage, src_component_storage_indexes);
 
         for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle =
@@ -124,10 +123,9 @@ impl CloneMergeFrom<RigidBodyBoxComponentDefinition> for RigidBodyComponent {
     ) {
         let mut physics = dst_resources.get_mut::<Physics>().unwrap();
 
-        let position_components = crate::components::try_iter_components_in_storage::<Position2DComponent>(
-            src_component_storage,
-            src_component_storage_indexes,
-        );
+        let position_components = crate::components::try_iter_components_in_storage::<
+            Position2DComponent,
+        >(src_component_storage, src_component_storage_indexes);
 
         for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Cuboid::new(

@@ -1,4 +1,3 @@
-
 use legion::prelude::*;
 
 use skulpin::imgui;
@@ -41,7 +40,7 @@ pub fn draw() -> Box<dyn Schedulable> {
                         let x_half_extents = crate::GROUND_HALF_EXTENTS_WIDTH * 1.5;
                         let y_half_extents = x_half_extents
                             / (coordinate_system_helper.surface_extents().width as f32
-                            / coordinate_system_helper.surface_extents().height as f32);
+                                / coordinate_system_helper.surface_extents().height as f32);
 
                         coordinate_system_helper
                             .use_visible_range(

@@ -1,4 +1,3 @@
-
 pub struct FpsText {
     pub last_fps_text_change: Option<std::time::Instant>,
     pub fps_text: String,
