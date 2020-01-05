@@ -10,13 +10,13 @@ use skulpin::ImguiManager;
 use skulpin::LogicalSize;
 
 use skulpin::CreateRendererError;
-use skulpin::CoordinateSystemHelper;
 
-use skulpin::skia_safe;
 use skulpin::ash;
 use skulpin::winit;
 use skulpin::imgui;
 use skulpin::imgui_winit_support;
+
+use crate::resources::CanvasDrawContext;
 
 use legion::prelude::*;
 
@@ -94,51 +94,6 @@ pub trait AppHandler {
     );
 }
 
-struct DrawContextInner {
-    canvas: *mut skia_safe::Canvas,
-    coordinate_system_helper: CoordinateSystemHelper,
-}
-
-#[derive(Default)]
-pub struct DrawContext {
-    inner: std::sync::Mutex<Option<DrawContextInner>>,
-}
-
-unsafe impl Send for DrawContext {}
-unsafe impl Sync for DrawContext {}
-
-impl DrawContext {
-    pub fn begin_draw_context(
-        &mut self,
-        canvas: &mut skia_safe::Canvas,
-        coordinate_system_helper: skulpin::CoordinateSystemHelper,
-    ) {
-        let mut lock = self.inner.lock().unwrap();
-        *lock = Some(DrawContextInner {
-            canvas: canvas as *mut skia_safe::Canvas,
-            coordinate_system_helper,
-        });
-    }
-
-    pub fn end_draw_context(&mut self) {
-        let mut lock = self.inner.lock().unwrap();
-        *lock = None;
-    }
-
-    pub fn with_canvas<F>(
-        &mut self,
-        f: F,
-    ) where
-        F: FnOnce(&mut skia_safe::Canvas, &CoordinateSystemHelper),
-    {
-        let lock = self.inner.lock().unwrap();
-        let lock_ref = (*lock).as_ref().unwrap();
-        //let x = lock_ref.as_ref().unwrap();
-        let canvas = unsafe { &mut *lock_ref.canvas };
-        (f)(canvas, &lock_ref.coordinate_system_helper);
-    }
-}
-
 pub struct App {}
 
 impl App {
@@ -200,7 +155,7 @@ impl App {
         world.resources.insert(AppControl::default());
         world.resources.insert(TimeState::new());
         world.resources.insert(InputState::new(&window));
-        world.resources.insert(DrawContext::default());
+        world.resources.insert(CanvasDrawContext::default());
 
         app_handler.init(&mut world);
 
@@ -251,13 +206,13 @@ impl App {
                         |canvas, coordinate_system_helper, _imgui_manager| {
                             world
                                 .resources
-                                .get_mut::<DrawContext>()
+                                .get_mut::<CanvasDrawContext>()
                                 .unwrap()
                                 .begin_draw_context(canvas, coordinate_system_helper);
                             app_handler.draw(&mut world);
                             world
                                 .resources
-                                .get_mut::<DrawContext>()
+                                .get_mut::<CanvasDrawContext>()
                                 .unwrap()
                                 .end_draw_context();
                         },

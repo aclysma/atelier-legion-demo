@@ -1,4 +1,4 @@
-use crate::asset_manager::AssetManager;
+use crate::resources::AssetManager;
 
 use atelier_loader::{
     handle::{AssetHandle, Handle},
