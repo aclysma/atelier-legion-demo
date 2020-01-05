@@ -34,27 +34,14 @@ use pipeline::*;
 
 pub mod daemon;
 
-use components::Position2DComponent;
-use components::PaintDef;
-use components::DrawSkiaBoxComponent;
-use components::DrawSkiaCircleComponent;
-use components::RigidBodyComponent;
-use crate::components::{
-    DrawSkiaBoxComponentDef, DrawSkiaCircleComponentDef, RigidBodyBallComponentDef,
-    RigidBodyBoxComponentDef,
-};
-
 mod prefab_cooking;
 
 mod spawn;
 
 pub mod app;
 
-const GROUND_THICKNESS: f32 = 0.2;
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
-const BALL_RADIUS: f32 = 0.2;
-const GRAVITY: f32 = -9.81;
-const BALL_COUNT: usize = 5;
+pub const GRAVITY: f32 = -9.81;
 
 /// Create the asset manager that has all the required types registered
 pub fn create_asset_manager() -> AssetResource {

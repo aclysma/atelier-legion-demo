@@ -1,12 +1,10 @@
 use legion::prelude::*;
 use na::Vector2;
 use crate::components::*;
-use crate::resources::*;
 
 const GROUND_THICKNESS: f32 = 0.2;
 use crate::GROUND_HALF_EXTENTS_WIDTH;
 const BALL_RADIUS: f32 = 0.2;
-const GRAVITY: f32 = -9.81;
 const BALL_COUNT: usize = 5;
 
 pub fn spawn_ground(world: &mut World) {
