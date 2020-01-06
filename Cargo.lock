@@ -120,6 +120,7 @@ dependencies = [
  "bincode",
  "capnp",
  "capnp-rpc",
+ "chrono",
  "crossbeam-channel 0.3.9",
  "dunce",
  "erased-serde",

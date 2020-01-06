@@ -10,6 +10,8 @@ use na::Vector2;
 use std::collections::HashMap;
 use legion::storage::ComponentTypeId;
 use legion_prefab::ComponentRegistration;
+use prefab_format::ComponentTypeUuid;
+use atelier_core::asset_uuid;
 
 mod temp_test;
 pub use temp_test::temp_force_load_asset;
@@ -38,8 +40,6 @@ pub mod daemon;
 
 mod prefab_cooking;
 
-mod spawn;
-
 pub mod app;
 
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
@@ -59,6 +59,15 @@ pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistra
     let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
         comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone()), reg.clone())),
     );
+
+    component_types
+}
+
+pub fn create_component_registry_by_uuid() -> HashMap<ComponentTypeUuid, ComponentRegistration> {
+    let comp_registrations = legion_prefab::iter_component_registrations();
+    use std::iter::FromIterator;
+    let component_types: HashMap<ComponentTypeUuid, ComponentRegistration> =
+        HashMap::from_iter(comp_registrations.map(|reg| (reg.uuid().clone(), reg.clone())));
 
     component_types
 }
@@ -134,19 +143,12 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(asset_manager);
         world.resources.insert(EditorStateResource::new());
 
-        // Create a dummy prefab (this could be loaded from an asset instead)
-        let prefab = {
-            let universe = world.resources.get::<UniverseResource>().unwrap();
-            spawn::create_demo_prefab(&universe)
-        };
-
-        // Spawn it into the world
-        let clone_impl = crate::create_spawn_clone_impl();
-        world.clone_merge(&prefab.world, &clone_impl, None, None);
-
         // Start the application with the editor paused
         let mut command_buffer = legion::command::CommandBuffer::default();
-        EditorStateResource::reset(&mut command_buffer);
+        EditorStateResource::enqueue_open_prefab(
+            &mut command_buffer,
+            asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"),
+        );
         command_buffer.write(world);
     }
 

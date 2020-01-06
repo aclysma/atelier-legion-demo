@@ -217,7 +217,9 @@ pub fn temp_force_prefab_cook(asset_manager: &mut AssetResource) {
 
     let prefab_asset_id = asset_uuid!("5fd8256d-db36-4fe2-8211-c7b3446e1927");
 
+    let universe = Universe::new();
     crate::prefab_cooking::cook_prefab(
+        &universe,
         asset_manager,
         &registered_components,
         &registered_components_by_uuid,

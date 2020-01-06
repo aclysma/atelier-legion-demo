@@ -16,6 +16,7 @@ use crate::pipeline::PrefabAsset;
 use atelier_core::AssetUuid;
 
 pub fn cook_prefab(
+    universe: &Universe,
     asset_manager: &mut AssetResource,
     registered_components: &HashMap<ComponentTypeId, ComponentRegistration>,
     registered_components_by_uuid: &HashMap<ComponentTypeUuid, ComponentRegistration>,
@@ -49,7 +50,6 @@ pub fn cook_prefab(
     }
 
     // Create a new world to hold the cooked data
-    let universe = Universe::new();
     let mut world = universe.create_world();
 
     // merge all entity data from all prefabs. This data doesn't include any overrides, so order

@@ -88,11 +88,11 @@ pub fn create_demo_prefab(universe: &Universe) -> Prefab {
     spawn_ground(&mut world);
     spawn_balls(&mut world);
 
-    // Assign all entities a random UUID
+    // Assign all entities a random UUID. Iterating with a TryRead<()> will give us all the entity IDs
+    // that currently exist
     let mut entities = HashMap::<EntityUuid, Entity>::default();
-    let query = <legion::prelude::Read<()>>::query();
+    let query = <legion::prelude::TryRead<()>>::query();
     for (entity, _) in query.iter_entities_immutable(&world) {
-        println!("position: {:?}", entity);
         entities.insert(*uuid::Uuid::new_v4().as_bytes(), entity);
     }
 
@@ -104,5 +104,20 @@ pub fn create_demo_prefab(universe: &Universe) -> Prefab {
     };
 
     // Create the prefab
-    Prefab { world, prefab_meta }
+    let prefab = Prefab { world, prefab_meta };
+
+//    let registered_components = crate::create_component_registry_by_uuid();
+//    let prefab_serde_context = legion_prefab::PrefabSerdeContext {
+//        registered_components,
+//    };
+//
+//    let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
+//    let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &prefab);
+//    prefab_format::serialize(&mut ron_ser, &prefab_ser, prefab.prefab_id()).expect("failed to round-trip prefab");
+//    let output = ron_ser.into_output_string();
+//    println!("Round-tripped legion world: {}", output);
+//
+//    std::fs::write("prefab_out.ron", output);
+
+    prefab
 }

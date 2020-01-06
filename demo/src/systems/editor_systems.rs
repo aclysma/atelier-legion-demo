@@ -21,7 +21,7 @@ fn imgui_menu_tool_button(
     };
 
     if imgui::MenuItem::new(&im_str!("{}", string)).build(ui) {
-        EditorStateResource::set_active_editor_tool(command_buffer, editor_tool);
+        EditorStateResource::enqueue_set_active_editor_tool(command_buffer, editor_tool);
     }
 
     if let Some(color_stack_token) = color_stack_token {
@@ -107,19 +107,19 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
 
                     if editor_state.is_editor_active() {
                         if imgui::MenuItem::new(im_str!("\u{e8c4} Reset")).build(ui) {
-                            EditorStateResource::reset(command_buffer);
+                            EditorStateResource::enqueue_reset(command_buffer);
                         }
 
                         if imgui::MenuItem::new(im_str!("\u{f40a} Play")).build(ui) {
-                            EditorStateResource::play(command_buffer);
+                            EditorStateResource::enqueue_play(command_buffer);
                         }
                     } else {
                         if imgui::MenuItem::new(im_str!("\u{e8c4} Reset")).build(ui) {
-                            EditorStateResource::reset(command_buffer);
+                            EditorStateResource::enqueue_reset(command_buffer);
                         }
 
                         if imgui::MenuItem::new(im_str!("\u{f3e4} Pause")).build(ui) {
-                            EditorStateResource::pause(command_buffer);
+                            EditorStateResource::enqueue_pause(command_buffer);
                         }
                     }
 
@@ -142,19 +142,28 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
         .read_resource::<InputResource>()
         .build(|command_buffer, _, (editor_state, input_state), _| {
             if input_state.is_key_just_down(VirtualKeyCode::Key1) {
-                EditorStateResource::set_active_editor_tool(command_buffer, EditorTool::Translate);
+                EditorStateResource::enqueue_set_active_editor_tool(
+                    command_buffer,
+                    EditorTool::Translate,
+                );
             }
 
             if input_state.is_key_just_down(VirtualKeyCode::Key2) {
-                EditorStateResource::set_active_editor_tool(command_buffer, EditorTool::Scale);
+                EditorStateResource::enqueue_set_active_editor_tool(
+                    command_buffer,
+                    EditorTool::Scale,
+                );
             }
 
             if input_state.is_key_just_down(VirtualKeyCode::Key3) {
-                EditorStateResource::set_active_editor_tool(command_buffer, EditorTool::Rotate);
+                EditorStateResource::enqueue_set_active_editor_tool(
+                    command_buffer,
+                    EditorTool::Rotate,
+                );
             }
 
             if input_state.is_key_just_down(VirtualKeyCode::Space) {
-                editor_state.toggle_pause(command_buffer);
+                editor_state.enqueue_toggle_pause(command_buffer);
             }
         })
 }

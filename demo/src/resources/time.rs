@@ -37,29 +37,7 @@ impl TimeResource {
         &self.simulation_time
     }
 
-    fn enqueue_command<F>(
-        command_buffer: &mut CommandBuffer,
-        f: F,
-    ) where
-        F: 'static + Fn(&World, legion::resource::FetchMut<Self>),
-    {
-        command_buffer.exec_mut(move |world| {
-            let editor_state = world.resources.get_mut::<Self>().unwrap();
-            (f)(world, editor_state);
-        })
-    }
-
     pub fn set_simulation_time_paused(
-        command_buffer: &mut CommandBuffer,
-        paused: bool,
-        reason: SimulationTimePauseReason,
-    ) {
-        Self::enqueue_command(command_buffer, move |world, mut time_resource| {
-            time_resource.do_set_simulation_time_paused(paused, reason);
-        })
-    }
-
-    pub fn do_set_simulation_time_paused(
         &mut self,
         paused: bool,
         reason: SimulationTimePauseReason,
@@ -76,11 +54,9 @@ impl TimeResource {
         }
     }
 
-    pub fn reset_simulation_time(command_buffer: &mut CommandBuffer) {
-        Self::enqueue_command(command_buffer, move |world, mut time_resource| {
-            time_resource.simulation_time = TimeContext::new();
-            log::info!("Simulation time reset");
-        })
+    pub fn reset_simulation_time(&mut self) {
+        self.simulation_time = TimeContext::new();
+        log::info!("Simulation time reset");
     }
 
     pub fn is_simulation_paused(&self) -> bool {
@@ -93,5 +69,33 @@ impl TimeResource {
             self.simulation_time
                 .update(self.time_state.previous_update_time());
         }
+    }
+
+    fn enqueue_command<F>(
+        command_buffer: &mut CommandBuffer,
+        f: F,
+    ) where
+        F: 'static + Fn(&World, legion::resource::FetchMut<Self>),
+    {
+        command_buffer.exec_mut(move |world| {
+            let editor_state = world.resources.get_mut::<Self>().unwrap();
+            (f)(world, editor_state);
+        })
+    }
+
+    pub fn enqueue_set_simulation_time_paused(
+        command_buffer: &mut CommandBuffer,
+        paused: bool,
+        reason: SimulationTimePauseReason,
+    ) {
+        Self::enqueue_command(command_buffer, move |world, mut time_resource| {
+            time_resource.set_simulation_time_paused(paused, reason);
+        })
+    }
+
+    pub fn enqueue_reset_simulation_time(command_buffer: &mut CommandBuffer) {
+        Self::enqueue_command(command_buffer, move |world, mut time_resource| {
+            time_resource.reset_simulation_time();
+        })
     }
 }
