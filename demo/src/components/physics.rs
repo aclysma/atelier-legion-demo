@@ -36,6 +36,13 @@ legion_prefab::register_component_type!(RigidBodyBoxComponentDef);
 
 pub struct RigidBodyComponent {
     pub handle: DefaultBodyHandle,
+    delete_body_tx: crossbeam_channel::Sender<DefaultBodyHandle>
+}
+
+impl Drop for RigidBodyComponent {
+    fn drop(&mut self) {
+        self.delete_body_tx.send(self.handle);
+    }
 }
 
 fn transform_shape_to_rigid_body(
@@ -76,6 +83,7 @@ fn transform_shape_to_rigid_body(
 
     *into = std::mem::MaybeUninit::new(RigidBodyComponent {
         handle: rigid_body_handle,
+        delete_body_tx: physics.delete_body_tx().clone()
     })
 }
 

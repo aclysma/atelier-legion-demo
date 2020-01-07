@@ -21,6 +21,8 @@ atelier-daemon = { path = "../atelier-assets/daemon" }
 atelier-importer = { path = "../atelier-assets/importer" }
 atelier-loader = { path = "../atelier-assets/loader" }
 
+crossbeam-channel = "0.3"
+
 legion = { path = "../legion", default-features = false, features = ["serde-1"] }
 
 nalgebra = { version = "0.18", features = [ "serde-serialize" ] }

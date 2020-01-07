@@ -170,6 +170,7 @@ dependencies = [
  "atelier-importer",
  "atelier-loader",
  "bincode",
+ "crossbeam-channel 0.3.9",
  "env_logger 0.6.2",
  "erased-serde",
  "image2",
