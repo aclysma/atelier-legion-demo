@@ -1,11 +1,24 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 
-use skulpin::{imgui, VirtualKeyCode};
+use skulpin::{imgui, VirtualKeyCode, MouseButton};
 use imgui::im_str;
+
+pub fn editor_refresh_selection_world(world: &mut World) {
+    let selection_world = world
+        .resources
+        .get::<EditorSelectionResource>()
+        .unwrap()
+        .create_editor_selection_world(world);
+    world
+        .resources
+        .get_mut::<EditorSelectionResource>()
+        .unwrap()
+        .set_editor_selection_world(selection_world);
+}
 
 fn imgui_menu_tool_button(
     command_buffer: &mut CommandBuffer,

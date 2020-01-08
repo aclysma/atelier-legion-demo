@@ -15,7 +15,7 @@ pub struct PhysicsResource {
     pub joint_constraints: DefaultJointConstraintSet<f32>,
     pub force_generators: DefaultForceGeneratorSet<f32>,
     pub delete_body_tx: Sender<DefaultBodyHandle>,
-    pub delete_body_rx: Receiver<DefaultBodyHandle>
+    pub delete_body_rx: Receiver<DefaultBodyHandle>,
 }
 
 impl PhysicsResource {
@@ -38,7 +38,7 @@ impl PhysicsResource {
             joint_constraints,
             force_generators,
             delete_body_tx,
-            delete_body_rx
+            delete_body_rx,
         }
     }
 

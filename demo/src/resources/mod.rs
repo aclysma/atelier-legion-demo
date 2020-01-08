@@ -28,5 +28,8 @@ pub use editor_state::EditorStateResource;
 pub use editor_state::EditorTool;
 pub use editor_state::EditorMode;
 
+mod editor_selection;
+pub use editor_selection::EditorSelectionResource;
+
 mod universe;
 pub use universe::UniverseResource;

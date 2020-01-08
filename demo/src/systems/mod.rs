@@ -28,6 +28,7 @@ use legion::prelude::*;
 use legion::schedule::Builder;
 use crate::resources::EditorMode;
 use std::marker::PhantomData;
+use crate::systems::editor_systems::editor_refresh_selection_world;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ScheduleCriteria {
@@ -102,6 +103,19 @@ impl<'a> ScheduleBuilder<'a> {
 
         self
     }
+
+    fn always_thread_local<F: FnMut(&mut World) + 'static>(
+        mut self,
+        f: F,
+    ) -> Self {
+        self.schedule = self.schedule.add_thread_local_fn(f);
+        self
+    }
+
+    fn flush(mut self) -> Self {
+        self.schedule = self.schedule.flush();
+        self
+    }
 }
 
 pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
@@ -113,6 +127,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .simulation_unpaused_only(update_physics)
         .simulation_unpaused_only(read_from_physics)
         // --- Editor stuff here ---
+        .always_thread_local(editor_refresh_selection_world)
         .always(editor_keyboard_shortcuts)
         .always(editor_imgui_menu)
         // --- End editor stuff ---

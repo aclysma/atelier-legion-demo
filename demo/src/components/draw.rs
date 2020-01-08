@@ -3,6 +3,13 @@ use serde::{Deserialize, Serialize};
 use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use skulpin::skia_safe;
+use legion::entity::Entity;
+use ncollide2d::world::CollisionWorld;
+use legion::world::World;
+use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
+use ncollide2d::shape::{Ball, Cuboid};
+use ncollide2d::shape::ShapeHandle;
+use crate::components::Position2DComponent;
 
 // A utility struct to describe color for a skia shape
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq)]
@@ -57,6 +64,26 @@ impl From<DrawSkiaBoxComponentDef> for DrawSkiaBoxComponent {
     }
 }
 
+impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
+    fn create_editor_selection_world(
+        &self,
+        collision_world: &mut CollisionWorld<f32, Entity>,
+        world: &World,
+        entity: Entity,
+    ) {
+        if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+            let shape_handle = ShapeHandle::new(Cuboid::new(self.half_extents));
+            collision_world.add(
+                ncollide2d::math::Isometry::new(position.position, 0.0),
+                shape_handle,
+                CollisionGroups::new(),
+                GeometricQueryType::Proximity(0.001),
+                entity,
+            );
+        }
+    }
+}
+
 //
 // Draw a circle at the component's current location. Will be affected by scale, if the scale
 // component exists
@@ -82,5 +109,25 @@ impl From<DrawSkiaCircleComponentDef> for DrawSkiaCircleComponent {
             paint: from.paint.into(),
         };
         c
+    }
+}
+
+impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
+    fn create_editor_selection_world(
+        &self,
+        collision_world: &mut CollisionWorld<f32, Entity>,
+        world: &World,
+        entity: Entity,
+    ) {
+        if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+            let shape_handle = ShapeHandle::new(Ball::new(self.radius));
+            collision_world.add(
+                ncollide2d::math::Isometry::new(position.position, 0.0),
+                shape_handle,
+                CollisionGroups::new(),
+                GeometricQueryType::Proximity(0.001),
+                entity,
+            );
+        }
     }
 }

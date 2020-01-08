@@ -31,6 +31,9 @@ use resources::*;
 mod systems;
 use systems::*;
 
+mod selection;
+use selection::EditorSelectableRegistry;
+
 mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
@@ -80,6 +83,14 @@ pub fn create_spawn_clone_impl() -> CloneMergeImpl {
     clone_merge_impl.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();
     clone_merge_impl.add_mapping::<RigidBodyBoxComponentDef, RigidBodyComponent>();
     clone_merge_impl
+}
+
+pub fn create_editor_selection_registry() -> EditorSelectableRegistry {
+    let mut registry = EditorSelectableRegistry::default();
+    //TODO: Is it possible for the select handler to get a ref to the Def as well as the instance at the same time?
+    registry.register::<DrawSkiaBoxComponent>();
+    registry.register::<DrawSkiaCircleComponent>();
+    registry
 }
 
 pub struct DemoApp {
@@ -142,6 +153,10 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(FpsTextResource::new());
         world.resources.insert(asset_manager);
         world.resources.insert(EditorStateResource::new());
+        world.resources.insert(EditorSelectionResource::new(
+            create_editor_selection_registry(),
+            world,
+        ));
 
         // Start the application with the editor paused
         let mut command_buffer = legion::command::CommandBuffer::default();
