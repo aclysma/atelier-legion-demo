@@ -24,23 +24,13 @@ fn calculate_ui_space_matrix(logical_size: LogicalSize) -> glm::Mat4 {
     projection * view
 }
 
-fn calculate_screen_space_dimensions(logical_size: LogicalSize) -> glm::Vec2 {
-    let ratio = (logical_size.width / logical_size.height) as f32;
-
-    glm::Vec2::new(600.0 * ratio, 600.0)
-}
-
 // this is a virtual coordinate system
 // top-left: (0, 0)
 // bottom-right: (600 * aspect_ratio, 600) where aspect_ratio is window_width / window_height
-fn calculate_screen_space_matrix(logical_size: LogicalSize) -> glm::Mat4 {
-    let screen_space_dimensions = calculate_screen_space_dimensions(logical_size);
-
-    let view_extent = glm::Vec2::new(
-        screen_space_dimensions.x / 2.0,
-        screen_space_dimensions.y / 2.0,
-    );
-
+fn calculate_screen_space_matrix(
+    logical_size: LogicalSize,
+    view_half_extents: glm::Vec2
+) -> glm::Mat4 {
     let view = glm::look_at_rh(
         &glm::make_vec3(&[0.0, 0.0, 5.0]),
         &glm::make_vec3(&[0.0, 0.0, 0.0]),
@@ -49,8 +39,8 @@ fn calculate_screen_space_matrix(logical_size: LogicalSize) -> glm::Mat4 {
 
     let projection = glm::ortho_rh_zo(
         0.0,
-        view_extent.x * 2.0,
-        view_extent.y * 2.0,
+        view_half_extents.x * 2.0,
+        view_half_extents.y * 2.0,
         0.0,
         -100.0,
         100.0,
@@ -66,17 +56,8 @@ fn calculate_screen_space_matrix(logical_size: LogicalSize) -> glm::Mat4 {
 fn calculate_world_space_matrix(
     logical_size: LogicalSize,
     position: glm::Vec3,
-    zoom: f32,
+    view_half_extents: glm::Vec2
 ) -> glm::Mat4 {
-    let screen_space_dimensions = calculate_screen_space_dimensions(logical_size);
-
-    let mut view_extent = glm::Vec2::new(
-        screen_space_dimensions.x / 2.0,
-        screen_space_dimensions.y / 2.0,
-    );
-
-    view_extent *= 1.0 / zoom;
-
     let view = glm::look_at_rh(
         &glm::make_vec3(&[0.0, 0.0, 5.0]),
         &glm::make_vec3(&[0.0, 0.0, 0.0]),
@@ -84,10 +65,10 @@ fn calculate_world_space_matrix(
     );
 
     let projection = glm::ortho_rh_zo(
-        position.x - view_extent.x,
-        position.x + view_extent.x,
-        position.y + view_extent.y,
-        position.y - view_extent.y,
+        position.x - view_half_extents.x,
+        position.x + view_half_extents.x,
+        position.y + view_half_extents.y,
+        position.y - view_half_extents.y,
         -100.0,
         100.0,
     );
@@ -119,25 +100,25 @@ impl ViewportResource {
         }
     }
 
-    pub fn new(window_size: LogicalSize, camera_position: glm::Vec2, camera_zoom: f32) -> Self {
+    pub fn new(window_size: LogicalSize, camera_position: glm::Vec2, view_half_extents: glm::Vec2) -> Self {
         let mut value = Self::empty();
-        value.update(window_size, camera_position, camera_zoom);
+        value.update(window_size, camera_position, view_half_extents);
         value
     }
 
-    pub fn update(&mut self, window_size: LogicalSize, camera_position: glm::Vec2, camera_zoom: f32) {
+    pub fn update(&mut self, window_size: LogicalSize, camera_position: glm::Vec2, view_half_extents: glm::Vec2) {
         let camera_position = glm::Vec3::new(camera_position.x, camera_position.y, 0.0);
         self.set_ui_space_view(calculate_ui_space_matrix(window_size));
         self.set_screen_space_view(
-            calculate_screen_space_matrix(window_size),
-            calculate_screen_space_dimensions(window_size),
+            calculate_screen_space_matrix(window_size, view_half_extents),
+            view_half_extents,
         );
         self.set_world_space_view(
             camera_position,
             calculate_world_space_matrix(
                 window_size,
                 camera_position,
-                camera_zoom,
+                view_half_extents,
             ),
         );
     }

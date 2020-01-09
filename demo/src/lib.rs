@@ -152,9 +152,12 @@ impl app::AppHandler for DemoApp {
 
         let window_size = world.resources.get::<InputResource>().unwrap().window_size();
 
-        let mut camera = CameraResource::default();
-        camera.position = glm::Vec2::new(0.0, 1.0);
-        let viewport = ViewportResource::new(window_size, camera.position, camera.zoom);
+        let x_half_extents = crate::GROUND_HALF_EXTENTS_WIDTH * 1.5;
+        let y_half_extents = x_half_extents
+            / (window_size.width as f32 / window_size.height as f32);
+
+        let mut camera = CameraResource::new(glm::Vec2::new(0.0, 1.0), glm::Vec2::new(x_half_extents, y_half_extents));
+        let viewport = ViewportResource::new(window_size, camera.position, camera.view_half_extents);
 
         world.resources.insert(physics);
         world.resources.insert(FpsTextResource::new());

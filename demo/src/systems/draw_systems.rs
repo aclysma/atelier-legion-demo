@@ -20,7 +20,7 @@ pub fn draw() -> Box<dyn Schedulable> {
         .write_resource::<CanvasDrawResource>()
         .write_resource::<ImguiResource>()
         .read_resource::<FpsTextResource>()
-        .read_resource::<CameraResource>()
+        .write_resource::<CameraResource>()
         .write_resource::<ViewportResource>()
         .read_resource::<InputResource>()
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
@@ -40,7 +40,8 @@ pub fn draw() -> Box<dyn Schedulable> {
 
                         let window_size = input_resource.window_size();
                         let camera_position = camera_state.position;
-                        viewport_state.update(window_size, camera_position, camera_state.zoom);
+                        camera_state.view_half_extents = glm::Vec2::new(x_half_extents, y_half_extents);
+                        viewport_state.update(window_size, camera_position, camera_state.view_half_extents);
 
                         coordinate_system_helper
                             .use_visible_range(

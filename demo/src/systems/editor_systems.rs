@@ -1,18 +1,20 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 
 use skulpin::{imgui, VirtualKeyCode, MouseButton};
 use imgui::im_str;
+use ncollide2d::pipeline::CollisionGroups;
 
 pub fn editor_refresh_selection_world(world: &mut World) {
-    let selection_world = world
+    let mut selection_world = world
         .resources
         .get::<EditorSelectionResource>()
         .unwrap()
         .create_editor_selection_world(world);
+    selection_world.update();
     world
         .resources
         .get_mut::<EditorSelectionResource>()
@@ -153,7 +155,9 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
     SystemBuilder::new("editor_keyboard_shortcuts")
         .write_resource::<EditorStateResource>()
         .read_resource::<InputResource>()
-        .build(|command_buffer, _, (editor_state, input_state), _| {
+        .read_resource::<ViewportResource>()
+        .write_resource::<EditorSelectionResource>()
+        .build(|command_buffer, _, (editor_state, input_state, viewport, editor_selection), _| {
             if input_state.is_key_just_down(VirtualKeyCode::Key1) {
                 EditorStateResource::enqueue_set_active_editor_tool(
                     command_buffer,
@@ -177,6 +181,48 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
 
             if input_state.is_key_just_down(VirtualKeyCode::Space) {
                 editor_state.enqueue_toggle_pause(command_buffer);
+            }
+
+            if let Some(position) = input_state.mouse_button_just_clicked_position(MouseButton::Left) {
+                let position = glm::Vec2::new(position.x as f32, position.y as f32);
+                let world_space = ncollide2d::math::Point::from(viewport.ui_space_to_world_space(position));
+
+                let collision_groups = CollisionGroups::default();
+                let results = editor_selection.editor_selection_world().interferences_with_point(&world_space, &collision_groups);
+
+                let results : Vec<_> = results.map(|(_, x)| x.data()).collect();
+                println!("Selected entities: {:?}", results);
+            } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
+                // Drag complete, check AABB
+                let target_position0: glm::Vec2 = viewport
+                    .ui_space_to_world_space(glm::Vec2::new(drag_complete.begin_position.x as f32, drag_complete.begin_position.y as f32))
+                    .into();
+                let target_position1: glm::Vec2 = viewport
+                    .ui_space_to_world_space(glm::Vec2::new(drag_complete.end_position.x as f32, drag_complete.end_position.y as f32))
+                    .into();
+
+                let mins = glm::vec2(
+                    f32::min(target_position0.x, target_position1.x),
+                    f32::min(target_position0.y, target_position1.y),
+                );
+
+                let maxs = glm::vec2(
+                    f32::max(target_position0.x, target_position1.x),
+                    f32::max(target_position0.y, target_position1.y),
+                );
+
+                let aabb = ncollide2d::bounding_volume::AABB::new(
+                    nalgebra::Point::from(mins),
+                    nalgebra::Point::from(maxs),
+                );
+
+                let collision_groups = CollisionGroups::default();
+                let results = editor_selection
+                    .editor_selection_world()
+                    .interferences_with_aabb(&aabb, &collision_groups);
+
+                let results : Vec<_> = results.map(|(_, x)| x.data()).collect();
+                println!("Selected entities: {:?}", results);
             }
         })
 }

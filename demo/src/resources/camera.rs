@@ -1,16 +1,18 @@
 
 pub struct CameraResource {
     pub position: glm::Vec2,
-    pub zoom: f32
+    pub view_half_extents: glm::Vec2
 }
 
-impl Default for CameraResource {
-    fn default() -> Self {
+impl CameraResource {
+    pub fn new(
+        position: glm::Vec2,
+        view_half_extents: glm::Vec2
+    ) -> Self {
         CameraResource {
-            position: glm::Vec2::new(0.0, 0.0),
-            zoom: 1.0
+            position,
+            view_half_extents
         }
     }
 }
-
 
