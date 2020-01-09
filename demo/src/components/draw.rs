@@ -15,7 +15,7 @@ use crate::components::Position2DComponent;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq)]
 pub struct PaintDef {
     #[serde_diff(inline)]
-    pub color: na::Vector4<f32>,
+    pub color: glm::Vec4,
     pub stroke_width: f32,
 }
 
@@ -44,14 +44,14 @@ impl From<PaintDef> for Paint {
 #[uuid = "c05e5c27-58ca-4d68-b825-b20f67fdaf37"]
 pub struct DrawSkiaBoxComponentDef {
     #[serde_diff(inline)]
-    pub half_extents: na::Vector2<f32>,
+    pub half_extents: glm::Vec2,
     pub paint: PaintDef,
 }
 
 legion_prefab::register_component_type!(DrawSkiaBoxComponentDef);
 
 pub struct DrawSkiaBoxComponent {
-    pub half_extents: na::Vector2<f32>,
+    pub half_extents: glm::Vec2,
     pub paint: Paint,
 }
 

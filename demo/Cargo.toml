@@ -26,6 +26,7 @@ crossbeam-channel = "0.3"
 legion = { path = "../legion", default-features = false, features = ["serde-1"] }
 
 nalgebra = { version = "0.18", features = [ "serde-serialize" ] }
+nalgebra-glm = "0.4"
 ncollide2d = "0.20"
 nphysics2d = "0.12"
 

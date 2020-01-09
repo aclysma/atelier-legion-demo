@@ -181,6 +181,7 @@ dependencies = [
  "log",
  "mopa",
  "nalgebra",
+ "nalgebra-glm",
  "ncollide2d",
  "nphysics2d",
  "prefab-format",
@@ -1549,6 +1550,18 @@ dependencies = [
  "serde",
  "serde_derive",
  "typenum",
+]
+
+[[package]]
+name = "nalgebra-glm"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a4cd007520d46d2ca24002ddf538fce40ea2a34ed0ffcd3e2ae0b6ba18811d3"
+dependencies = [
+ "alga",
+ "approx",
+ "nalgebra",
+ "num-traits",
 ]
 
 [[package]]

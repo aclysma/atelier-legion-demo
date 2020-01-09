@@ -12,7 +12,7 @@ use type_uuid::TypeUuid;
 #[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
 pub struct Position2DComponentDef {
     #[serde_diff(inline)]
-    pub position: na::Vector2<f32>,
+    pub position: glm::Vec2,
 }
 
 legion_prefab::register_component_type!(Position2DComponentDef);
@@ -24,7 +24,7 @@ legion_prefab::register_component_type!(Position2DComponentDef);
 #[uuid = "8bf67228-f96c-4649-b306-ecd107194cf0"]
 pub struct Position2DComponent {
     #[serde_diff(inline)]
-    pub position: na::Vector2<f32>,
+    pub position: glm::Vec2,
 }
 
 impl From<Position2DComponentDef> for Position2DComponent {
@@ -45,7 +45,7 @@ legion_prefab::register_component_type!(Position2DComponent);
 #[uuid = "8bf67228-f96c-4649-b306-ecd107194cf0"]
 pub struct Scale2DComponent {
     #[serde_diff(inline)]
-    pub scale: na::Vector2<f32>,
+    pub scale: glm::Vec2,
     pub uniform_scale: f32
 }
 

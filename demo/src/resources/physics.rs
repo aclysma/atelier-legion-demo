@@ -1,4 +1,4 @@
-use na::Vector2;
+use glm::Vec2;
 use nphysics2d::object::{DefaultBodySet, DefaultColliderSet, DefaultBodyHandle};
 use nphysics2d::force_generator::DefaultForceGeneratorSet;
 use nphysics2d::joint::DefaultJointConstraintSet;
@@ -19,7 +19,7 @@ pub struct PhysicsResource {
 }
 
 impl PhysicsResource {
-    pub fn new(gravity: Vector2<f32>) -> Self {
+    pub fn new(gravity: Vec2) -> Self {
         let geometrical_world = DefaultGeometricalWorld::<f32>::new();
         let mechanical_world = DefaultMechanicalWorld::new(gravity);
 

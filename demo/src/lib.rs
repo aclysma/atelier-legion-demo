@@ -2,10 +2,11 @@
 extern crate itertools;
 
 extern crate nalgebra as na;
+extern crate nalgebra_glm as glm;
 
 use legion::prelude::*;
 
-use na::Vector2;
+use glm::Vec2;
 
 use std::collections::HashMap;
 use legion::storage::ComponentTypeId;
@@ -147,7 +148,7 @@ impl app::AppHandler for DemoApp {
         world: &mut World,
     ) {
         let asset_manager = create_asset_manager();
-        let physics = PhysicsResource::new(Vector2::y() * GRAVITY);
+        let physics = PhysicsResource::new(Vec2::y() * GRAVITY);
 
         world.resources.insert(physics);
         world.resources.insert(FpsTextResource::new());

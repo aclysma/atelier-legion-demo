@@ -4,7 +4,7 @@ use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
 use crate::clone_merge::CloneMergeFrom;
-use na::Vector2;
+use glm::Vec2;
 use crate::resources::PhysicsResource;
 use legion::prelude::*;
 use std::ops::Range;
@@ -28,7 +28,7 @@ legion_prefab::register_component_type!(RigidBodyBallComponentDef);
 #[uuid = "36df3006-a5ad-4997-9ccc-0860f49195ad"]
 pub struct RigidBodyBoxComponentDef {
     #[serde_diff(inline)]
-    pub half_extents: na::Vector2<f32>,
+    pub half_extents: glm::Vec2,
     pub is_static: bool,
 }
 
@@ -55,10 +55,10 @@ fn transform_shape_to_rigid_body(
     let position = if let Some(position) = src_position {
         position.position
     } else {
-        Vector2::new(0.0, 0.0)
+        glm::zero()
     };
 
-    let mut collider_offset = Vector2::new(0.0, 0.0);
+    let mut collider_offset = glm::zero();
 
     // Build the rigid body.
     let rigid_body_handle = if is_static {

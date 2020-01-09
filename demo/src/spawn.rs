@@ -1,5 +1,5 @@
 use legion::prelude::*;
-use na::Vector2;
+use glm::Vec2;
 use crate::components::*;
 use std::collections::HashMap;
 
@@ -15,11 +15,11 @@ const BALL_COUNT: usize = 5;
 pub fn spawn_ground(world: &mut World) {
     let position = Vector2::y() * -GROUND_THICKNESS;
     let paint = PaintDef {
-        color: na::Vector4::new(0.0, 1.0, 0.0, 1.0),
+        color: glm::Vec4::new(0.0, 1.0, 0.0, 1.0),
         stroke_width: 0.02,
     };
 
-    let half_extents = na::Vector2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS);
+    let half_extents = glm::Vec2::new(GROUND_HALF_EXTENTS_WIDTH, GROUND_THICKNESS);
 
     world.insert(
         (),
@@ -46,10 +46,10 @@ pub fn spawn_balls(world: &mut World) {
     let height = 3.0;
 
     let circle_colors = vec![
-        na::Vector4::new(0.2, 1.0, 0.2, 1.0),
-        na::Vector4::new(1.0, 1.0, 0.2, 1.0),
-        na::Vector4::new(1.0, 0.2, 0.2, 1.0),
-        na::Vector4::new(0.2, 0.2, 1.0, 1.0),
+        glm::Vec4::new(0.2, 1.0, 0.2, 1.0),
+        glm::Vec4::new(1.0, 1.0, 0.2, 1.0),
+        glm::Vec4::new(1.0, 0.2, 0.2, 1.0),
+        glm::Vec4::new(0.2, 0.2, 1.0, 1.0),
     ];
 
     // Pretend this is a cooked prefab
