@@ -143,13 +143,13 @@ fn handle_translate_gizmo_input(
         let mut world_space_accumulated_delta =
             drag_in_progress.world_space_accumulated_frame_delta;
         if !translate_x {
-            world_space_previous_frame_delta.x = 0.0;
-            world_space_accumulated_delta.x = 0.0;
+            world_space_previous_frame_delta.set_x(0.0);
+            world_space_accumulated_delta.set_x(0.0);
         }
 
         if !translate_y {
-            world_space_previous_frame_delta.y = 0.0;
-            world_space_accumulated_delta.y = 0.0;
+            world_space_previous_frame_delta.set_y(0.0);
+            world_space_accumulated_delta.set_y(0.0);
         }
 
         let query = <(Write<Position2DComponent>)>::query();
@@ -187,11 +187,11 @@ fn draw_translate_gizmo(
             continue;
         }
 
-        let x_color = glm::vec4(0.0, 1.0, 0.0, 1.0);
-        let y_color = glm::vec4(1.0, 0.6, 0.0, 1.0);
-        let xy_color = glm::vec4(1.0, 1.0, 0.0, 1.0);
+        let x_color = glam::vec4(0.0, 1.0, 0.0, 1.0);
+        let y_color = glam::vec4(1.0, 0.6, 0.0, 1.0);
+        let xy_color = glam::vec4(1.0, 1.0, 0.0, 1.0);
 
-        let xy_position = glm::Vec2::new(position.position.x, position.position.y);
+        let xy_position = glam::Vec2::new(position.position.x(), position.position.y());
 
         //TODO: Make this resolution independent. Need a UI multiplier?
 
@@ -202,23 +202,23 @@ fn draw_translate_gizmo(
             "x_axis_translate",
             debug_draw,
             xy_position,
-            xy_position + glm::vec2(100.0, 0.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(100.0, 0.0) * ui_multiplier),
             x_color,
         );
 
         editor_draw.add_line(
             "x_axis_translate",
             debug_draw,
-            xy_position + glm::vec2(85.0, 15.0).scale(ui_multiplier),
-            xy_position + glm::vec2(100.0, 0.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(85.0, 15.0) * ui_multiplier),
+            xy_position + (glam::vec2(100.0, 0.0) * ui_multiplier),
             x_color,
         );
 
         editor_draw.add_line(
             "x_axis_translate",
             debug_draw,
-            xy_position + glm::vec2(85.0, -15.0).scale(ui_multiplier),
-            xy_position + glm::vec2(100.0, 0.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(85.0, -15.0) * ui_multiplier),
+            xy_position + (glam::vec2(100.0, 0.0) * ui_multiplier),
             x_color,
         );
 
@@ -227,23 +227,23 @@ fn draw_translate_gizmo(
             "y_axis_translate",
             debug_draw,
             xy_position,
-            xy_position + glm::vec2(0.0, 100.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(0.0, 100.0) * ui_multiplier),
             y_color,
         );
 
         editor_draw.add_line(
             "y_axis_translate",
             debug_draw,
-            xy_position + glm::vec2(-15.0, 85.0).scale(ui_multiplier),
-            xy_position + glm::vec2(0.0, 100.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(-15.0, 85.0) * ui_multiplier),
+            xy_position + (glam::vec2(0.0, 100.0) * ui_multiplier),
             y_color,
         );
 
         editor_draw.add_line(
             "y_axis_translate",
             debug_draw,
-            xy_position + glm::vec2(15.0, 85.0).scale(ui_multiplier),
-            xy_position + glm::vec2(0.0, 100.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(15.0, 85.0) * ui_multiplier),
+            xy_position + (glam::vec2(0.0, 100.0) * ui_multiplier),
             y_color,
         );
 
@@ -251,8 +251,8 @@ fn draw_translate_gizmo(
         editor_draw.add_line(
             "xy_axis_translate",
             debug_draw,
-            xy_position + glm::vec2(0.0, 25.0).scale(ui_multiplier),
-            xy_position + glm::vec2(25.0, 25.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(0.0, 25.0) * ui_multiplier),
+            xy_position + (glam::vec2(25.0, 25.0) * ui_multiplier),
             xy_color,
         );
 
@@ -260,8 +260,8 @@ fn draw_translate_gizmo(
         editor_draw.add_line(
             "xy_axis_translate",
             debug_draw,
-            xy_position + glm::vec2(25.0, 0.0).scale(ui_multiplier),
-            xy_position + glm::vec2(25.0, 25.0).scale(ui_multiplier),
+            xy_position + (glam::vec2(25.0, 0.0) * ui_multiplier),
+            xy_position + (glam::vec2(25.0, 25.0) * ui_multiplier),
             xy_color,
         );
     }

@@ -12,7 +12,7 @@ Prefab(
                       component_overrides: [
                           (
                               component_type: "f5780013-bae4-49f0-ac0e-a108ff52fec0",
-                              diff: r##"[ Enter(Field("position")), Value([300.0, 300.0]) ]"##,
+                              diff: r##"[ Enter(Field("position")), Value(Vec2(300.0, 300.0)) ]"##,
                           ),
                       ],
                  ),
@@ -27,7 +27,7 @@ Prefab(
                      // Component AssetTypeId
                      type: "f5780013-bae4-49f0-ac0e-a108ff52fec0",
                      data: (
-                         position: [500.0, 500.0]
+                         position: Vec2(500.0, 500.0)
                      ),
                  ),
              ]

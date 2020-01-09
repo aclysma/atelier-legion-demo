@@ -32,7 +32,7 @@ unsafe impl Sync for Paint {}
 
 impl From<PaintDef> for Paint {
     fn from(from: PaintDef) -> Self {
-        let color = skia_safe::Color4f::new(from.color.x, from.color.y, from.color.z, from.color.w);
+        let color = skia_safe::Color4f::new(from.color.x(), from.color.y(), from.color.z(), from.color.w());
 
         let mut paint = skia_safe::Paint::new(color, None);
         paint.set_anti_alias(true);
@@ -83,9 +83,9 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
-            let shape_handle = ShapeHandle::new(Cuboid::new(*self.half_extents));
+            let shape_handle = ShapeHandle::new(Cuboid::new(self.half_extents.into()));
             collision_world.add(
-                ncollide2d::math::Isometry::new(*position.position, 0.0),
+                ncollide2d::math::Isometry::new(position.position.into(), 0.0),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),
@@ -137,7 +137,7 @@ impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
             let shape_handle = ShapeHandle::new(Ball::new(self.radius.max(0.01)));
             collision_world.add(
-                ncollide2d::math::Isometry::new(*position.position, 0.0),
+                ncollide2d::math::Isometry::new(position.position.into(), 0.0),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),

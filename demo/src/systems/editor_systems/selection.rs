@@ -51,7 +51,7 @@ fn handle_selection(
 
         // Determine where in world space to do the raycast
         let position = to_glm(position);
-        let world_space = ncollide2d::math::Point::from(viewport.ui_space_to_world_space(position));
+        let world_space = ncollide2d::math::Point::from(crate::math::vec2_glam_to_glm(viewport.ui_space_to_world_space(position)));
 
         // Do the raycast
         let collision_groups = CollisionGroups::default();
@@ -70,29 +70,29 @@ fn handle_selection(
         //
 
         // Determine where in world space to do the intersection test
-        let target_position0: glm::Vec2 = viewport
+        let target_position0: glam::Vec2 = viewport
             .ui_space_to_world_space(to_glm(drag_complete.begin_position))
             .into();
-        let target_position1: glm::Vec2 = viewport
+        let target_position1: glam::Vec2 = viewport
             .ui_space_to_world_space(to_glm(drag_complete.end_position))
             .into();
 
         // Find the top-left corner
-        let mins = glm::vec2(
-            f32::min(target_position0.x, target_position1.x),
-            f32::min(target_position0.y, target_position1.y),
+        let mins = glam::vec2(
+            f32::min(target_position0.x(), target_position1.x()),
+            f32::min(target_position0.y(), target_position1.y()),
         );
 
         // Find the bottom-right corner
-        let maxs = glm::vec2(
-            f32::max(target_position0.x, target_position1.x),
-            f32::max(target_position0.y, target_position1.y),
+        let maxs = glam::vec2(
+            f32::max(target_position0.x(), target_position1.x()),
+            f32::max(target_position0.y(), target_position1.y()),
         );
 
         // Build an AABB to use in the collision intersection test
         let aabb = ncollide2d::bounding_volume::AABB::new(
-            nalgebra::Point::from(mins),
-            nalgebra::Point::from(maxs),
+            nalgebra::Point::from(crate::math::vec2_glam_to_glm(mins)),
+            nalgebra::Point::from(crate::math::vec2_glam_to_glm(maxs)),
         );
 
         // Do the intersection test
@@ -110,7 +110,7 @@ fn handle_selection(
         debug_draw.add_rect(
             viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),
             viewport.ui_space_to_world_space(to_glm(drag_in_progress.end_position)),
-            glm::vec4(1.0, 1.0, 0.0, 1.0),
+            glam::vec4(1.0, 1.0, 0.0, 1.0),
         );
     }
 
@@ -199,15 +199,15 @@ pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
 
             for (_, aabb) in aabbs {
                 if let Some(aabb) = aabb {
-                    let color = glm::vec4(1.0, 1.0, 0.0, 1.0);
+                    let color = glam::vec4(1.0, 1.0, 0.0, 1.0);
 
                     // An amount to expand the AABB by so that we don't draw on top of the shape.
                     // Found in actual usage this ended up being annoying.
-                    let expand = glm::vec2(0.0, 0.0);
+                    let expand = glam::vec2(0.0, 0.0);
 
                     debug_draw.add_rect(
-                        glm::vec2(aabb.mins().x, aabb.mins().y) - expand,
-                        glm::vec2(aabb.maxs().x, aabb.maxs().y) + expand,
+                        glam::vec2(aabb.mins().x, aabb.mins().y) - expand,
+                        glam::vec2(aabb.maxs().x, aabb.maxs().y) + expand,
                         color,
                     );
                 }

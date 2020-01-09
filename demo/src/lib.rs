@@ -6,8 +6,6 @@ extern crate nalgebra_glm as glm;
 
 use legion::prelude::*;
 
-use glm::Vec2;
-
 use std::collections::HashMap;
 use legion::storage::ComponentTypeId;
 use legion_prefab::ComponentRegistration;
@@ -58,8 +56,9 @@ pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 pub const GRAVITY: f32 = -9.81;
 
 pub mod util {
-    pub fn to_glm(logical_position: skulpin::LogicalPosition) -> glm::Vec2 {
-        glm::Vec2::new(logical_position.x as f32, logical_position.y as f32)
+    //TODO: Rename winit_to_glam
+    pub fn to_glm(logical_position: skulpin::LogicalPosition) -> glam::Vec2 {
+        glam::Vec2::new(logical_position.x as f32, logical_position.y as f32)
     }
 }
 
@@ -176,7 +175,7 @@ impl app::AppHandler for DemoApp {
         resources: &mut Resources,
     ) {
         let asset_manager = create_asset_manager();
-        let physics = PhysicsResource::new(Vec2::y() * GRAVITY);
+        let physics = PhysicsResource::new(glam::Vec2::unit_y() * GRAVITY);
 
         let window_size = resources.get::<InputResource>().unwrap().window_size();
 
@@ -185,8 +184,8 @@ impl app::AppHandler for DemoApp {
             x_half_extents / (window_size.width as f32 / window_size.height as f32);
 
         let mut camera = CameraResource::new(
-            glm::Vec2::new(0.0, 1.0),
-            glm::Vec2::new(x_half_extents, y_half_extents),
+            glam::Vec2::new(0.0, 1.0),
+            glam::Vec2::new(x_half_extents, y_half_extents),
         );
         let viewport =
             ViewportResource::new(window_size, camera.position, camera.view_half_extents);

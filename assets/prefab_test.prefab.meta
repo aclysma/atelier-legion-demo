@@ -1,6 +1,6 @@
 (
     version: 1,
-    import_hash: Some(9973176370906554000),
+    import_hash: Some(4958050687415390657),
     importer_version: 1,
     importer_type: "5bdf4d06-a1cb-437b-b182-d6d8cb23512c",
     importer_options: (),
@@ -15,7 +15,7 @@
             ],
             build_pipeline: None,
             artifact: Some((
-                hash: 8633923056455949572,
+                hash: 14151402151792927496,
                 id: "49a78d30-0590-4511-9178-302a17f00882",
                 build_deps: [
                     Path("position_component.ron"),
@@ -24,8 +24,8 @@
                     Path("position_component.ron"),
                 ],
                 compression: None,
-                compressed_size: Some(296),
-                uncompressed_size: Some(296),
+                compressed_size: Some(280),
+                uncompressed_size: Some(280),
                 type_id: "5e751ea4-e63b-4192-a008-f5bf8674e45b",
             )),
         ),

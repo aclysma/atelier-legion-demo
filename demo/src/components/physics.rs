@@ -73,7 +73,7 @@ fn transform_shape_to_rigid_body(
     } else {
         physics.bodies.insert(
             nphysics2d::object::RigidBodyDesc::new()
-                .translation(*position)
+                .translation(position.into())
                 .build(),
         )
     };
@@ -81,7 +81,7 @@ fn transform_shape_to_rigid_body(
     // Build the collider.
     let collider = nphysics2d::object::ColliderDesc::new(shape_handle.clone())
         .density(1.0)
-        .translation(*collider_offset)
+        .translation(collider_offset.into())
         .build(nphysics2d::object::BodyPartHandle(rigid_body_handle, 0));
 
     // Insert the collider to the body set.
@@ -143,7 +143,7 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
 
         for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Cuboid::new(
-                *from.half_extents,
+                from.half_extents.into(),
             ));
             transform_shape_to_rigid_body(
                 &mut physics,

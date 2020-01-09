@@ -2,15 +2,12 @@ Prefab(
     id: "3991506e-ed7e-4bcb-8cfd-3366b31a6439",
     objects: [
         Entity(PrefabEntity(
-            id: "519d0ee9-b35b-49ae-85a7-54b7ed03700e",
+            id: "e938c98b-df7e-41d7-a2e4-9f028702b022",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -1.0500001,
-                            3.63,
-                        ],
+                        position: Vec2(-0.21000004, 3.21),
                     ),
                 ),
                 EntityComponent(
@@ -18,12 +15,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 0.2, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -38,15 +30,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "d2d9e7c4-a73f-46fb-b42d-186f26ce39c0",
+            id: "08cc58b3-89a4-4dfd-a339-e93945f70f8a",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.63000005,
-                            3.21,
-                        ],
+                        position: Vec2(0.63, 3.63),
                     ),
                 ),
                 EntityComponent(
@@ -54,12 +43,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -74,15 +58,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "1bac7a7e-d7bc-4f84-9bce-1eef1b9aeefa",
+            id: "24f0baf3-ff5d-4321-abb2-296a09ac78fd",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.63000005,
-                            4.4700003,
-                        ],
+                        position: Vec2(-1.0500001, 4.05),
                     ),
                 ),
                 EntityComponent(
@@ -90,12 +71,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 0.2, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -110,15 +86,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "be5229cb-c5c4-4419-8ecb-0e67158f102d",
+            id: "d9b713a7-b8f7-4546-9f7e-4cfe7499e1a7",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            0.63,
-                            4.4700003,
-                        ],
+                        position: Vec2(-0.63000005, 4.05),
                     ),
                 ),
                 EntityComponent(
@@ -126,12 +99,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                0.2,
-                                1,
-                                1,
-                            ],
+                            color: Vec4(0.2, 0.2, 1, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -146,31 +114,244 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "592665f6-a8c8-474d-a8a8-19ddf71330ca",
+            id: "bbc6d6d2-3743-413f-afbe-cf10d5b024cd",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            0,
-                            -0.2,
-                        ],
+                        position: Vec2(-1.0500001, 3.63),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(1, 1, 0.2, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "9f95c904-b851-4b56-8c50-06db83b6d224",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(-1.0500001, 3.21),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(0.2, 1, 0.2, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "e4b302f7-a222-45e3-b784-bcaebc770bbf",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(-0.63000005, 4.8900003),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(1, 1, 0.2, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "03ac5e65-d2cb-435f-bbc1-1c69ed303ceb",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(-1.0500001, 4.4700003),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(0.2, 0.2, 1, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "30487509-cbc3-42f8-a465-f6477c76541c",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(-0.21000004, 3.63),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(0.2, 0.2, 1, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "5df3740a-f299-4553-b2cc-cd172fca2bc4",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(0.20999992, 4.4700003),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(1, 0.2, 0.2, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "0d5b4235-0844-4eb9-9708-0f6066fb55f0",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(-0.63000005, 3.63),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(1, 0.2, 0.2, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "db5578dd-d241-4551-ba69-e7ce5d042401",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(0.20999992, 3.21),
+                    ),
+                ),
+                EntityComponent(
+                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
+                    data: DrawSkiaCircleComponentDef(
+                        radius: 0.2,
+                        paint: PaintDef(
+                            color: Vec4(0.2, 0.2, 1, 1),
+                            stroke_width: 0.02,
+                        ),
+                    ),
+                ),
+                EntityComponent(
+                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
+                    data: RigidBodyBallComponentDef(
+                        radius: 0.2,
+                        is_static: false,
+                    ),
+                ),
+            ],
+        )),
+        Entity(PrefabEntity(
+            id: "712a21df-59e7-40b5-a842-b87f27a5d76a",
+            components: [
+                EntityComponent(
+                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
+                    data: Position2DComponent(
+                        position: Vec2(0, -0.2),
                     ),
                 ),
                 EntityComponent(
                     type: "c05e5c27-58ca-4d68-b825-b20f67fdaf37",
                     data: DrawSkiaBoxComponentDef(
-                        half_extents: [
-                            3,
-                            0.2,
-                        ],
+                        half_extents: Vec2(3, 0.2),
                         paint: PaintDef(
-                            color: [
-                                0,
-                                1,
-                                0,
-                                1,
-                            ],
+                            color: Vec4(0, 1, 0, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -188,15 +369,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "2c37dab9-47a2-4e2a-ad5a-ba656209d08a",
+            id: "28d6b3bc-081c-46c1-b20f-a909e1ea2557",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            0.63,
-                            4.8900003,
-                        ],
+                        position: Vec2(0.20999992, 3.63),
                     ),
                 ),
                 EntityComponent(
@@ -204,12 +382,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(0.2, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -224,15 +397,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "a729f1fc-593f-4410-90a6-740bdc54637a",
+            id: "36ad9542-2be9-4146-8674-6973400cb5ff",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -1.0500001,
-                            4.05,
-                        ],
+                        position: Vec2(-0.63000005, 3.21),
                     ),
                 ),
                 EntityComponent(
@@ -240,12 +410,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                0.2,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -260,15 +425,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "c809be8b-b7f5-4b83-9abd-d19e67f2cc30",
+            id: "44e80421-31c4-4af0-9f79-a1cabc1a9041",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.21000004,
-                            4.4700003,
-                        ],
+                        position: Vec2(0.63, 3.21),
                     ),
                 ),
                 EntityComponent(
@@ -276,12 +438,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(0.2, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -296,15 +453,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "8d8699bb-457e-4fc1-905d-71cd56fac98a",
+            id: "fb1e8e4f-436d-439b-a5cf-18b9f5e10e87",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.21000004,
-                            3.63,
-                        ],
+                        position: Vec2(0.63, 4.8900003),
                     ),
                 ),
                 EntityComponent(
@@ -312,12 +466,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                0.2,
-                                1,
-                                1,
-                            ],
+                            color: Vec4(0.2, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -332,15 +481,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "aa843add-6c1b-4c50-af60-6c2387c50685",
+            id: "8777f306-7882-4b02-9155-e202c64a39fe",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.63000005,
-                            4.05,
-                        ],
+                        position: Vec2(0.63, 4.05),
                     ),
                 ),
                 EntityComponent(
@@ -348,12 +494,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                0.2,
-                                1,
-                                1,
-                            ],
+                            color: Vec4(1, 0.2, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -368,15 +509,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "b29f8920-8dcf-4ba6-b4ec-d729ba7f15be",
+            id: "e959aaee-f8f9-4559-835f-ce49c76008ab",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -1.0500001,
-                            4.8900003,
-                        ],
+                        position: Vec2(-0.21000004, 4.8900003),
                     ),
                 ),
                 EntityComponent(
@@ -384,12 +522,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 0.2, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -404,15 +537,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "1e2a55a8-f5eb-410a-b316-bbab93070661",
+            id: "cb117c59-381e-4c4e-b4fa-fb1c3c71c7a6",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            0.20999992,
-                            4.4700003,
-                        ],
+                        position: Vec2(0.20999992, 4.05),
                     ),
                 ),
                 EntityComponent(
@@ -420,12 +550,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                0.2,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -440,15 +565,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "84910620-f78c-48b5-9699-790eb9ff6700",
+            id: "782ca901-cf09-4ffc-949b-6a7fb677a73f",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            0.20999992,
-                            4.8900003,
-                        ],
+                        position: Vec2(-0.63000005, 4.4700003),
                     ),
                 ),
                 EntityComponent(
@@ -456,12 +578,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                0.2,
-                                1,
-                                1,
-                            ],
+                            color: Vec4(0.2, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -476,15 +593,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "3d7afa33-424f-4b22-9c67-819ab67fe6a3",
+            id: "1e575846-3dbc-4273-ab37-5be0bf210f26",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.21000004,
-                            4.8900003,
-                        ],
+                        position: Vec2(-0.21000004, 4.4700003),
                     ),
                 ),
                 EntityComponent(
@@ -492,12 +606,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                0.2,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(1, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -512,15 +621,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "4b7dd3ea-920b-42b3-bfb1-fa1198df5b9c",
+            id: "72bdf071-242e-4569-a5c9-3874bb1fb0ec",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.63000005,
-                            3.63,
-                        ],
+                        position: Vec2(-0.21000004, 4.05),
                     ),
                 ),
                 EntityComponent(
@@ -528,12 +634,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                1,
-                                0.2,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(0.2, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -548,15 +649,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "08690a54-f1db-4ac9-b81a-7668a4c794de",
+            id: "418be6c1-73e7-4589-a844-0aeed0b930ff",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -1.0500001,
-                            3.21,
-                        ],
+                        position: Vec2(0.20999992, 4.8900003),
                     ),
                 ),
                 EntityComponent(
@@ -564,12 +662,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(0.2, 0.2, 1, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -584,15 +677,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "352f4370-bd41-47d8-bc1b-80eb05f2b4ed",
+            id: "9d9dcd96-fadc-4612-8272-0bc000005a39",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            -0.21000004,
-                            4.05,
-                        ],
+                        position: Vec2(-1.0500001, 4.8900003),
                     ),
                 ),
                 EntityComponent(
@@ -600,12 +690,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(0.2, 1, 0.2, 1),
                             stroke_width: 0.02,
                         ),
                     ),
@@ -620,15 +705,12 @@ Prefab(
             ],
         )),
         Entity(PrefabEntity(
-            id: "d7b1a38a-d77a-44b2-aa3f-085a2e135fd8",
+            id: "c34521a3-85be-4d62-9efc-84879fa610f1",
             components: [
                 EntityComponent(
                     type: "8bf67228-f96c-4649-b306-ecd107194cf0",
                     data: Position2DComponent(
-                        position: [
-                            0.20999992,
-                            3.21,
-                        ],
+                        position: Vec2(0.63, 4.4700003),
                     ),
                 ),
                 EntityComponent(
@@ -636,300 +718,7 @@ Prefab(
                     data: DrawSkiaCircleComponentDef(
                         radius: 0.2,
                         paint: PaintDef(
-                            color: [
-                                0.2,
-                                0.2,
-                                1,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "d1f7a6b4-4d83-4d48-91b8-cf1a10c9997d",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            -1.0500001,
-                            4.4700003,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                0.2,
-                                0.2,
-                                1,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "d76c34c0-3687-435e-9144-d62337088bf8",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            -0.63000005,
-                            4.8900003,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                1,
-                                1,
-                                0.2,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "d75e4b7e-9118-46f2-a0d4-25d34e4f07c9",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            -0.21000004,
-                            3.21,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                1,
-                                0.2,
-                                0.2,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "34f34ca6-92e6-4ad3-bf5f-592ef48665d5",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            0.20999992,
-                            4.05,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                1,
-                                1,
-                                0.2,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "2afe24f4-9544-47af-873a-e5ffc451c629",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            0.63,
-                            3.21,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "41c5ba5c-d434-4835-8991-ee67303f2c0d",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            0.63,
-                            3.63,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                1,
-                                1,
-                                0.2,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "840d3993-d904-4aa8-8452-342faea9ad88",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            0.63,
-                            4.05,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                1,
-                                0.2,
-                                0.2,
-                                1,
-                            ],
-                            stroke_width: 0.02,
-                        ),
-                    ),
-                ),
-                EntityComponent(
-                    type: "fa518c0a-a65a-44c8-9d35-3f4f336b4de4",
-                    data: RigidBodyBallComponentDef(
-                        radius: 0.2,
-                        is_static: false,
-                    ),
-                ),
-            ],
-        )),
-        Entity(PrefabEntity(
-            id: "0876aee2-d174-4b69-ae93-856ef3a185e5",
-            components: [
-                EntityComponent(
-                    type: "8bf67228-f96c-4649-b306-ecd107194cf0",
-                    data: Position2DComponent(
-                        position: [
-                            0.20999992,
-                            3.63,
-                        ],
-                    ),
-                ),
-                EntityComponent(
-                    type: "e47f9943-d5bf-4e1b-9601-13e47d7b737c",
-                    data: DrawSkiaCircleComponentDef(
-                        radius: 0.2,
-                        paint: PaintDef(
-                            color: [
-                                0.2,
-                                1,
-                                0.2,
-                                1,
-                            ],
+                            color: Vec4(0.2, 0.2, 1, 1),
                             stroke_width: 0.02,
                         ),
                     ),

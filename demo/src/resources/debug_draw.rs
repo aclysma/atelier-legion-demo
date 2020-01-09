@@ -1,12 +1,12 @@
 pub struct LineList {
-    pub points: Vec<glm::Vec2>,
-    pub color: glm::Vec4,
+    pub points: Vec<glam::Vec2>,
+    pub color: glam::Vec4,
 }
 
 impl LineList {
     pub fn new(
-        points: Vec<glm::Vec2>,
-        color: glm::Vec4,
+        points: Vec<glam::Vec2>,
+        color: glam::Vec4,
     ) -> Self {
         LineList { points, color }
     }
@@ -24,8 +24,8 @@ impl DebugDrawResource {
     // Adds a single polygon
     pub fn add_polygon(
         &mut self,
-        mut points: Vec<glm::Vec2>,
-        color: glm::Vec4,
+        mut points: Vec<glam::Vec2>,
+        color: glam::Vec4,
     ) {
         // Nothing will draw if we don't have at least 2 points
         if points.len() > 1 {
@@ -36,8 +36,8 @@ impl DebugDrawResource {
 
     pub fn add_tristrip(
         &mut self,
-        points: &Vec<glm::Vec2>,
-        color: glm::Vec4,
+        points: &Vec<glam::Vec2>,
+        color: glam::Vec4,
     ) {
         // Nothing will draw if we don't have at least 2 points
         for index in 0..(points.len() - 2) {
@@ -48,9 +48,9 @@ impl DebugDrawResource {
 
     pub fn add_circle(
         &mut self,
-        center: glm::Vec2,
+        center: glam::Vec2,
         radius: f32,
-        color: glm::Vec4,
+        color: glam::Vec4,
     ) {
         let point_count = 12;
 
@@ -58,7 +58,7 @@ impl DebugDrawResource {
         for index in 0..point_count {
             let fraction = (index as f32 / point_count as f32) * std::f32::consts::PI * 2.0;
 
-            points.push(glm::Vec2::new(fraction.sin() * radius, fraction.cos() * radius) + center);
+            points.push(glam::Vec2::new(fraction.sin() * radius, fraction.cos() * radius) + center);
         }
 
         self.add_polygon(points, color);
@@ -66,20 +66,20 @@ impl DebugDrawResource {
 
     pub fn add_rect(
         &mut self,
-        p0: glm::Vec2,
-        p1: glm::Vec2,
-        color: glm::Vec4,
+        p0: glam::Vec2,
+        p1: glam::Vec2,
+        color: glam::Vec4,
     ) {
-        let points = vec![p0, glm::vec2(p0.x, p1.y), p1, glm::vec2(p1.x, p0.y), p0];
+        let points = vec![p0, glam::vec2(p0.x(), p1.y()), p1, glam::vec2(p1.x(), p0.y()), p0];
 
         self.add_polygon(points, color);
     }
 
     pub fn add_line(
         &mut self,
-        p0: glm::Vec2,
-        p1: glm::Vec2,
-        color: glm::Vec4,
+        p0: glam::Vec2,
+        p1: glam::Vec2,
+        color: glam::Vec4,
     ) {
         let points = vec![p0, p1];
 

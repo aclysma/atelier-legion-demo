@@ -5,59 +5,59 @@ use skulpin::MouseButton;
 use crate::util::to_glm;
 
 fn distance_to_segment_sq(
-    test_point: glm::Vec2,
-    p0: glm::Vec2,
-    p1: glm::Vec2,
+    test_point: glam::Vec2,
+    p0: glam::Vec2,
+    p1: glam::Vec2,
 ) -> f32 {
     let p0_to_p1 = p1 - p0;
 
     // Early out in case of extremely short segment, get distance to midpoint
-    if glm::length2(&p0_to_p1) < 0.01 {
+    if p0_to_p1.length_squared() < 0.01 {
         let midpoint = p0 + (p0_to_p1 / 2.0);
-        return glm::distance2(&test_point, &midpoint);
+        return (test_point - midpoint).length_squared();
     }
 
     // Get "tangent" and "normal" of the segment
-    let tangent = glm::normalize(&p0_to_p1);
-    let normal = glm::vec2(tangent.y, -tangent.x);
+    let tangent = p0_to_p1.normalize();
+    let normal = glam::Vec2::new(tangent.y(), -tangent.x());
 
     // distance to the infinite line described by the points
     let p0_to_test_point = test_point - p0;
 
     // find closest point to the line
-    let distance_along_segment = glm::dot(&tangent, &(p0_to_test_point));
+    let distance_along_segment = glam::Vec2::dot(tangent, p0_to_test_point);
     if distance_along_segment <= 0.0 {
         // early out, test_point is closer to p0 than any other part of the line
-        return glm::distance2(&test_point, &p0);
+        return (test_point - p0).length_squared();
     }
 
     let fraction_along_segment =
-        (distance_along_segment * distance_along_segment) / glm::length2(&p0_to_p1);
+        (distance_along_segment * distance_along_segment) / p0_to_p1.length_squared();
     if fraction_along_segment >= 1.0 {
         // test_point is closer to p1 than any other part of the line
-        glm::distance2(&test_point, &p1)
+        (test_point - p1).length_squared()
     } else {
         // the closest point on the segment to test_point is between p0 and p1
-        let distance_to_line = glm::dot(&normal, &p0_to_test_point);
+        let distance_to_line = glam::Vec2::dot(normal, p0_to_test_point);
         f32::abs(distance_to_line * distance_to_line)
     }
 }
 
 fn distance_to_circle_outline_sq(
-    test_point: glm::Vec2,
-    center: glm::Vec2,
+    test_point: glam::Vec2,
+    center: glam::Vec2,
     radius: f32,
 ) -> f32 {
-    (glm::distance2(&test_point, &center) - (radius * radius)).abs()
+    ((test_point - center).length_squared() - (radius * radius)).abs()
 }
 
 struct Line {
-    p0: glm::Vec2,
-    p1: glm::Vec2,
+    p0: glam::Vec2,
+    p1: glam::Vec2,
 }
 
 struct CircleOutline {
-    center: glm::Vec2,
+    center: glam::Vec2,
     radius: f32,
 }
 
@@ -74,8 +74,8 @@ struct ShapeWithId {
 impl ShapeWithId {
     fn new_line(
         id: String,
-        p0: glm::Vec2,
-        p1: glm::Vec2,
+        p0: glam::Vec2,
+        p1: glam::Vec2,
     ) -> Self {
         ShapeWithId {
             id,
@@ -85,7 +85,7 @@ impl ShapeWithId {
 
     fn new_circle_outline(
         id: String,
-        center: glm::Vec2,
+        center: glam::Vec2,
         radius: f32,
     ) -> Self {
         ShapeWithId {
@@ -107,20 +107,20 @@ struct ClosestShapeIndexDistance {
 
 #[derive(Clone, Debug)]
 pub struct EditorShapeClickedState {
-    pub click_position: glm::Vec2,
+    pub click_position: glam::Vec2,
     pub shape_id: String,
 }
 
 #[derive(Clone, Debug)]
 pub struct EditorShapeDragState {
-    pub begin_position: glm::Vec2,
-    pub end_position: glm::Vec2,
-    pub previous_frame_delta: glm::Vec2,
-    pub accumulated_frame_delta: glm::Vec2,
-    pub world_space_begin_position: glm::Vec2,
-    pub world_space_end_position: glm::Vec2,
-    pub world_space_previous_frame_delta: glm::Vec2,
-    pub world_space_accumulated_frame_delta: glm::Vec2,
+    pub begin_position: glam::Vec2,
+    pub end_position: glam::Vec2,
+    pub previous_frame_delta: glam::Vec2,
+    pub accumulated_frame_delta: glam::Vec2,
+    pub world_space_begin_position: glam::Vec2,
+    pub world_space_end_position: glam::Vec2,
+    pub world_space_previous_frame_delta: glam::Vec2,
+    pub world_space_accumulated_frame_delta: glam::Vec2,
     pub shape_id: String,
 }
 
@@ -159,14 +159,14 @@ impl EditorDrawResource {
         &mut self,
         id: &str,
         debug_draw: &mut DebugDrawResource,
-        p0: glm::Vec2,
-        p1: glm::Vec2,
-        mut color: glm::Vec4,
+        p0: glam::Vec2,
+        p1: glam::Vec2,
+        mut color: glam::Vec4,
     ) {
         if self.closest_shape_to_mouse.id == id
             && self.closest_shape_to_mouse.distance_sq < MAX_MOUSE_INTERACT_DISTANCE_FROM_SHAPE_SQ
         {
-            color = glm::vec4(1.0, 0.0, 0.0, 1.0);
+            color = glam::vec4(1.0, 0.0, 0.0, 1.0);
         }
 
         debug_draw.add_line(p0, p1, color);
@@ -179,14 +179,14 @@ impl EditorDrawResource {
         &mut self,
         id: &str,
         debug_draw: &mut DebugDrawResource,
-        center: glm::Vec2,
+        center: glam::Vec2,
         radius: f32,
-        mut color: glm::Vec4,
+        mut color: glam::Vec4,
     ) {
         if self.closest_shape_to_mouse.id == id
             && self.closest_shape_to_mouse.distance_sq < MAX_MOUSE_INTERACT_DISTANCE_FROM_SHAPE_SQ
         {
-            color = glm::vec4(1.0, 0.0, 0.0, 1.0);
+            color = glam::vec4(1.0, 0.0, 0.0, 1.0);
         }
 
         debug_draw.add_circle(center, radius, color);
@@ -201,7 +201,7 @@ impl EditorDrawResource {
     //TODO: Consider converting to ui space immediately
     fn get_closest_shape(
         &self,
-        test_position: glm::Vec2,
+        test_position: glam::Vec2,
         viewport: &ViewportResource,
     ) -> Option<ClosestShapeIndexDistance> {
         let mut closest_shape_index = None;
@@ -220,11 +220,11 @@ impl EditorDrawResource {
                 Shape::CircleOutline(circle) => {
                     // This is an odd kludge, but we want to work in ui space. However, the radius in ui space won't match the radius in
                     // world space.
-                    let position_on_outline = circle.center + glm::vec2(circle.radius, 0.0);
+                    let position_on_outline = circle.center + glam::vec2(circle.radius, 0.0);
                     let scaled_center = viewport.world_space_to_ui_space(circle.center);
                     let scaled_position_on_outline =
                         viewport.world_space_to_ui_space(position_on_outline);
-                    let scaled_radius = f32::abs(scaled_position_on_outline.x - scaled_center.x);
+                    let scaled_radius = f32::abs(scaled_position_on_outline.x() - scaled_center.x());
 
                     distance_to_circle_outline_sq(test_position, scaled_center, scaled_radius)
                 }

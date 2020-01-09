@@ -37,7 +37,7 @@ legion_prefab::register_component_type!(UniformScale2DComponent);
 #[uuid = "3318484f-d816-4f8e-b6d2-accd66e49276"]
 pub struct NonUniformScale2DComponent {
     #[serde_diff(opaque)]
-    pub scale: glm::Vec2,
+    pub scale: Vec2,
 }
 
 legion_prefab::register_component_type!(NonUniformScale2DComponent);
