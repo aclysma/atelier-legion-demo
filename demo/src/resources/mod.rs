@@ -33,3 +33,9 @@ pub use editor_selection::EditorSelectionResource;
 
 mod universe;
 pub use universe::UniverseResource;
+
+mod camera;
+pub use camera::CameraResource;
+
+mod viewport;
+pub use viewport::ViewportResource;

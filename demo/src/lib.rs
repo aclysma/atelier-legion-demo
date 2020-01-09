@@ -150,10 +150,18 @@ impl app::AppHandler for DemoApp {
         let asset_manager = create_asset_manager();
         let physics = PhysicsResource::new(Vec2::y() * GRAVITY);
 
+        let window_size = world.resources.get::<InputResource>().unwrap().window_size();
+
+        let mut camera = CameraResource::default();
+        camera.position = glm::Vec2::new(0.0, 1.0);
+        let viewport = ViewportResource::new(window_size, camera.position, camera.zoom);
+
         world.resources.insert(physics);
         world.resources.insert(FpsTextResource::new());
         world.resources.insert(asset_manager);
         world.resources.insert(EditorStateResource::new());
+        world.resources.insert(camera);
+        world.resources.insert(viewport);
         world.resources.insert(EditorSelectionResource::new(
             create_editor_selection_registry(),
             world,

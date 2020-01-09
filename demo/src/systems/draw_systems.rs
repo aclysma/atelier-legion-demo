@@ -7,9 +7,12 @@ use crate::components::Position2DComponent;
 use crate::components::DrawSkiaBoxComponent;
 use crate::components::DrawSkiaCircleComponent;
 
-use crate::resources::CanvasDrawResource;
+use crate::resources::{CanvasDrawResource, CameraResource, InputResource, ViewportResource};
 use crate::resources::ImguiResource;
 use crate::resources::FpsTextResource;
+
+use skulpin::winit;
+use skulpin::LogicalSize;
 
 pub fn draw() -> Box<dyn Schedulable> {
     // Copy the data from physics rigid bodies into position components
@@ -17,12 +20,15 @@ pub fn draw() -> Box<dyn Schedulable> {
         .write_resource::<CanvasDrawResource>()
         .write_resource::<ImguiResource>()
         .read_resource::<FpsTextResource>()
+        .read_resource::<CameraResource>()
+        .write_resource::<ViewportResource>()
+        .read_resource::<InputResource>()
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query())
         .build(
             |_,
              world,
-             (draw_context, imgui_manager, fps_text),
+             (draw_context, imgui_manager, fps_text, camera_state, viewport_state, input_resource),
              (draw_boxes_query, draw_circles_query)| {
                 imgui_manager.with_ui(|ui| {
                     draw_context.with_canvas(|canvas, coordinate_system_helper| {
@@ -32,14 +38,18 @@ pub fn draw() -> Box<dyn Schedulable> {
                             / (coordinate_system_helper.surface_extents().width as f32
                                 / coordinate_system_helper.surface_extents().height as f32);
 
+                        let window_size = input_resource.window_size();
+                        let camera_position = camera_state.position;
+                        viewport_state.update(window_size, camera_position, camera_state.zoom);
+
                         coordinate_system_helper
                             .use_visible_range(
                                 canvas,
                                 skia_safe::Rect {
-                                    left: -x_half_extents,
-                                    right: x_half_extents,
-                                    top: y_half_extents + 1.0,
-                                    bottom: -y_half_extents + 1.0,
+                                    left: -x_half_extents + camera_position.x,
+                                    right: x_half_extents + camera_position.x,
+                                    top: y_half_extents + camera_position.y,
+                                    bottom: -y_half_extents + camera_position.y,
                                 },
                                 skia_safe::matrix::ScaleToFit::Center,
                             )
