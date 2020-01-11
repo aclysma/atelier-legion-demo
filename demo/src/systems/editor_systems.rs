@@ -157,6 +157,80 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
         })
 }
 
+pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
+    SystemBuilder::new("editor_entity_list_window")
+        .write_resource::<ImguiResource>()
+        .read_resource::<EditorStateResource>()
+        .write_resource::<EditorSelectionResource>()
+        .read_resource::<InputResource>()
+        .with_query(<(TryRead<()>)>::query())
+        .build(|_, world, (imgui_manager, editor_ui_state, editor_selection, input), all_query| {
+
+        imgui_manager.with_ui(|ui: &mut imgui::Ui| {
+            use imgui::im_str;
+
+            let window_options = editor_ui_state.window_options();
+
+            if window_options.show_entity_list {
+                imgui::Window::new(im_str!("Entity List"))
+                    .position([0.0, 50.0], imgui::Condition::Once)
+                    .size([350.0, 300.0], imgui::Condition::Once)
+                    .build(ui, || {
+                        let add_entity = ui.button(im_str!("\u{e8b1} Add"), [80.0, 0.0]);
+                        ui.same_line_with_spacing(80.0, 10.0);
+                        let remove_entity = ui.button(im_str!("\u{e897} Delete"), [80.0, 0.0]);
+
+                        if add_entity {
+                            //editor_action_queue.enqueue_add_new_entity();
+                        }
+
+                        if remove_entity {
+                            //editor_action_queue.enqueue_delete_selected_entities();
+                        }
+
+                        let name = im_str!("");
+                        if unsafe {
+                            imgui::sys::igListBoxHeaderVec2(
+                                name.as_ptr(),
+                                imgui::sys::ImVec2 { x: -1.0, y: -1.0 },
+                            )
+                        } {
+                            for (e, _) in all_query.iter_entities(world) {
+                                let is_selected = editor_selection.is_entity_selected(e);
+
+                                let s = im_str!("{:?}", e);
+                                let clicked =
+                                    imgui::Selectable::new(&s).selected(is_selected).build(ui);
+
+                                if clicked {
+                                    let is_control_held =
+                                        input.is_key_down(VirtualKeyCode::LControl) ||
+                                            input.is_key_down(VirtualKeyCode::RControl);
+                                    if is_control_held {
+                                        if !is_selected {
+                                            // Add this entity
+                                            editor_selection.add_to_selection(e);
+                                        } else {
+                                            //Remove this entity
+                                            editor_selection.remove_from_selection(e);
+                                        }
+                                    } else {
+                                        // Select just this entity
+                                        editor_selection.set_selection(&[e]);
+                                    }
+                                }
+                            }
+
+                            unsafe {
+                                imgui::sys::igListBoxFooter();
+                            }
+                        }
+                    });
+            }
+        })
+    })
+}
+
 pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
     SystemBuilder::new("editor_keyboard_shortcuts")
         .write_resource::<EditorStateResource>()
@@ -198,7 +272,7 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
                 let results = editor_selection.editor_selection_world().interferences_with_point(&world_space, &collision_groups);
 
                 let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-                editor_selection.set_selected_entities(&results);
+                editor_selection.set_selection(&results);
             } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
                 // Drag complete, check AABB
                 let target_position0: glm::Vec2 = viewport
@@ -229,7 +303,7 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
                     .interferences_with_aabb(&aabb, &collision_groups);
 
                 let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-                editor_selection.set_selected_entities(&results);
+                editor_selection.set_selection(&results);
             } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
                 debug_draw.add_rect(
                     viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),

@@ -157,7 +157,38 @@ impl App {
         // Pass control of this thread to winit until the app terminates. If this app wants to quit,
         // the update loop should send the appropriate event via the channel
         event_loop.run(move |event, window_target, control_flow| {
-            {
+
+            // Let imgui have the event first
+            let input_captured = {
+                let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
+                imgui_manager.handle_event(&window, &event);
+
+                let mut input_captured = false;
+                input_captured |= imgui_manager.want_capture_keyboard() && match event {
+                    winit::event::Event::WindowEvent {
+                        event: winit::event::WindowEvent::KeyboardInput { .. },
+                        ..
+                    } => true,
+                    _ => false
+                };
+
+                input_captured |= imgui_manager.want_capture_mouse() && match event {
+                    winit::event::Event::WindowEvent {
+                        event: winit::event::WindowEvent::MouseInput { .. },
+                        ..
+                    } => true,
+                    winit::event::Event::WindowEvent {
+                        event: winit::event::WindowEvent::MouseWheel { .. },
+                        ..
+                    } => true,
+                    _ => false
+                };
+
+                input_captured
+            };
+
+            // if imgui didn't want the event, hand it off to the game
+            if !input_captured {
                 let mut input_state = world.resources.get_mut::<InputResource>().unwrap();
                 let mut app_control = world.resources.get_mut::<AppControlResource>().unwrap();
                 input_state
@@ -165,11 +196,7 @@ impl App {
                     .handle_winit_event(&mut app_control, &event, window_target);
             }
 
-            {
-                let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
-                imgui_manager.handle_event(&window, &event);
-            }
-
+            // Handle general update/redraw events
             match event {
                 winit::event::Event::MainEventsCleared => {
                     app_handler.update(&mut world);
@@ -208,6 +235,7 @@ impl App {
                 _ => {}
             }
 
+            // Always check if we should terminate the application
             {
                 let app_control = world.resources.get::<AppControlResource>().unwrap();
                 if app_control.should_terminate_process() {

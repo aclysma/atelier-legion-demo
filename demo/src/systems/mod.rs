@@ -25,6 +25,7 @@ pub use editor_systems::editor_imgui_menu;
 pub use editor_systems::editor_keyboard_shortcuts;
 pub use editor_systems::draw_selection_shapes;
 pub use editor_systems::editor_refresh_selection_world;
+pub use editor_systems::editor_entity_list_window;
 
 use legion::prelude::*;
 use legion::schedule::Builder;
@@ -131,6 +132,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .always_thread_local(editor_refresh_selection_world)
         .always(editor_keyboard_shortcuts)
         .always(editor_imgui_menu)
+        .always(editor_entity_list_window)
         .always(draw_selection_shapes)
         // --- End editor stuff ---
         .always(input_reset_for_next_frame)

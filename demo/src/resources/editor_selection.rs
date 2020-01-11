@@ -10,7 +10,7 @@ use crate::selection::EditorSelectableRegistry;
 pub struct EditorSelectionResource {
     registry: EditorSelectableRegistry,
     editor_selection_world: CollisionWorld<f32, Entity>,
-    selected_entities: Vec<Entity>
+    selected_entities: HashSet<Entity>
 
 }
 
@@ -23,7 +23,7 @@ impl EditorSelectionResource {
         EditorSelectionResource {
             registry,
             editor_selection_world,
-            selected_entities: vec![]
+            selected_entities: Default::default()
         }
     }
 
@@ -45,7 +45,7 @@ impl EditorSelectionResource {
         &self.editor_selection_world
     }
 
-    pub fn selected_entities(&self) -> &[Entity] {
+    pub fn selected_entities(&self) -> &HashSet<Entity> {
         &self.selected_entities
     }
 
@@ -53,14 +53,35 @@ impl EditorSelectionResource {
         Self::get_entity_aabbs(&self.selected_entities, &mut self.editor_selection_world)
     }
 
-    pub fn set_selected_entities(&mut self, selected_entities: &[Entity]) {
+    //TODO: These functions that change selection should probably be enqueued to run at a designated
+    // time in the update loop rather than processed immediately
+    pub fn add_to_selection(&mut self, entity: Entity) {
+        log::info!("Remove entity {:?} from selection", entity);
+        self.selected_entities.insert(entity);
+    }
+
+    pub fn remove_from_selection(&mut self, entity: Entity) {
+        log::info!("Add entity {:?} to selection", entity);
+        self.selected_entities.remove(&entity);
+    }
+
+    pub fn clear_selection(&mut self) {
+        log::info!("Clear selection");
+        self.selected_entities.clear();
+    }
+
+    pub fn set_selection(&mut self, selected_entities: &[Entity]) {
         log::info!("Selected entities: {:?}", selected_entities);
         self.selected_entities = selected_entities.iter().map(|x| *x).collect();
     }
 
+    pub fn is_entity_selected(&self, entity: Entity) -> bool {
+        self.selected_entities.contains(&entity)
+    }
+
     // The main reason for having such a specific function here is that it's awkward for an external
     // caller to borrow entities and world seperately
-    fn get_entity_aabbs(entities: &[Entity], world: &CollisionWorld<f32, Entity>) -> HashMap<Entity, Option<AABB<f32>>> {
+    fn get_entity_aabbs(entities: &HashSet<Entity>, world: &CollisionWorld<f32, Entity>) -> HashMap<Entity, Option<AABB<f32>>> {
         let mut entity_aabbs = HashMap::new();
         for e in entities {
             entity_aabbs.insert(*e, None);
