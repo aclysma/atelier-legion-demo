@@ -544,20 +544,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crossbeam"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69323bff1fb41c635347b8ead484a5ca6c3f11914d784170b158d8449ab07f8e"
-dependencies = [
- "cfg-if",
- "crossbeam-channel 0.4.0",
- "crossbeam-deque",
- "crossbeam-epoch",
- "crossbeam-queue",
- "crossbeam-utils 0.7.0",
-]
-
-[[package]]
 name = "crossbeam-channel"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1272,7 +1258,7 @@ name = "legion"
 version = "0.2.1"
 dependencies = [
  "bit-set",
- "crossbeam",
+ "crossbeam-channel 0.4.0",
  "derivative",
  "downcast-rs",
  "fxhash",

@@ -70,7 +70,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         //
         println!("GAME: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
-        for pos in query.iter_immutable(&prefab_asset.prefab.world) {
+        for pos in query.iter(&prefab_asset.prefab.world) {
             println!("position: {:?}", pos);
         }
         println!("GAME: done iterating positions");
@@ -94,11 +94,11 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
-        for (e, pos_def) in query.iter_entities_immutable(&world) {
+        for (e, pos_def) in query.iter_entities(&world) {
             println!("entity: {:?} position_def: {:?}", e, pos_def);
         }
         let query = <legion::prelude::Read<Position2DComponent>>::query();
-        for (e, pos) in query.iter_entities_immutable(&world) {
+        for (e, pos) in query.iter_entities(&world) {
             println!("entity: {:?} position: {:?}", e, pos);
         }
         println!("MERGED: done iterating positions");
@@ -129,11 +129,11 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
-        for (e, pos_def) in query.iter_entities_immutable(&world) {
+        for (e, pos_def) in query.iter_entities(&world) {
             println!("entity: {:?} position_def: {:?}", e, pos_def);
         }
         let query = <legion::prelude::Read<Position2DComponent>>::query();
-        for (e, pos) in query.iter_entities_immutable(&world) {
+        for (e, pos) in query.iter_entities(&world) {
             println!("entity: {:?} position: {:?}", e, pos);
         }
         println!("MERGED: done iterating positions");
@@ -146,14 +146,14 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         // Get a list of entities in the prefab
         let mut prefab_entities = vec![];
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
-        for (e, _) in query.iter_entities_immutable(&prefab_asset.prefab.world) {
+        for (e, _) in query.iter_entities(&prefab_asset.prefab.world) {
             prefab_entities.push(e);
         }
 
         // Get a list of entities in the world
         let mut world_entities = vec![];
         let query = <legion::prelude::Read<Position2DComponent>>::query();
-        for (e, _) in query.iter_entities_immutable(&world) {
+        for (e, _) in query.iter_entities(&world) {
             world_entities.push(e);
         }
 
@@ -173,15 +173,15 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
-        for (e, pos_def) in query.iter_entities_immutable(&world) {
+        for (e, pos_def) in query.iter_entities(&world) {
             println!("entity: {:?} position_def: {:?}", e, pos_def);
         }
         let query = <legion::prelude::Read<Position2DComponent>>::query();
-        for (e, pos) in query.iter_entities_immutable(&world) {
+        for (e, pos) in query.iter_entities(&world) {
             println!("entity: {:?} position: {:?}", e, pos);
         }
         let query = <legion::prelude::Read<PositionReference>>::query();
-        for (e, pos_ref) in query.iter_entities_immutable(&world) {
+        for (e, pos_ref) in query.iter_entities(&world) {
             let ref_component: &Position2DComponentDef =
                 pos_ref.handle.asset(asset_manager.storage()).unwrap();
             println!(

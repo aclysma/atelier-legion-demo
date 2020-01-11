@@ -46,7 +46,7 @@ where
         world: &World,
     ) {
         let query = <Read<T>>::query();
-        for (entity, t) in query.iter_entities_immutable(world) {
+        for (entity, t) in query.iter_entities(world) {
             t.create_editor_selection_world(collision_world, world, entity);
         }
     }

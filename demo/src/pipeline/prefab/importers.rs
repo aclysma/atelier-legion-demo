@@ -80,7 +80,7 @@ impl Importer for PrefabImporter {
 
         println!("IMPORTER: iterate positions");
         let query = <legion::prelude::Read<crate::components::Position2DComponentDef>>::query();
-        for pos in query.iter_immutable(&prefab.world) {
+        for pos in query.iter(&prefab.world) {
             println!("position: {:?}", pos);
         }
         println!("IMPORTER: done iterating positions");
