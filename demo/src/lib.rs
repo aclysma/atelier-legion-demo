@@ -49,6 +49,12 @@ pub mod app;
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 pub const GRAVITY: f32 = -9.81;
 
+pub mod util {
+    pub fn to_glm(logical_position: skulpin::LogicalPosition) -> glm::Vec2 {
+        glm::Vec2::new(logical_position.x as f32, logical_position.y as f32)
+    }
+}
+
 /// Create the asset manager that has all the required types registered
 pub fn create_asset_manager() -> AssetResource {
     let mut asset_manager = AssetResource::default();
@@ -165,6 +171,8 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(EditorStateResource::new());
         world.resources.insert(camera);
         world.resources.insert(viewport);
+        world.resources.insert(DebugDrawResource::new());
+        world.resources.insert(EditorDrawResource::new());
         world.resources.insert(EditorSelectionResource::new(
             create_editor_selection_registry(),
             world,

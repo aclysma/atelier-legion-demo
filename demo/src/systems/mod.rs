@@ -23,12 +23,13 @@ pub use input_systems::input_reset_for_next_frame;
 mod editor_systems;
 pub use editor_systems::editor_imgui_menu;
 pub use editor_systems::editor_keyboard_shortcuts;
+pub use editor_systems::draw_selection_shapes;
+pub use editor_systems::editor_refresh_selection_world;
 
 use legion::prelude::*;
 use legion::schedule::Builder;
 use crate::resources::EditorMode;
 use std::marker::PhantomData;
-use crate::systems::editor_systems::editor_refresh_selection_world;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ScheduleCriteria {
@@ -130,6 +131,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .always_thread_local(editor_refresh_selection_world)
         .always(editor_keyboard_shortcuts)
         .always(editor_imgui_menu)
+        .always(draw_selection_shapes)
         // --- End editor stuff ---
         .always(input_reset_for_next_frame)
         .build()

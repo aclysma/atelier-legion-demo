@@ -1,12 +1,18 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 
-use skulpin::{imgui, VirtualKeyCode, MouseButton};
+use skulpin::{imgui, VirtualKeyCode, MouseButton, LogicalPosition};
 use imgui::im_str;
-use ncollide2d::pipeline::CollisionGroups;
+use ncollide2d::pipeline::{CollisionGroups, CollisionObjectRef};
+
+use std::collections::HashMap;
+use ncollide2d::bounding_volume::AABB;
+use ncollide2d::world::CollisionWorld;
+
+use crate::util::to_glm;
 
 pub fn editor_refresh_selection_world(world: &mut World) {
     let mut selection_world = world
@@ -157,7 +163,8 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
         .read_resource::<InputResource>()
         .read_resource::<ViewportResource>()
         .write_resource::<EditorSelectionResource>()
-        .build(|command_buffer, _, (editor_state, input_state, viewport, editor_selection), _| {
+        .write_resource::<DebugDrawResource>()
+        .build(|command_buffer, _, (editor_state, input_state, viewport, editor_selection, debug_draw), _| {
             if input_state.is_key_just_down(VirtualKeyCode::Key1) {
                 EditorStateResource::enqueue_set_active_editor_tool(
                     command_buffer,
@@ -184,21 +191,21 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
             }
 
             if let Some(position) = input_state.mouse_button_just_clicked_position(MouseButton::Left) {
-                let position = glm::Vec2::new(position.x as f32, position.y as f32);
+                let position = to_glm(position);
                 let world_space = ncollide2d::math::Point::from(viewport.ui_space_to_world_space(position));
 
                 let collision_groups = CollisionGroups::default();
                 let results = editor_selection.editor_selection_world().interferences_with_point(&world_space, &collision_groups);
 
-                let results : Vec<_> = results.map(|(_, x)| x.data()).collect();
-                println!("Selected entities: {:?}", results);
+                let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
+                editor_selection.set_selected_entities(&results);
             } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
                 // Drag complete, check AABB
                 let target_position0: glm::Vec2 = viewport
-                    .ui_space_to_world_space(glm::Vec2::new(drag_complete.begin_position.x as f32, drag_complete.begin_position.y as f32))
+                    .ui_space_to_world_space(to_glm(drag_complete.begin_position))
                     .into();
                 let target_position1: glm::Vec2 = viewport
-                    .ui_space_to_world_space(glm::Vec2::new(drag_complete.end_position.x as f32, drag_complete.end_position.y as f32))
+                    .ui_space_to_world_space(to_glm(drag_complete.end_position))
                     .into();
 
                 let mins = glm::vec2(
@@ -221,8 +228,41 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
                     .editor_selection_world()
                     .interferences_with_aabb(&aabb, &collision_groups);
 
-                let results : Vec<_> = results.map(|(_, x)| x.data()).collect();
-                println!("Selected entities: {:?}", results);
+                let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
+                editor_selection.set_selected_entities(&results);
+            } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
+                debug_draw.add_rect(
+                    viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),
+                    viewport.ui_space_to_world_space(to_glm(drag_in_progress.end_position)),
+                    glm::vec4(1.0, 1.0, 0.0, 1.0),
+                );
+            }
+        })
+}
+
+pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
+    SystemBuilder::new("draw_selection_shapes")
+        .write_resource::<EditorSelectionResource>()
+        .write_resource::<DebugDrawResource>()
+        .build(|_, _, (editor_selection, debug_draw), _| {
+
+            let aabbs = editor_selection.selected_entity_aabbs();
+
+            for (_, aabb) in aabbs {
+                if let Some(aabb) = aabb {
+
+                    let color = glm::vec4(1.0, 1.0, 0.0, 1.0);
+
+                    // An amount to expand the AABB by so that we don't draw on top of the shape.
+                    // Found in actual usage this ended up being annoying.
+                    let expand = glm::vec2(0.0, 0.0);
+
+                    debug_draw.add_rect(
+                        glm::vec2(aabb.mins().x, aabb.mins().y) - expand,
+                        glm::vec2(aabb.maxs().x, aabb.maxs().y) + expand,
+                        color,
+                    );
+                }
             }
         })
 }

@@ -1,12 +1,17 @@
 use ncollide2d::world::CollisionWorld;
+use ncollide2d::bounding_volume::AABB;
 use legion::prelude::*;
 use std::marker::PhantomData;
+use std::collections::HashSet;
+use std::collections::HashMap;
 
 use crate::selection::EditorSelectableRegistry;
 
 pub struct EditorSelectionResource {
     registry: EditorSelectableRegistry,
     editor_selection_world: CollisionWorld<f32, Entity>,
+    selected_entities: Vec<Entity>
+
 }
 
 impl EditorSelectionResource {
@@ -18,6 +23,7 @@ impl EditorSelectionResource {
         EditorSelectionResource {
             registry,
             editor_selection_world,
+            selected_entities: vec![]
         }
     }
 
@@ -37,5 +43,42 @@ impl EditorSelectionResource {
 
     pub fn editor_selection_world(&mut self) -> &CollisionWorld<f32, Entity> {
         &self.editor_selection_world
+    }
+
+    pub fn selected_entities(&self) -> &[Entity] {
+        &self.selected_entities
+    }
+
+    pub fn selected_entity_aabbs(&mut self) -> HashMap<Entity, Option<AABB<f32>>> {
+        Self::get_entity_aabbs(&self.selected_entities, &mut self.editor_selection_world)
+    }
+
+    pub fn set_selected_entities(&mut self, selected_entities: &[Entity]) {
+        log::info!("Selected entities: {:?}", selected_entities);
+        self.selected_entities = selected_entities.iter().map(|x| *x).collect();
+    }
+
+    // The main reason for having such a specific function here is that it's awkward for an external
+    // caller to borrow entities and world seperately
+    fn get_entity_aabbs(entities: &[Entity], world: &CollisionWorld<f32, Entity>) -> HashMap<Entity, Option<AABB<f32>>> {
+        let mut entity_aabbs = HashMap::new();
+        for e in entities {
+            entity_aabbs.insert(*e, None);
+        }
+
+        for (_, shape) in world.collision_objects() {
+            let entry = entity_aabbs.entry(*shape.data())
+                .and_modify(|aabb: &mut Option<AABB<f32>>| {
+                    let mut new_aabb = shape.shape().aabb(shape.position());
+                    if let Some(existing_aabb) = aabb {
+                        use ncollide2d::bounding_volume::BoundingVolume;
+                        new_aabb.merge(existing_aabb);
+                    };
+
+                    *aabb = Some(new_aabb);
+                });
+        }
+
+        entity_aabbs
     }
 }

@@ -7,7 +7,7 @@ use crate::components::Position2DComponent;
 use crate::components::DrawSkiaBoxComponent;
 use crate::components::DrawSkiaCircleComponent;
 
-use crate::resources::{CanvasDrawResource, CameraResource, InputResource, ViewportResource};
+use crate::resources::{CanvasDrawResource, CameraResource, InputResource, ViewportResource, DebugDrawResource};
 use crate::resources::ImguiResource;
 use crate::resources::FpsTextResource;
 
@@ -23,12 +23,13 @@ pub fn draw() -> Box<dyn Schedulable> {
         .write_resource::<CameraResource>()
         .write_resource::<ViewportResource>()
         .read_resource::<InputResource>()
+        .write_resource::<DebugDrawResource>()
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
         .with_query(<(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query())
         .build(
             |_,
              world,
-             (draw_context, imgui_manager, fps_text, camera_state, viewport_state, input_resource),
+             (draw_context, imgui_manager, fps_text, camera_state, viewport_state, input_resource, debug_draw),
              (draw_boxes_query, draw_circles_query)| {
                 imgui_manager.with_ui(|ui| {
                     draw_context.with_canvas(|canvas, coordinate_system_helper| {
@@ -82,6 +83,34 @@ pub fn draw() -> Box<dyn Schedulable> {
                                 &paint,
                             );
                         }
+
+                        // Debug draw
+                        for line_list in debug_draw.take_line_lists() {
+                            if line_list.points.len() < 2 {
+                                continue;
+                            }
+
+                            let paint = skia_safe::Paint::new(
+                                skia_safe::Color4f::new(
+                                    line_list.color.x,
+                                    line_list.color.y,
+                                    line_list.color.z,
+                                    line_list.color.w),
+                                None
+                            );
+
+                            let from = line_list.points[0];
+                            let mut from = skia_safe::Point::new(from.x, from.y);
+                            for i in 1..line_list.points.len() {
+                                let to = line_list.points[i];
+                                let to = skia_safe::Point::new(to.x, to.y);
+                                canvas.draw_line(from, to, &paint);
+                                from = to;
+                            }
+                        }
+
+                        debug_draw.clear();
+
 
                         // Switch to using logical screen-space coordinates
                         coordinate_system_helper.use_logical_coordinates(canvas);

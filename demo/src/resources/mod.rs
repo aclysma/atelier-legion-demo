@@ -39,3 +39,12 @@ pub use camera::CameraResource;
 
 mod viewport;
 pub use viewport::ViewportResource;
+
+mod debug_draw;
+pub use debug_draw::DebugDrawResource;
+pub use debug_draw::LineList;
+
+mod editor_draw;
+pub use editor_draw::EditorDrawResource;
+pub use editor_draw::EditorShapeClickedState;
+pub use editor_draw::EditorShapeDragState;
