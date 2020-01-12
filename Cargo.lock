@@ -1278,7 +1278,6 @@ dependencies = [
  "inventory",
  "legion",
  "prefab-format",
- "ron",
  "serde",
  "serde-diff",
  "type-uuid",
@@ -1326,26 +1325,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5cc7ad3d82c845bdb5dde34ffdcc7a5fb4d2996e1e1ee0f19c33bc80e15196b9"
 dependencies = [
  "num-traits",
-]
-
-[[package]]
-name = "linkme"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13a6e1cef9c14d507905870766a37cacdfae0fcc624c0b816436cbcd6847ac36"
-dependencies = [
- "linkme-impl",
-]
-
-[[package]]
-name = "linkme-impl"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88c30526fa88b1827f5b54a1add45a9de867088ca2aceda9fda9a02d86c2a01b"
-dependencies = [
- "proc-macro2 1.0.7",
- "quote 1.0.2",
- "syn 1.0.13",
 ]
 
 [[package]]
@@ -1985,9 +1964,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0af6cbca0e6e3ce8692ee19fb8d734b641899e07b68eb73e9bbbd32f1703991"
+checksum = "e8822eb8bb72452f038ebf6048efa02c3fe22bf83f76519c9583e47fc194a422"
 
 [[package]]
 name = "pin-utils"
@@ -2011,14 +1990,8 @@ checksum = "74490b50b9fbe561ac330df47c08f3f33073d2d00c150f719147d7c54522fa1b"
 name = "prefab-format"
 version = "0.1.0"
 dependencies = [
- "atelier-core",
- "erased-serde",
- "legion",
- "linkme",
- "ron",
  "serde",
  "serde-diff",
- "serde-value",
  "type-uuid",
  "uuid",
 ]
@@ -2489,16 +2462,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-value"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a65a7291a8a568adcae4c10a677ebcedbc6c9cec91c054dee2ce40b0e3290eb"
-dependencies = [
- "ordered-float",
- "serde",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2835,9 +2798,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "0.2.6"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e1bef565a52394086ecac0a6fa3b8ace4cb3a138ee1d96bd2b93283b56824e3"
+checksum = "ffa2fdcfa937b20cb3c822a635ceecd5fc1a27a6a474527e5516aa24b8c8820a"
 dependencies = [
  "bytes",
  "fnv",

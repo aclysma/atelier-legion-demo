@@ -1,11 +1,10 @@
 [workspace]
 members = [
     "demo",
-    "prefab-format",
-    "legion-prefab"
 ]
 
 exclude = [
     "atelier-assets",
+    "prefab",
     "legion"
 ]
