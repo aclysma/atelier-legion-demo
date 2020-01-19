@@ -8,6 +8,8 @@ edition = "2018"
 
 [dependencies]
 skulpin = { git = "https://github.com/aclysma/skulpin.git", branch = "imgui_support", features = ["with_imgui"] }
+imgui-inspect-derive = { git = "https://github.com/aclysma/imgui-inspect.git" }
+imgui-inspect = { git = "https://github.com/aclysma/imgui-inspect.git" }
 log="0.4"
 env_logger = "0.6"
 

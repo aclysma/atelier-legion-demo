@@ -19,6 +19,7 @@ pub struct EditorSelectionResource {
     registry: EditorSelectableRegistry,
     editor_selection_world: CollisionWorld<f32, Entity>,
     selected_entities: HashSet<Entity>,
+    selected_entities_world: World,
     pending_selection_ops: Vec<SelectionOp>
 }
 
@@ -28,10 +29,15 @@ impl EditorSelectionResource {
         world: &World,
     ) -> Self {
         let editor_selection_world = registry.create_editor_selection_world(world);
+
+        // Create an empty world
+        let selected_entities_world = world.resources.get::<UniverseResource>().unwrap().create_world();
+
         EditorSelectionResource {
             registry,
             editor_selection_world,
             selected_entities: Default::default(),
+            selected_entities_world: selected_entities_world,
             pending_selection_ops: Default::default()
         }
     }
@@ -57,6 +63,8 @@ impl EditorSelectionResource {
     pub fn selected_entities(&self) -> &HashSet<Entity> {
         &self.selected_entities
     }
+
+    pub fn selected_entities_world(&self) -> &World { &self.selected_entities_world }
 
     pub fn selected_entity_aabbs(&mut self) -> HashMap<Entity, Option<AABB<f32>>> {
         Self::get_entity_aabbs(&self.selected_entities, &mut self.editor_selection_world)

@@ -35,6 +35,11 @@ use systems::*;
 mod selection;
 use selection::EditorSelectableRegistry;
 
+mod inspect;
+use inspect::EditorInspectRegistry;
+
+pub mod math;
+
 mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
@@ -103,6 +108,13 @@ pub fn create_editor_selection_registry() -> EditorSelectableRegistry {
     //TODO: Is it possible for the select handler to get a ref to the Def as well as the instance at the same time?
     registry.register::<DrawSkiaBoxComponent>();
     registry.register::<DrawSkiaCircleComponent>();
+    registry
+}
+
+pub fn create_editor_inspector_registry() -> EditorInspectRegistry {
+    let mut registry = EditorInspectRegistry::default();
+    registry.register::<DrawSkiaCircleComponentDef>();
+    registry.register::<DrawSkiaBoxComponentDef>();
     registry
 }
 

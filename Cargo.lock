@@ -174,6 +174,8 @@ dependencies = [
  "env_logger 0.6.2",
  "erased-serde",
  "image2",
+ "imgui-inspect",
+ "imgui-inspect-derive 0.3.0 (git+https://github.com/aclysma/imgui-inspect.git)",
  "inventory",
  "itertools",
  "legion",
@@ -1138,6 +1140,38 @@ dependencies = [
  "imgui-sys",
  "lazy_static",
  "parking_lot 0.9.0",
+]
+
+[[package]]
+name = "imgui-inspect"
+version = "0.3.3"
+source = "git+https://github.com/aclysma/imgui-inspect.git#cac506cef9688085cccaf5f7b7b570e24321853a"
+dependencies = [
+ "imgui",
+ "imgui-inspect-derive 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "imgui-inspect-derive"
+version = "0.3.0"
+source = "git+https://github.com/aclysma/imgui-inspect.git#cac506cef9688085cccaf5f7b7b570e24321853a"
+dependencies = [
+ "darling",
+ "proc-macro2 1.0.7",
+ "quote 1.0.2",
+ "syn 1.0.13",
+]
+
+[[package]]
+name = "imgui-inspect-derive"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b756f2ccf843efeeaa18549b1eb98703aceb129efcd60dc685f08b6f4cf2ce9c"
+dependencies = [
+ "darling",
+ "proc-macro2 1.0.7",
+ "quote 1.0.2",
+ "syn 1.0.13",
 ]
 
 [[package]]

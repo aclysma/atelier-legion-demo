@@ -10,12 +10,17 @@ use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::shape::ShapeHandle;
 use crate::components::Position2DComponent;
+use imgui_inspect_derive;
+use skulpin::imgui;
+use crate::math::Vec2;
+use crate::math::Vec4;
+use imgui_inspect_derive::Inspect;
 
 // A utility struct to describe color for a skia shape
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect)]
 pub struct PaintDef {
     #[serde_diff(inline)]
-    pub color: glm::Vec4,
+    pub color: Vec4,
     pub stroke_width: f32,
 }
 
@@ -40,18 +45,18 @@ impl From<PaintDef> for Paint {
 // Draw a box at the component's current location. Will be affected by scale, if the scale component
 // exists
 //
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
+#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
 #[uuid = "c05e5c27-58ca-4d68-b825-b20f67fdaf37"]
 pub struct DrawSkiaBoxComponentDef {
     #[serde_diff(inline)]
-    pub half_extents: glm::Vec2,
+    pub half_extents: Vec2,
     pub paint: PaintDef,
 }
 
 legion_prefab::register_component_type!(DrawSkiaBoxComponentDef);
 
 pub struct DrawSkiaBoxComponent {
-    pub half_extents: glm::Vec2,
+    pub half_extents: Vec2,
     pub paint: Paint,
 }
 
@@ -72,7 +77,7 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
-            let shape_handle = ShapeHandle::new(Cuboid::new(self.half_extents));
+            let shape_handle = ShapeHandle::new(Cuboid::new(*self.half_extents));
             collision_world.add(
                 ncollide2d::math::Isometry::new(position.position, 0.0),
                 shape_handle,
@@ -88,7 +93,7 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
 // Draw a circle at the component's current location. Will be affected by scale, if the scale
 // component exists
 //
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
+#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
 #[uuid = "e47f9943-d5bf-4e1b-9601-13e47d7b737c"]
 pub struct DrawSkiaCircleComponentDef {
     pub radius: f32,

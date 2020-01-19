@@ -4,7 +4,9 @@ use std::marker::PhantomData;
 
 const EDITOR_SELECTION_WORLD_MARGIN: f32 = 0.02;
 
+/// Any selectable component must implement this trait
 pub trait EditorSelectable: legion::storage::Component {
+    /// When called, the implementation is expected to place shapes into the collision world
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
@@ -13,6 +15,7 @@ pub trait EditorSelectable: legion::storage::Component {
     );
 }
 
+/// A trait object which allows dynamic dispatch into the selection implementation
 trait RegisteredEditorSelectableT: Send + Sync {
     fn create_editor_selection_world(
         &self,
@@ -21,6 +24,9 @@ trait RegisteredEditorSelectableT: Send + Sync {
     );
 }
 
+/// Implements the RegisteredEditorSelectableT trait object with code that can call
+/// create_editor_selection_world on T
+#[derive(Default)]
 struct RegisteredEditorSelectable<T> {
     phantom_data: PhantomData<T>,
 }
@@ -58,11 +64,14 @@ pub struct EditorSelectableRegistry {
 }
 
 impl EditorSelectableRegistry {
+    /// Adds a type to the registry, which allows components of these types to receive a callback
+    /// to insert shapes into the collision world used for selection
     pub fn register<T: EditorSelectable>(&mut self) {
         self.registered
             .push(Box::new(RegisteredEditorSelectable::<T>::new()));
     }
 
+    /// Produces a collision world that includes shapes associated with entities
     pub fn create_editor_selection_world(
         &self,
         world: &World,

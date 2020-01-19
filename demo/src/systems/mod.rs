@@ -27,6 +27,7 @@ pub use editor_systems::draw_selection_shapes;
 pub use editor_systems::editor_refresh_selection_world;
 pub use editor_systems::editor_entity_list_window;
 pub use editor_systems::editor_process_selection_ops;
+pub use editor_systems::editor_inspector_window;
 
 use legion::prelude::*;
 use legion::schedule::Builder;
@@ -137,6 +138,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .always(editor_keyboard_shortcuts)
         .always(editor_imgui_menu)
         .always(editor_entity_list_window)
+        .always(editor_inspector_window)
 
         // Editor processing
         .always_thread_local(editor_process_selection_ops)

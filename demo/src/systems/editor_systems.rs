@@ -12,7 +12,10 @@ use std::collections::HashMap;
 use ncollide2d::bounding_volume::AABB;
 use ncollide2d::world::CollisionWorld;
 
+use imgui_inspect_derive::Inspect;
+
 use crate::util::to_glm;
+use imgui_inspect::InspectRenderDefault;
 
 pub fn editor_refresh_selection_world(world: &mut World) {
     let mut selection_world = world
@@ -174,7 +177,7 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
             if window_options.show_entity_list {
                 imgui::Window::new(im_str!("Entity List"))
                     .position([0.0, 50.0], imgui::Condition::Once)
-                    .size([350.0, 300.0], imgui::Condition::Once)
+                    .size([350.0, 250.0], imgui::Condition::Once)
                     .build(ui, || {
                         let add_entity = ui.button(im_str!("\u{e8b1} Add"), [80.0, 0.0]);
                         ui.same_line_with_spacing(80.0, 10.0);
@@ -229,6 +232,48 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
             }
         })
     })
+}
+pub fn editor_inspector_window() -> Box<dyn Schedulable> {
+    SystemBuilder::new("editor_inspector_window")
+        .write_resource::<ImguiResource>()
+        .read_resource::<EditorStateResource>()
+        .write_resource::<EditorSelectionResource>()
+        .read_resource::<InputResource>()
+        .with_query(<(TryRead<()>)>::query())
+        .build(|_, world, (imgui_manager, editor_ui_state, editor_selection, input), all_query| {
+
+            imgui_manager.with_ui(|ui: &mut imgui::Ui| {
+                use imgui::im_str;
+
+                let window_options = editor_ui_state.window_options();
+
+                if window_options.show_entity_list {
+                    imgui::Window::new(im_str!("Inspector"))
+                        .position([0.0, 300.0], imgui::Condition::Once)
+                        .size([350.0, 300.0], imgui::Condition::Once)
+                        .build(ui, || {
+
+                            let mut test_value = TestInspect {
+                                float_value: 100.0
+                            };
+
+                            let world : &World = editor_selection.selected_entities_world();
+
+
+
+
+                            //<TestInspect as InspectRenderDefault<TestInspect>>::render_mut(&mut [&mut test_value], "TestInspect", ui, &Default::default());
+
+                        });
+                }
+            })
+        })
+}
+
+#[derive(Inspect)]
+struct TestInspect {
+    #[inspect_slider(min_value = 100.0, max_value = 500.0)]
+    float_value: f32
 }
 
 pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
