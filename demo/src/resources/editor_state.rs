@@ -56,15 +56,29 @@ pub enum EditorMode {
     Active,
 }
 
-struct OpenedPrefabState {
+pub struct OpenedPrefabState {
     uuid: AssetUuid,
     cooked_prefab: Arc<CookedPrefab>,
-    entity_mappings: HashMap<Entity, Entity>,
+    prefab_to_world_mappings: HashMap<Entity, Entity>,
+    world_to_prefab_mappings: HashMap<Entity, Entity>,
+}
+
+impl OpenedPrefabState {
+    pub fn cooked_prefab(&self) -> &Arc<CookedPrefab> {
+        &self.cooked_prefab
+    }
+
+    pub fn prefab_to_world_mappings(&self) -> &HashMap<Entity, Entity> {
+        &self.prefab_to_world_mappings
+    }
+
+    pub fn world_to_prefab_mappings(&self) -> &HashMap<Entity, Entity> {
+        &self.world_to_prefab_mappings
+    }
 }
 
 pub struct EditorStateResource {
     editor_mode: EditorMode,
-    selected_entities: HashSet<Entity>,
     window_options_running: WindowOptions,
     window_options_editing: WindowOptions,
     active_editor_tool: EditorTool,
@@ -75,12 +89,15 @@ impl EditorStateResource {
     pub fn new() -> Self {
         EditorStateResource {
             editor_mode: EditorMode::Inactive,
-            selected_entities: Default::default(),
             window_options_running: WindowOptions::new_runtime(),
             window_options_editing: WindowOptions::new_editing(),
             active_editor_tool: EditorTool::Translate,
             opened_prefab: None,
         }
+    }
+
+    pub fn opened_prefab(&self) -> Option<Arc<OpenedPrefabState>> {
+        self.opened_prefab.clone()
     }
 
     pub fn is_editor_active(&self) -> bool {
@@ -148,7 +165,8 @@ impl EditorStateResource {
             let opened_prefab = OpenedPrefabState {
                 uuid: prefab_uuid,
                 cooked_prefab: cooked_prefab,
-                entity_mappings: Default::default(),
+                prefab_to_world_mappings: Default::default(),
+                world_to_prefab_mappings: Default::default()
             };
             editor_state.opened_prefab = Some(Arc::new(opened_prefab));
         }
@@ -172,20 +190,26 @@ impl EditorStateResource {
 
         // If a prefab is opened, reset all the data
         if let Some(opened_prefab) = opened_prefab {
-            let mut result_mappings = HashMap::default();
+            let mut prefab_to_world_mappings = HashMap::default();
             let clone_impl = crate::create_spawn_clone_impl();
             world.clone_merge(
                 &opened_prefab.cooked_prefab.world,
                 &clone_impl,
-                Some(&opened_prefab.entity_mappings),
-                Some(&mut result_mappings),
+                Some(&opened_prefab.prefab_to_world_mappings),
+                Some(&mut prefab_to_world_mappings),
             );
+
+            let mut world_to_prefab_mappings = HashMap::with_capacity(prefab_to_world_mappings.len());
+            for (k, v) in &prefab_to_world_mappings {
+                world_to_prefab_mappings.insert(*v, *k);
+            }
 
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
             let new_opened_prefab = OpenedPrefabState {
                 uuid: opened_prefab.uuid,
                 cooked_prefab: opened_prefab.cooked_prefab.clone(),
-                entity_mappings: result_mappings,
+                prefab_to_world_mappings,
+                world_to_prefab_mappings
             };
 
             editor_state.opened_prefab = Some(Arc::new(new_opened_prefab));

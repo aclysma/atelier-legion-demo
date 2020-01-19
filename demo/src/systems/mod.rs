@@ -26,6 +26,7 @@ pub use editor_systems::editor_keyboard_shortcuts;
 pub use editor_systems::draw_selection_shapes;
 pub use editor_systems::editor_refresh_selection_world;
 pub use editor_systems::editor_entity_list_window;
+pub use editor_systems::editor_process_selection_ops;
 
 use legion::prelude::*;
 use legion::schedule::Builder;
@@ -129,11 +130,20 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .simulation_unpaused_only(update_physics)
         .simulation_unpaused_only(read_from_physics)
         // --- Editor stuff here ---
+        // Prepare to handle editor input
         .always_thread_local(editor_refresh_selection_world)
+
+        // Editor input
         .always(editor_keyboard_shortcuts)
         .always(editor_imgui_menu)
         .always(editor_entity_list_window)
+
+        // Editor processing
+        .always_thread_local(editor_process_selection_ops)
+
+        // Editor output
         .always(draw_selection_shapes)
+
         // --- End editor stuff ---
         .always(input_reset_for_next_frame)
         .build()

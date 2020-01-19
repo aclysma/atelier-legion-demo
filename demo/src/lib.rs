@@ -82,6 +82,12 @@ pub fn create_component_registry_by_uuid() -> HashMap<ComponentTypeUuid, Compone
     component_types
 }
 
+pub fn create_copy_clone_impl() -> CloneMergeImpl {
+    let component_registry = create_component_registry();
+    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
+    clone_merge_impl
+}
+
 pub fn create_spawn_clone_impl() -> CloneMergeImpl {
     let component_registry = create_component_registry();
     let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);

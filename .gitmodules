@@ -6,4 +6,4 @@
 	url = https://github.com/kabergstrom/legion.git
 [submodule "prefab"]
 	path = prefab
-	url = git@github.com:kabergstrom/prefab.git
+	url = https://github.com/kabergstrom/prefab.git

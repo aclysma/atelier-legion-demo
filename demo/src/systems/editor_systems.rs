@@ -1,6 +1,6 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 
@@ -209,14 +209,14 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
                                     if is_control_held {
                                         if !is_selected {
                                             // Add this entity
-                                            editor_selection.add_to_selection(e);
+                                            editor_selection.enqueue_add_to_selection(e);
                                         } else {
                                             //Remove this entity
-                                            editor_selection.remove_from_selection(e);
+                                            editor_selection.enqueue_remove_from_selection(e);
                                         }
                                     } else {
                                         // Select just this entity
-                                        editor_selection.set_selection(&[e]);
+                                        editor_selection.enqueue_set_selection(vec![e]);
                                     }
                                 }
                             }
@@ -272,7 +272,7 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
                 let results = editor_selection.editor_selection_world().interferences_with_point(&world_space, &collision_groups);
 
                 let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-                editor_selection.set_selection(&results);
+                editor_selection.enqueue_set_selection(results);
             } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
                 // Drag complete, check AABB
                 let target_position0: glm::Vec2 = viewport
@@ -303,7 +303,7 @@ pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
                     .interferences_with_aabb(&aabb, &collision_groups);
 
                 let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-                editor_selection.set_selection(&results);
+                editor_selection.enqueue_set_selection(results);
             } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
                 debug_draw.add_rect(
                     viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),
@@ -339,4 +339,8 @@ pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
                 }
             }
         })
+}
+
+pub fn editor_process_selection_ops(world: &mut World) {
+    EditorSelectionResource::process_selection_ops(world);
 }

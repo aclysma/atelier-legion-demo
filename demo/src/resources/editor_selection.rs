@@ -5,13 +5,21 @@ use std::marker::PhantomData;
 use std::collections::HashSet;
 use std::collections::HashMap;
 
+use crate::resources::{EditorStateResource, UniverseResource};
 use crate::selection::EditorSelectableRegistry;
+
+enum SelectionOp {
+    Add(Entity),
+    Remove(Entity),
+    Set(Vec<Entity>),
+    Clear
+}
 
 pub struct EditorSelectionResource {
     registry: EditorSelectableRegistry,
     editor_selection_world: CollisionWorld<f32, Entity>,
-    selected_entities: HashSet<Entity>
-
+    selected_entities: HashSet<Entity>,
+    pending_selection_ops: Vec<SelectionOp>
 }
 
 impl EditorSelectionResource {
@@ -23,7 +31,8 @@ impl EditorSelectionResource {
         EditorSelectionResource {
             registry,
             editor_selection_world,
-            selected_entities: Default::default()
+            selected_entities: Default::default(),
+            pending_selection_ops: Default::default()
         }
     }
 
@@ -53,30 +62,86 @@ impl EditorSelectionResource {
         Self::get_entity_aabbs(&self.selected_entities, &mut self.editor_selection_world)
     }
 
-    //TODO: These functions that change selection should probably be enqueued to run at a designated
-    // time in the update loop rather than processed immediately
-    pub fn add_to_selection(&mut self, entity: Entity) {
+    pub fn enqueue_add_to_selection(&mut self, entity: Entity) {
         log::info!("Remove entity {:?} from selection", entity);
-        self.selected_entities.insert(entity);
+        self.pending_selection_ops.push(SelectionOp::Add(entity));
     }
 
-    pub fn remove_from_selection(&mut self, entity: Entity) {
+    pub fn enqueue_remove_from_selection(&mut self, entity: Entity) {
         log::info!("Add entity {:?} to selection", entity);
-        self.selected_entities.remove(&entity);
+        self.pending_selection_ops.push(SelectionOp::Remove(entity));
     }
 
-    pub fn clear_selection(&mut self) {
+    pub fn enqueue_clear_selection(&mut self) {
         log::info!("Clear selection");
-        self.selected_entities.clear();
+        self.pending_selection_ops.push(SelectionOp::Clear);
     }
 
-    pub fn set_selection(&mut self, selected_entities: &[Entity]) {
+    pub fn enqueue_set_selection(&mut self, selected_entities: Vec<Entity>) {
         log::info!("Selected entities: {:?}", selected_entities);
-        self.selected_entities = selected_entities.iter().map(|x| *x).collect();
+        self.pending_selection_ops.push(SelectionOp::Set(selected_entities));
     }
 
     pub fn is_entity_selected(&self, entity: Entity) -> bool {
         self.selected_entities.contains(&entity)
+    }
+
+    pub fn process_selection_ops(
+        world: &mut World
+    ) {
+        let mut editor_selection = world.resources.get_mut::<EditorSelectionResource>().unwrap();
+        let editor_state = world.resources.get::<EditorStateResource>().unwrap();
+        let universe = world.resources.get::<UniverseResource>().unwrap();
+
+        let ops : Vec<_> = editor_selection.pending_selection_ops.drain(..).collect();
+
+        let mut changed = false;
+        for op in ops {
+            changed |= match op {
+                SelectionOp::Add(e) => editor_selection.selected_entities.insert(e),
+                SelectionOp::Remove(e) => editor_selection.selected_entities.remove(&e),
+                SelectionOp::Clear => if editor_selection.selected_entities.len() > 0 {
+                    editor_selection.selected_entities.clear();
+                    true
+                } else {
+                    false
+                },
+                SelectionOp::Set(entities) => {
+                    editor_selection.selected_entities = entities.iter().map(|x| *x).collect();
+                    true
+                }
+            }
+        }
+
+        if changed {
+            let prefab = editor_state.opened_prefab();
+            let clone_impl = crate::create_copy_clone_impl();
+
+            let mut world = universe.create_world();
+
+            if let Some(prefab) = prefab {
+                let prefab_world : &World = &prefab.cooked_prefab().world;
+
+                for e in &editor_selection.selected_entities {
+                    if let Some(prefab_entity) = prefab.world_to_prefab_mappings().get(e) {
+                        world.clone_merge_single(prefab_world, *prefab_entity, &clone_impl)
+                    }
+                }
+            }
+
+
+            println!("IMPORTER: iterate positions");
+            let query = <legion::prelude::Read<crate::components::Position2DComponent>>::query();
+            for pos in query.iter(&world) {
+                println!("position: {:?}", pos);
+            }
+
+            let query = <legion::prelude::Read<crate::components::DrawSkiaCircleComponentDef>>::query();
+            for circle in query.iter(&world) {
+                println!("skia circle: {:?}", circle);
+            }
+            println!("IMPORTER: done iterating positions");
+        }
     }
 
     // The main reason for having such a specific function here is that it's awkward for an external
