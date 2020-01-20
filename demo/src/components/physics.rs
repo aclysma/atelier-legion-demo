@@ -4,7 +4,7 @@ use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
 use crate::clone_merge::CloneMergeFrom;
-use glm::Vec2;
+use crate::math::Vec2;
 use crate::resources::PhysicsResource;
 use legion::prelude::*;
 use std::ops::Range;
@@ -55,19 +55,19 @@ fn transform_shape_to_rigid_body(
     let position = if let Some(position) = src_position {
         position.position
     } else {
-        glm::zero()
+        Vec2::zero()
     };
 
-    let mut collider_offset = glm::zero();
+    let mut collider_offset = Vec2::zero();
 
     // Build the rigid body.
     let rigid_body_handle = if is_static {
-        collider_offset += position;
+        *collider_offset += *position;
         physics.bodies.insert(nphysics2d::object::Ground::new())
     } else {
         physics.bodies.insert(
             nphysics2d::object::RigidBodyDesc::new()
-                .translation(position)
+                .translation(*position)
                 .build(),
         )
     };
@@ -75,7 +75,7 @@ fn transform_shape_to_rigid_body(
     // Build the collider.
     let collider = nphysics2d::object::ColliderDesc::new(shape_handle.clone())
         .density(1.0)
-        .translation(collider_offset)
+        .translation(*collider_offset)
         .build(nphysics2d::object::BodyPartHandle(rigid_body_handle, 0));
 
     // Insert the collider to the body set.

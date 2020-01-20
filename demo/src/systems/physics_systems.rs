@@ -21,7 +21,7 @@ pub fn read_from_physics() -> Box<dyn Schedulable> {
         .build(|_, mut world, physics, query| {
             for (mut pos, body) in query.iter_mut(&mut world) {
                 if let Some(rigid_body) = physics.bodies.rigid_body(body.handle) {
-                    pos.position = rigid_body.position().translation.vector
+                    pos.position = rigid_body.position().translation.vector.into()
                 }
             }
         })

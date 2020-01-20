@@ -3,14 +3,25 @@ use legion::prelude::*;
 
 use std::marker::PhantomData;
 
+use skulpin::imgui::Ui;
 use imgui_inspect::InspectRenderStruct;
+use imgui_inspect::InspectArgsStruct;
 
 /// A trait object which allows dynamic dispatch into the selection implementation
 trait RegisteredEditorInspectorT: Send + Sync {
-    fn create_editor_selection_world(
+    fn render(
         &self,
         world: &World,
+        ui: &Ui,
+        args: &InspectArgsStruct
     );
+
+    fn render_mut(
+        &self,
+        world: &mut World,
+        ui: &Ui,
+        args: &InspectArgsStruct
+    ) -> bool;
 }
 
 /// Implements the RegisteredEditorSelectableT trait object with code that can call
@@ -35,14 +46,29 @@ impl<T> RegisteredEditorInspectorT for RegisteredEditorInspector<T>
     where
         T: InspectRenderStruct<T> + legion::storage::Component,
 {
-    fn create_editor_selection_world(
+    fn render(
         &self,
         world: &World,
+        ui: &Ui,
+        args: &InspectArgsStruct
     ) {
-//        let query = <Read<T>>::query();
-//        for (entity, t) in query.iter_entities(world) {
-//            t.create_editor_selection_world(collision_world, world, entity);
-//        }
+        let values = world.get_all_components::<T>();
+        let slice = values.as_slice();
+
+        <T as InspectRenderStruct<T>>::render(slice, core::any::type_name::<T>(), ui, args);
+
+    }
+
+    fn render_mut(
+        &self,
+        world: &mut World,
+        ui: &Ui,
+        args: &InspectArgsStruct
+    ) -> bool {
+        let mut values = world.get_all_components_mut::<T>();
+        let mut slice = values.as_mut_slice();
+
+        <T as InspectRenderStruct<T>>::render_mut(slice, core::any::type_name::<T>(), ui, args)
     }
 }
 
@@ -59,16 +85,28 @@ impl EditorInspectRegistry {
             .push(Box::new(RegisteredEditorInspector::<T>::new()));
     }
 
-//    /// Produces a collision world that includes shapes associated with entities
-//    pub fn create_editor_selection_world(
-//        &self,
-//        world: &World,
-//    ) -> CollisionWorld<f32, Entity> {
-//        let mut collision_world = CollisionWorld::<f32, Entity>::new(EDITOR_SELECTION_WORLD_MARGIN);
-//        for r in &self.registered {
-//            r.create_editor_selection_world(&mut collision_world, &world);
-//        }
-//
-//        collision_world
-//    }
+    pub fn render(
+        &self,
+        world: &World,
+        ui: &Ui,
+        args: &InspectArgsStruct
+    ) {
+        for r in &self.registered {
+            r.render(world, ui, args);
+        }
+    }
+
+    pub fn render_mut(
+        &self,
+        world: &mut World,
+        ui: &Ui,
+        args: &InspectArgsStruct
+    ) -> bool {
+        let mut changed = false;
+        for r in &self.registered {
+            changed |= r.render_mut(world, ui, args);
+        }
+
+        changed
+    }
 }

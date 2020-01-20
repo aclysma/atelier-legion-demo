@@ -233,41 +233,42 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
         })
     })
 }
-pub fn editor_inspector_window() -> Box<dyn Schedulable> {
-    SystemBuilder::new("editor_inspector_window")
-        .write_resource::<ImguiResource>()
-        .read_resource::<EditorStateResource>()
-        .write_resource::<EditorSelectionResource>()
-        .read_resource::<InputResource>()
-        .with_query(<(TryRead<()>)>::query())
-        .build(|_, world, (imgui_manager, editor_ui_state, editor_selection, input), all_query| {
 
-            imgui_manager.with_ui(|ui: &mut imgui::Ui| {
-                use imgui::im_str;
+pub fn editor_inspector_window(world: &mut World) {
+    let mut selection_world = world
+        .resources
+        .get::<EditorSelectionResource>()
+        .unwrap();
 
-                let window_options = editor_ui_state.window_options();
+    let mut imgui_manager = world
+        .resources
+        .get::<ImguiResource>()
+        .unwrap();
 
-                if window_options.show_entity_list {
-                    imgui::Window::new(im_str!("Inspector"))
-                        .position([0.0, 300.0], imgui::Condition::Once)
-                        .size([350.0, 300.0], imgui::Condition::Once)
-                        .build(ui, || {
+    let mut editor_ui_state = world
+        .resources
+        .get::<EditorStateResource>()
+        .unwrap();
 
-                            let mut test_value = TestInspect {
-                                float_value: 100.0
-                            };
+    imgui_manager.with_ui(|ui: &mut imgui::Ui| {
+        use imgui::im_str;
 
-                            let world : &World = editor_selection.selected_entities_world();
+        let window_options = editor_ui_state.window_options();
 
+        if window_options.show_entity_list {
+            imgui::Window::new(im_str!("Inspector"))
+                .position([0.0, 300.0], imgui::Condition::Once)
+                .size([350.0, 300.0], imgui::Condition::Once)
+                .build(ui, || {
+                    let registry = crate::create_editor_inspector_registry();
 
+                    //let selected_world : &World = selection_world.selected_entities_world();
+                    //registry.render(selected_world, ui, &Default::default());
 
-
-                            //<TestInspect as InspectRenderDefault<TestInspect>>::render_mut(&mut [&mut test_value], "TestInspect", ui, &Default::default());
-
-                        });
-                }
-            })
-        })
+                    registry.render(world, ui, &Default::default());
+                });
+        }
+    })
 }
 
 #[derive(Inspect)]

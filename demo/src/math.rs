@@ -11,6 +11,20 @@ pub struct Vec2 {
     value: glm::Vec2
 }
 
+impl Vec2 {
+    pub fn zero() -> Self {
+        Vec2 {
+            value: glm::zero()
+        }
+    }
+}
+
+impl From<glm::Vec2> for Vec2 {
+    fn from(value: glm::Vec2) -> Self {
+        Vec2 { value }
+    }
+}
+
 impl Deref for Vec2 {
     type Target = glm::Vec2;
 
@@ -77,6 +91,20 @@ impl InspectRenderDefault<Vec2> for Vec2 {
 #[serde(transparent)]
 pub struct Vec4 {
     value: glm::Vec4
+}
+
+impl Vec4 {
+    pub fn zero() -> Self {
+        Vec4 {
+            value: glm::zero()
+        }
+    }
+}
+
+impl From<glm::Vec4> for Vec4 {
+    fn from(value: glm::Vec4) -> Self {
+        Vec4 { value }
+    }
 }
 
 impl Deref for Vec4 {

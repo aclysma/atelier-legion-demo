@@ -79,7 +79,7 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
             let shape_handle = ShapeHandle::new(Cuboid::new(*self.half_extents));
             collision_world.add(
-                ncollide2d::math::Isometry::new(position.position, 0.0),
+                ncollide2d::math::Isometry::new(*position.position, 0.0),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),
@@ -127,7 +127,7 @@ impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
             let shape_handle = ShapeHandle::new(Ball::new(self.radius));
             collision_world.add(
-                ncollide2d::math::Isometry::new(position.position, 0.0),
+                ncollide2d::math::Isometry::new(*position.position, 0.0),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),

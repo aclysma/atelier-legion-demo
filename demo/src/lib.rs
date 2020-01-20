@@ -115,6 +115,7 @@ pub fn create_editor_inspector_registry() -> EditorInspectRegistry {
     let mut registry = EditorInspectRegistry::default();
     registry.register::<DrawSkiaCircleComponentDef>();
     registry.register::<DrawSkiaBoxComponentDef>();
+    registry.register::<Position2DComponent>();
     registry
 }
 
