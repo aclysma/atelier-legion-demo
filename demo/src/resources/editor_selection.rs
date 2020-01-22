@@ -137,18 +137,7 @@ impl EditorSelectionResource {
                 }
             }
 
-
-            println!("IMPORTER: iterate positions");
-            let query = <legion::prelude::Read<crate::components::Position2DComponent>>::query();
-            for pos in query.iter(&world) {
-                println!("position: {:?}", pos);
-            }
-
-            let query = <legion::prelude::Read<crate::components::DrawSkiaCircleComponentDef>>::query();
-            for circle in query.iter(&world) {
-                println!("skia circle: {:?}", circle);
-            }
-            println!("IMPORTER: done iterating positions");
+            editor_selection.selected_entities_world = world;
         }
     }
 

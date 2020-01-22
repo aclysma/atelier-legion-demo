@@ -262,10 +262,10 @@ pub fn editor_inspector_window(world: &mut World) {
                 .build(ui, || {
                     let registry = crate::create_editor_inspector_registry();
 
-                    //let selected_world : &World = selection_world.selected_entities_world();
-                    //registry.render(selected_world, ui, &Default::default());
+                    let selected_world : &World = selection_world.selected_entities_world();
+                    registry.render_mut(selected_world, ui, &Default::default());
 
-                    registry.render(world, ui, &Default::default());
+                    //registry.render_mut(world, ui, &Default::default());
                 });
         }
     })

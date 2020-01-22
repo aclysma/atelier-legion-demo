@@ -18,7 +18,7 @@ trait RegisteredEditorInspectorT: Send + Sync {
 
     fn render_mut(
         &self,
-        world: &mut World,
+        world: &World,
         ui: &Ui,
         args: &InspectArgsStruct
     ) -> bool;
@@ -55,20 +55,25 @@ impl<T> RegisteredEditorInspectorT for RegisteredEditorInspector<T>
         let values = world.get_all_components::<T>();
         let slice = values.as_slice();
 
-        <T as InspectRenderStruct<T>>::render(slice, core::any::type_name::<T>(), ui, args);
-
+        if !slice.is_empty() {
+            <T as InspectRenderStruct<T>>::render(slice, core::any::type_name::<T>(), ui, args);
+        }
     }
 
     fn render_mut(
         &self,
-        world: &mut World,
+        world: &World,
         ui: &Ui,
         args: &InspectArgsStruct
     ) -> bool {
         let mut values = world.get_all_components_mut::<T>();
         let mut slice = values.as_mut_slice();
 
-        <T as InspectRenderStruct<T>>::render_mut(slice, core::any::type_name::<T>(), ui, args)
+        if !slice.is_empty() {
+            <T as InspectRenderStruct<T>>::render_mut(slice, core::any::type_name::<T>(), ui, args)
+        } else {
+            false
+        }
     }
 }
 
@@ -98,7 +103,7 @@ impl EditorInspectRegistry {
 
     pub fn render_mut(
         &self,
-        world: &mut World,
+        world: &World,
         ui: &Ui,
         args: &InspectArgsStruct
     ) -> bool {
