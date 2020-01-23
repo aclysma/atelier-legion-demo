@@ -28,6 +28,7 @@ pub use editor_systems::editor_refresh_selection_world;
 pub use editor_systems::editor_entity_list_window;
 pub use editor_systems::editor_process_selection_ops;
 pub use editor_systems::editor_inspector_window;
+pub use editor_systems::reload_editor_state_if_file_changed;
 
 use legion::prelude::*;
 use legion::schedule::Builder;
@@ -128,13 +129,14 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .always(quit_if_escape_pressed)
         .always(update_asset_manager)
         .always(update_fps_text)
-        .simulation_unpaused_only(update_physics)
+        .always(update_physics)
         .simulation_unpaused_only(read_from_physics)
         // --- Editor stuff here ---
         // Prepare to handle editor input
         .always_thread_local(editor_refresh_selection_world)
 
         // Editor input
+        .always_thread_local(reload_editor_state_if_file_changed)
         .always(editor_keyboard_shortcuts)
         .always(editor_imgui_menu)
         .always(editor_entity_list_window)

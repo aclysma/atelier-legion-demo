@@ -263,9 +263,12 @@ pub fn editor_inspector_window(world: &mut World) {
                     let registry = crate::create_editor_inspector_registry();
 
                     let selected_world : &World = selection_world.selected_entities_world();
-                    registry.render_mut(selected_world, ui, &Default::default());
+                    if registry.render_mut(selected_world, ui, &Default::default()) {
+                        // Something changed
 
-                    //registry.render_mut(world, ui, &Default::default());
+                    }
+
+
                 });
         }
     })
@@ -389,4 +392,8 @@ pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
 
 pub fn editor_process_selection_ops(world: &mut World) {
     EditorSelectionResource::process_selection_ops(world);
+}
+
+pub fn reload_editor_state_if_file_changed(world: &mut World) {
+    EditorStateResource::hot_reload_if_asset_changed(world);
 }

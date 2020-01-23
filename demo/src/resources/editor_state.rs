@@ -6,6 +6,8 @@ use atelier_core::AssetUuid;
 use legion_prefab::CookedPrefab;
 use std::sync::Arc;
 use crate::resources::time::TimeState;
+use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
+use crate::pipeline::PrefabAsset;
 
 pub struct WindowOptions {
     pub show_imgui_metrics: bool,
@@ -58,6 +60,8 @@ pub enum EditorMode {
 
 pub struct OpenedPrefabState {
     uuid: AssetUuid,
+    version: u32,
+    prefab_handle: atelier_loader::handle::Handle<PrefabAsset>,
     cooked_prefab: Arc<CookedPrefab>,
     prefab_to_world_mappings: HashMap<Entity, Entity>,
     world_to_prefab_mappings: HashMap<Entity, Entity>,
@@ -149,6 +153,19 @@ impl EditorStateResource {
             let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
             let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
 
+            use atelier_loader::Loader;
+            use atelier_loader::handle::AssetHandle;
+
+            let load_handle = asset_resource.loader().add_ref(prefab_uuid);
+            let handle = atelier_loader::handle::Handle::<crate::pipeline::PrefabAsset>::new(asset_resource.tx().clone(), load_handle);
+
+            let version = loop {
+                asset_resource.update();
+                if let atelier_loader::LoadStatus::Loaded = handle.load_status::<atelier_loader::rpc_loader::RpcLoader>(asset_resource.loader()) {
+                    break handle.asset_version::<PrefabAsset, _>(asset_resource.storage()).unwrap()
+                }
+            };
+
             // Load the uncooked prefab from disk and cook it. (Eventually this will be handled
             // during atelier's build step
             let cooked_prefab = Arc::new(crate::prefab_cooking::cook_prefab(
@@ -164,9 +181,11 @@ impl EditorStateResource {
             // a handle to it.
             let opened_prefab = OpenedPrefabState {
                 uuid: prefab_uuid,
-                cooked_prefab: cooked_prefab,
+                version,
+                prefab_handle: handle,
+                cooked_prefab,
                 prefab_to_world_mappings: Default::default(),
-                world_to_prefab_mappings: Default::default()
+                world_to_prefab_mappings: Default::default(),
             };
             editor_state.opened_prefab = Some(Arc::new(opened_prefab));
         }
@@ -208,6 +227,8 @@ impl EditorStateResource {
             let new_opened_prefab = OpenedPrefabState {
                 uuid: opened_prefab.uuid,
                 cooked_prefab: opened_prefab.cooked_prefab.clone(),
+                prefab_handle: opened_prefab.prefab_handle.clone(),
+                version: opened_prefab.version,
                 prefab_to_world_mappings,
                 world_to_prefab_mappings
             };
@@ -279,5 +300,31 @@ impl EditorStateResource {
             editor_state.active_editor_tool = editor_tool;
             log::info!("Editor tool changed to {:?}", editor_tool);
         })
+    }
+
+    pub fn hot_reload_if_asset_changed(world: &mut World) {
+        // See if we need to reload by comparing the prefab asset's version with the cooked prefab's version
+        let mut prefab_to_reload = None;
+        {
+            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+            if let Some(opened_prefab) = &editor_state.opened_prefab {
+                let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
+                let version = opened_prefab.prefab_handle.asset_version::<PrefabAsset, _>(asset_resource.storage()).unwrap();
+                if opened_prefab.version != version {
+                    prefab_to_reload = Some(opened_prefab.clone());
+                }
+            }
+        }
+
+        if let Some(prefab_to_reload) = prefab_to_reload {
+            // Delete the old stuff from the world
+            for x in prefab_to_reload.prefab_to_world_mappings.values() {
+                world.delete(*x);
+            }
+
+            // re-cook and load the prefab
+            Self::open_prefab(world, prefab_to_reload.uuid);
+        }
+
     }
 }

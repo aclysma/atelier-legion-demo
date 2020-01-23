@@ -1,6 +1,6 @@
 use legion::prelude::*;
 
-use crate::resources::PhysicsResource;
+use crate::resources::{PhysicsResource, TimeResource};
 
 use crate::components::Position2DComponent;
 use crate::components::RigidBodyComponent;
@@ -9,8 +9,13 @@ pub fn update_physics() -> Box<dyn Schedulable> {
     // Do a physics simulation timestep
     SystemBuilder::new("update physics")
         .write_resource::<PhysicsResource>()
-        .build(|_, _, physics, _| {
-            physics.step();
+        .read_resource::<TimeResource>()
+        .build(|_, _, (physics, time), _| {
+            if time.is_simulation_paused() {
+                physics.maintain()
+            } else {
+                physics.step();
+            }
         })
 }
 

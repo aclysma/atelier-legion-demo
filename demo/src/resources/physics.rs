@@ -1,5 +1,5 @@
 use glm::Vec2;
-use nphysics2d::object::{DefaultBodySet, DefaultColliderSet, DefaultBodyHandle};
+use nphysics2d::object::{DefaultBodySet, DefaultColliderSet, DefaultBodyHandle, DefaultColliderHandle};
 use nphysics2d::force_generator::DefaultForceGeneratorSet;
 use nphysics2d::joint::DefaultJointConstraintSet;
 use nphysics2d::world::{DefaultMechanicalWorld, DefaultGeometricalWorld};
@@ -46,11 +46,40 @@ impl PhysicsResource {
         &self.delete_body_tx
     }
 
-    pub fn step(&mut self) {
+    fn handle_deletes(&mut self) {
         // Delete any bodies that were destroyed since the previous update
         for body_to_delete in self.delete_body_rx.try_iter() {
             self.bodies.remove(body_to_delete);
+
+            // This is a workaround for this issue: https://github.com/rustsim/nphysics/issues/248
+            // It's not a long term fix since a linear search across all colliders to find the ones
+            // attached to this body is expensive. This is only necessary if creating/destroying
+            // entities between calls to step() or maintain()
+//            let mut colliders_to_remove = vec![];
+//            for (collider_handle, collider) in self.colliders.iter() {
+//                if collider.body() == body_to_delete {
+//                    colliders_to_remove.push(collider_handle);
+//                }
+//            }
+//
+//            for collider_to_remove in colliders_to_remove {
+//                self.colliders.remove(collider_to_remove);
+//            }
         }
+    }
+
+    pub fn maintain(&mut self) {
+        self.handle_deletes();
+
+        self.mechanical_world.maintain(
+            &mut self.geometrical_world,
+            &mut self.bodies,
+            &mut self.colliders,
+            &mut self.joint_constraints);
+    }
+
+    pub fn step(&mut self) {
+        self.handle_deletes();
 
         // Run the simulation.
         self.mechanical_world.step(
@@ -60,5 +89,6 @@ impl PhysicsResource {
             &mut self.joint_constraints,
             &mut self.force_generators,
         );
+
     }
 }
