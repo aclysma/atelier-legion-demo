@@ -16,6 +16,8 @@ use imgui_inspect_derive::Inspect;
 
 use crate::util::to_glm;
 use imgui_inspect::InspectRenderDefault;
+use crate::pipeline::PrefabAsset;
+use prefab_format::EntityUuid;
 
 pub fn editor_refresh_selection_world(world: &mut World) {
     let mut selection_world = world
@@ -250,6 +252,12 @@ pub fn editor_inspector_window(world: &mut World) {
         .get::<EditorStateResource>()
         .unwrap();
 
+    let mut universe_resource = world
+        .resources
+        .get::<UniverseResource>()
+        .unwrap();
+
+    let mut change_detected = false;
     imgui_manager.with_ui(|ui: &mut imgui::Ui| {
         use imgui::im_str;
 
@@ -264,14 +272,99 @@ pub fn editor_inspector_window(world: &mut World) {
 
                     let selected_world : &World = selection_world.selected_entities_world();
                     if registry.render_mut(selected_world, ui, &Default::default()) {
-                        // Something changed
-
+                        change_detected = true;
                     }
-
-
                 });
         }
-    })
+    });
+
+    // As a temporary solution, combine the selected entities with the data from the prefab that was
+    // opened and write it to disk as a new prefab
+    if change_detected {
+        // Create an empty world to populate
+        let mut new_world = universe_resource.universe.create_world();
+
+        // We want to do plain copies of all the data
+        let clone_impl = crate::create_copy_clone_impl();
+
+        // Get the opened prefab
+        if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
+            // We want to preserve entity UUIDs so we need to insert mappings here as we copy data
+            // into the new world
+            let mut new_entity_to_uuid : HashMap<Entity, EntityUuid> = HashMap::default();
+
+            // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
+            use std::iter::FromIterator;
+            let prefab_entity_to_uuid : HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+            // Copy everything from the opened prefab into the new world as a baseline
+            let mut result_mappings = Default::default();
+            new_world.clone_merge(
+                &opened_prefab.cooked_prefab().world,
+                &clone_impl,
+                None,
+                Some(&mut result_mappings)
+            );
+
+            // Populate new_entity_to_uuid. To do this, we follow the [Prefab World]->[New World] mappings
+            // held by result_mappings
+            for (uuid, prefab_entity) in &opened_prefab.cooked_prefab().entities {
+                let new_world_entity = result_mappings.get(prefab_entity).unwrap();
+                new_entity_to_uuid.insert(*new_world_entity, *uuid);
+            }
+
+            // Now we will overwrite the data for all entities that have been selected. To do this,
+            // we need to create a lookup of the selection world entity to the entity in the new
+            // world. We do this by following mappings from [Selection World]->[Prefab World]->[New World]
+            let mut replace_mappings = HashMap::new();
+            for (selected_entity, prefab_entity) in selection_world.selected_to_prefab_entity() {
+                if let Some(new_world_entity) = result_mappings.get(prefab_entity) {
+                    replace_mappings.insert(*selected_entity, *new_world_entity);
+                }
+            }
+
+            new_world.clone_merge(
+                selection_world.selected_entities_world(),
+                &clone_impl,
+                Some(&replace_mappings),
+                //Some(&mut result_mappings)
+                None
+            );
+
+            let uuid_to_new_entity : HashMap<EntityUuid, Entity> = HashMap::from_iter(new_entity_to_uuid.iter().map(|(k, v)| (*v, *k)));
+
+            for (k, _) in &uuid_to_new_entity {
+                debug_assert!(opened_prefab.cooked_prefab().entities.get(k).is_some());
+            }
+
+            //TODO: Preserve entity UUIDs
+            let prefab_meta = legion_prefab::PrefabMeta {
+                id: opened_prefab.uuid().0,
+                prefab_refs: Default::default(),
+                entities: uuid_to_new_entity
+            };
+
+            let prefab = legion_prefab::Prefab {
+                world: new_world,
+                prefab_meta
+            };
+
+            //TEMP: Directly save to disk over the old prefab file and let hot-reload apply the changes
+            let registered_components = crate::create_component_registry_by_uuid();
+            let prefab_serde_context = legion_prefab::PrefabSerdeContext {
+                registered_components,
+            };
+
+            let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
+            let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &prefab);
+            prefab_format::serialize(&mut ron_ser, &prefab_ser, prefab.prefab_id()).expect("failed to round-trip prefab");
+            let output = ron_ser.into_output_string();
+            println!("Exporting prefab:");
+            println!("{}", output);
+
+            std::fs::write("assets/demo_level.prefab", output);
+        }
+    }
 }
 
 #[derive(Inspect)]

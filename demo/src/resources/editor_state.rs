@@ -1,6 +1,6 @@
 use std::collections::{HashSet, HashMap};
 use legion::prelude::*;
-use crate::resources::{TimeResource, AssetResource, UniverseResource};
+use crate::resources::{TimeResource, AssetResource, UniverseResource, EditorSelectionResource};
 use crate::resources::SimulationTimePauseReason;
 use atelier_core::AssetUuid;
 use legion_prefab::CookedPrefab;
@@ -78,6 +78,10 @@ impl OpenedPrefabState {
 
     pub fn world_to_prefab_mappings(&self) -> &HashMap<Entity, Entity> {
         &self.world_to_prefab_mappings
+    }
+
+    pub fn uuid(&self) -> &AssetUuid {
+        &self.uuid
     }
 }
 
@@ -317,6 +321,21 @@ impl EditorStateResource {
         }
 
         if let Some(prefab_to_reload) = prefab_to_reload {
+            let mut selected_uuids = HashSet::new();
+
+            {
+                // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
+                use std::iter::FromIterator;
+                let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(prefab_to_reload.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+                // Iterate all selected prefab entities
+                let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
+                for (_, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
+                    // Insert the UUID into selected_uuids
+                    selected_uuids.insert(prefab_entity_to_uuid[prefab_entity]);
+                }
+            }
+
             // Delete the old stuff from the world
             for x in prefab_to_reload.prefab_to_world_mappings.values() {
                 world.delete(*x);
@@ -324,7 +343,18 @@ impl EditorStateResource {
 
             // re-cook and load the prefab
             Self::open_prefab(world, prefab_to_reload.uuid);
-        }
 
+            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+            let mut selected_entities : HashSet<Entity> = HashSet::default();
+            for selected_uuid in selected_uuids {
+                if let Some(entity) = &editor_state.opened_prefab.as_ref().unwrap().cooked_prefab.entities.get(&selected_uuid) {
+                    selected_entities.insert(**entity);
+                }
+            }
+
+            let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
+            editor_selection_resource.enqueue_set_selection(selected_entities.into_iter().collect());
+
+        }
     }
 }
