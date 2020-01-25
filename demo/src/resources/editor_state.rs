@@ -347,14 +347,16 @@ impl EditorStateResource {
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
             let mut selected_entities : HashSet<Entity> = HashSet::default();
             for selected_uuid in selected_uuids {
-                if let Some(entity) = &editor_state.opened_prefab.as_ref().unwrap().cooked_prefab.entities.get(&selected_uuid) {
-                    selected_entities.insert(**entity);
+                if let Some(opened_prefab) = editor_state.opened_prefab.as_ref() {
+                    if let Some(prefab_entity) = &opened_prefab.cooked_prefab.entities.get(&selected_uuid) {
+                        let world_entity = opened_prefab.prefab_to_world_mappings[prefab_entity];
+                        selected_entities.insert(world_entity);
+                    }
                 }
             }
 
             let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
             editor_selection_resource.enqueue_set_selection(selected_entities.into_iter().collect());
-
         }
     }
 }
