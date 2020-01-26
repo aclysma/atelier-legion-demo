@@ -336,7 +336,7 @@ pub fn init_imgui_manager(window: &winit::window::Window) -> skulpin::ImguiManag
     imgui_platform.attach_window(
         imgui_context.io_mut(),
         &window,
-        imgui_winit_support::HiDpiMode::Rounded,
+        imgui_winit_support::HiDpiMode::Locked(window.hidpi_factor()),
     );
 
     skulpin::ImguiManager::new(imgui_context, imgui_platform)
