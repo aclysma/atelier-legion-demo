@@ -121,7 +121,6 @@ impl App {
         };
 
         let imgui_manager = init_imgui_manager(&window);
-        imgui_manager.begin_frame(&window);
 
         let renderer_result = renderer_builder.build(&window, imgui_manager.clone());
         let mut renderer = match renderer_result {
@@ -199,10 +198,19 @@ impl App {
             // Handle general update/redraw events
             match event {
                 winit::event::Event::MainEventsCleared => {
+                    {
+                        let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
+                        imgui_manager.begin_frame(&window);
+                    }
                     app_handler.update(&mut world);
 
                     // Queue a RedrawRequested event.
                     window.request_redraw();
+
+                    {
+                        let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
+                        imgui_manager.render(&window);
+                    }
                 }
                 winit::event::Event::RedrawRequested(_window_id) => {
                     let imgui_manager = world.resources.get::<ImguiResource>().unwrap().clone();

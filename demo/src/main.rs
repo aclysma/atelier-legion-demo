@@ -29,7 +29,8 @@ fn main() {
     let example_app = DemoApp::new();
     let renderer_builder = skulpin::RendererBuilder::new()
         .app_name(CString::new("Skulpin Example App").unwrap())
-        .use_vulkan_debug_layer(true);
+        .use_vulkan_debug_layer(true)
+        .imgui_update_mode(skulpin::ImguiUpdateMode::UserControlled);
 
     atelier_legion_demo::app::App::run(
         example_app,
