@@ -210,29 +210,3 @@ fn request_prefab_dependency(
     prefab_lookup.insert(id, handle);
     prefab_cook_order.push(id);
 }
-
-// bincode API requires us to implement an acceptor in order to get a deserializer impl. We need
-// the impl so that we can pass it to legion::de::deserialize()
-struct ApplyComponentDiffDeserializerAcceptor<'b, 'c> {
-    //world: &'b mut World,
-    //deserialize_impl: &'c legion_prefab::DeserializeImpl
-    component_registration: &'b ComponentRegistration,
-    world: &'c mut World,
-    entity: Entity,
-}
-
-impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a>
-    for ApplyComponentDiffDeserializerAcceptor<'b, 'c>
-{
-    type Output = ();
-
-    //TODO: Error handling needs to be passed back out
-    fn accept<T: serde::Deserializer<'a>>(
-        self,
-        de: T,
-    ) -> Self::Output {
-        let mut de = erased_serde::Deserializer::erase(de);
-        self.component_registration
-            .apply_diff(&mut de, self.world, self.entity);
-    }
-}

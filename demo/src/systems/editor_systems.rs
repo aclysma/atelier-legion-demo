@@ -17,7 +17,8 @@ use imgui_inspect_derive::Inspect;
 use crate::util::to_glm;
 use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
-use prefab_format::EntityUuid;
+use prefab_format::{EntityUuid, ComponentTypeUuid};
+use legion_prefab::CookedPrefab;
 
 pub fn editor_refresh_selection_world(world: &mut World) {
     let mut selection_world = world
@@ -236,6 +237,64 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
     })
 }
 
+struct ComponentDiff {
+    entity_uuid: EntityUuid,
+    component_type: ComponentTypeUuid,
+    data: Vec<u8>
+}
+
+struct DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e> {
+    component_registration: &'b legion_prefab::ComponentRegistration,
+    src_world: &'c World,
+    src_entity: Entity,
+    dst_world: &'d World,
+    dst_entity: Entity,
+    has_changes: &'e mut bool
+
+}
+
+impl<'b, 'c, 'd, 'e> bincode::SerializerAcceptor
+for DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e>
+{
+    type Output = ();
+
+    //TODO: Error handling needs to be passed back out
+    fn accept<T: serde::Serializer>(
+        mut self,
+        ser: T,
+    ) -> Self::Output
+        where T::Ok: 'static
+    {
+        let mut ser_erased = erased_serde::Serializer::erase(ser);
+        *self.has_changes = self.component_registration
+            .diff_single(&mut ser_erased, self.src_world, self.src_entity, self.dst_world, self.dst_entity);
+    }
+}
+
+
+struct ApplyDiffDeserializerAcceptor<'b, 'c> {
+    component_registration: &'b legion_prefab::ComponentRegistration,
+    world: &'c mut World,
+    entity: Entity,
+
+}
+
+impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a>
+for ApplyDiffDeserializerAcceptor<'b, 'c>
+{
+    type Output = ();
+
+    //TODO: Error handling needs to be passed back out
+    fn accept<T: serde::Deserializer<'a>>(
+        mut self,
+        de: T,
+    ) -> Self::Output
+    {
+        let mut de_erased = erased_serde::Deserializer::erase(de);
+        self.component_registration.apply_diff(&mut de_erased, self.world, self.entity);
+    }
+}
+
 pub fn editor_inspector_window(world: &mut World) {
     let mut selection_world = world
         .resources
@@ -278,180 +337,187 @@ pub fn editor_inspector_window(world: &mut World) {
         }
     });
 
-    if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
-        let registered_components = crate::create_component_registry_by_uuid();
-        for (selected_entity, prefab_entity) in selection_world.selected_to_prefab_entity() {
-            let selected_world = selection_world.selected_entities_world();
-            let prefab_world = &opened_prefab.cooked_prefab().world;
-
-            // Do diffs for each component type
-            for (component_type, registration) in &registered_components {
-
-                // bincode - DiffSingleSerializerAcceptor doesn't compile without adding a trait bound to bincode
-                {
-                    let mut has_changes = false;
-                    let acceptor = DiffSingleSerializerAcceptor {
-                        component_registration: &registration,
-                        src_world: prefab_world,
-                        src_entity: *prefab_entity,
-                        dst_world: selected_world,
-                        dst_entity: *selected_entity,
-                        has_changes: &mut has_changes
-                    };
-                    let mut buffer = vec![];
-                    bincode::with_serializer(&mut buffer, acceptor);
-
-                    if has_changes {
-                        println!("Buffer has {} bytes", buffer.len());
-                    }
-                }
-
-/*
-                // Requires making more stuff public in bincode
-                {
-                    let mut buffer = vec![];
-                    let mut ser = bincode::Serializer::new(&mut buffer, bincode::DefaultOptions::new());
-                    let mut erased_ser = erased_serde::Serializer::erase(&mut ser);
-                    registration.diff_single(&mut erased_ser, prefab_world, *prefab_entity, selected_world, *selected_entity);
-                    if !buffer.is_empty() {
-                        println!("Buffer has {} bytes", buffer.len());
-                    }
-                }
-*/
-
-                /*
-                // ron - kind of works
-                {
-                    let mut ser = ron::ser::Serializer::new(None, false);
-                    let mut erased_ser = erased_serde::Serializer::erase(&mut ser);
-                    registration.diff_single(&mut erased_ser, prefab_world, *prefab_entity, selected_world, *selected_entity);
-                    let s = ser.into_output_string();
-                    if !s.is_empty() && s != "[]" {
-                        println!("diff was {}", s);
-                    }
-                }
-*/
-            }
-        }
-    }
-
-    // As a temporary solution, combine the selected entities with the data from the prefab that was
-    // opened and write it to disk as a new prefab
     if change_detected {
-        // Create an empty world to populate
-        let mut new_world = universe_resource.universe.create_world();
-
-        // We want to do plain copies of all the data
-        let clone_impl = crate::create_copy_clone_impl();
-
-        // Get the opened prefab
         if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
-            // We want to preserve entity UUIDs so we need to insert mappings here as we copy data
-            // into the new world
-            let mut new_entity_to_uuid : HashMap<Entity, EntityUuid> = HashMap::default();
-
-            // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
-            use std::iter::FromIterator;
-            let prefab_entity_to_uuid : HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
-
-            // Copy everything from the opened prefab into the new world as a baseline
-            let mut result_mappings = Default::default();
-            new_world.clone_merge(
-                &opened_prefab.cooked_prefab().world,
-                &clone_impl,
-                None,
-                Some(&mut result_mappings)
-            );
-
-            // Populate new_entity_to_uuid. To do this, we follow the [Prefab World]->[New World] mappings
-            // held by result_mappings
-            for (uuid, prefab_entity) in &opened_prefab.cooked_prefab().entities {
-                let new_world_entity = result_mappings.get(prefab_entity).unwrap();
-                new_entity_to_uuid.insert(*new_world_entity, *uuid);
-            }
-
-            // Now we will overwrite the data for all entities that have been selected. To do this,
-            // we need to create a lookup of the selection world entity to the entity in the new
-            // world. We do this by following mappings from [Selection World]->[Prefab World]->[New World]
-            let mut replace_mappings = HashMap::new();
-            for (selected_entity, prefab_entity) in selection_world.selected_to_prefab_entity() {
-                if let Some(new_world_entity) = result_mappings.get(prefab_entity) {
-                    replace_mappings.insert(*selected_entity, *new_world_entity);
-                }
-            }
-
-            new_world.clone_merge(
-                selection_world.selected_entities_world(),
-                &clone_impl,
-                Some(&replace_mappings),
-                //Some(&mut result_mappings)
-                None
-            );
-
-            let uuid_to_new_entity : HashMap<EntityUuid, Entity> = HashMap::from_iter(new_entity_to_uuid.iter().map(|(k, v)| (*v, *k)));
-
-            for (k, _) in &uuid_to_new_entity {
-                debug_assert!(opened_prefab.cooked_prefab().entities.get(k).is_some());
-            }
-
-            //TODO: Preserve entity UUIDs
-            let prefab_meta = legion_prefab::PrefabMeta {
-                id: opened_prefab.uuid().0,
-                prefab_refs: Default::default(),
-                entities: uuid_to_new_entity
-            };
-
-            let prefab = legion_prefab::Prefab {
-                world: new_world,
-                prefab_meta
-            };
-
-            //TEMP: Directly save to disk over the old prefab file and let hot-reload apply the changes
             let registered_components = crate::create_component_registry_by_uuid();
-            let prefab_serde_context = legion_prefab::PrefabSerdeContext {
-                registered_components,
+
+            //
+            // Capture diffs from the edit
+            //
+            let diffs = {
+                // Create a lookup from prefab entity to the entity UUID
+                use std::iter::FromIterator;
+                let prefab_entity_to_uuid : HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+                let mut diffs = vec![];
+
+                // We will be diffing data between the prefab and the selected world
+                let selected_world = selection_world.selected_entities_world();
+                let prefab_world = &opened_prefab.cooked_prefab().world;
+
+                // Iterate the entities in the selection world and prefab world
+                for (selected_entity, prefab_entity) in selection_world.selected_to_prefab_entity() {
+                    // Do diffs for each component type
+                    for (component_type, registration) in &registered_components {
+                        let mut has_changes = false;
+                        let acceptor = DiffSingleSerializerAcceptor {
+                            component_registration: &registration,
+                            src_world: prefab_world,
+                            src_entity: *prefab_entity,
+                            dst_world: selected_world,
+                            dst_entity: *selected_entity,
+                            has_changes: &mut has_changes
+                        };
+                        let mut data = vec![];
+                        bincode::with_serializer(&mut data, acceptor);
+
+                        if has_changes {
+                            let entity_uuid = *prefab_entity_to_uuid.get(prefab_entity).unwrap();
+                            diffs.push(ComponentDiff {
+                                entity_uuid,
+                                component_type: *component_type,
+                                data
+                            });
+                        }
+                    }
+                }
+
+                diffs
             };
 
-            let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
-            let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &prefab);
-            prefab_format::serialize(&mut ron_ser, &prefab_ser, prefab.prefab_id()).expect("failed to round-trip prefab");
-            let output = ron_ser.into_output_string();
-            println!("Exporting prefab:");
-            println!("{}", output);
+            for diff in &diffs {
+                println!("Entity: {:?} Component Type: {:?} Data: {}", diff.entity_uuid, diff.component_type, diff.data.len());
+            }
 
-            std::fs::write("assets/demo_level.prefab", output);
+            //
+            // Apply the diffs to the cooked prefab
+            //
+            let cooked_prefab = {
+                let cooked_prefab = opened_prefab.cooked_prefab();
+
+                // We want to do plain copies of all the data
+                let clone_impl = crate::create_copy_clone_impl();
+
+                // Create an empty world to populate
+                let mut new_world = universe_resource.universe.create_world();
+
+                // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
+                use std::iter::FromIterator;
+                let prefab_entity_to_uuid : HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+                // Copy everything from the opened prefab into the new world as a baseline
+                let mut result_mappings = Default::default();
+                new_world.clone_merge(
+                    &cooked_prefab.world,
+                    &clone_impl,
+                    None,
+                    Some(&mut result_mappings)
+                );
+
+                // Need to have a lookup from UUID into the new world
+                let mut uuid_to_new_entities = HashMap::default();
+                for (old_cooked_prefab_entity, new_cooked_prefab_entity) in &result_mappings {
+                    let uuid = prefab_entity_to_uuid.get(old_cooked_prefab_entity).unwrap();
+                    uuid_to_new_entities.insert(*uuid, *new_cooked_prefab_entity);
+                }
+
+                // Apply the diffs to the copied world
+                for diff in &diffs {
+                    if let Some(new_cooked_prefab_entity) = uuid_to_new_entities.get(&diff.entity_uuid) {
+                        if let Some(component_registration) = registered_components.get(&diff.component_type) {
+                            let acceptor = ApplyDiffDeserializerAcceptor {
+                                component_registration: &component_registration,
+                                world: &mut new_world,
+                                entity: *new_cooked_prefab_entity,
+                            };
+                            let reader = bincode::SliceReader::new(&diff.data);
+                            bincode::with_deserializer(reader, acceptor);
+                        }
+                    }
+                }
+
+                let cooked = CookedPrefab {
+                    world: new_world,
+                    entities: uuid_to_new_entities
+                };
+            };
+
+            // Apply diffs to the uncooked prefab
+            let uncooked_prefab = {
+                // Create an empty world to populate
+                let mut new_world = universe_resource.universe.create_world();
+
+                // We want to do plain copies of all the data
+                let clone_impl = crate::create_copy_clone_impl();
+
+                // We want to preserve entity UUIDs so we need to insert mappings here as we copy data
+                // into the new world
+                let mut uuid_to_new_entities : HashMap<EntityUuid, Entity> = HashMap::default();
+
+                // Copy everything from the opened prefab into the new world as a baseline
+                let mut result_mappings = Default::default();
+                new_world.clone_merge(
+                    &opened_prefab.cooked_prefab().world,
+                    &clone_impl,
+                    None,
+                    Some(&mut result_mappings)
+                );
+
+                // Populate new_entity_to_uuid. To do this, we follow the [Prefab World]->[New World] mappings
+                // held by result_mappings
+                for (uuid, prefab_entity) in &opened_prefab.cooked_prefab().entities {
+                    let new_world_entity = result_mappings.get(prefab_entity).unwrap();
+                    uuid_to_new_entities.insert(*uuid, *new_world_entity);
+                }
+
+                for diff in &diffs {
+                    if let Some(new_cooked_prefab_entity) = uuid_to_new_entities.get(&diff.entity_uuid) {
+                        if let Some(component_registration) = registered_components.get(&diff.component_type) {
+                            let acceptor = ApplyDiffDeserializerAcceptor {
+                                component_registration: &component_registration,
+                                world: &mut new_world,
+                                entity: *new_cooked_prefab_entity,
+                            };
+                            let reader = bincode::SliceReader::new(&diff.data);
+                            bincode::with_deserializer(reader, acceptor);
+                        }
+                    }
+                }
+
+                let prefab_meta = legion_prefab::PrefabMeta {
+                    id: opened_prefab.uuid().0,
+                    prefab_refs: Default::default(),
+                    entities: uuid_to_new_entities
+                };
+
+                let prefab = legion_prefab::Prefab {
+                    world: new_world,
+                    prefab_meta
+                };
+
+                prefab
+            };
+
+            // Save the uncooked prefab
+            {
+                let registered_components = crate::create_component_registry_by_uuid();
+                let prefab_serde_context = legion_prefab::PrefabSerdeContext {
+                    registered_components,
+                };
+
+                let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
+                let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &uncooked_prefab);
+                prefab_format::serialize(&mut ron_ser, &prefab_ser, uncooked_prefab.prefab_id()).expect("failed to round-trip prefab");
+                let output = ron_ser.into_output_string();
+                println!("Exporting prefab:");
+                println!("{}", output);
+
+                std::fs::write("assets/demo_level.prefab", output);
+            }
+
+            //TODO: Apply this to the cooked prefab in memory
+            //TODO: When the uncooked prefab reloads, we should be able to detect that we don't need to change the editor state
         }
-    }
-}
-
-
-struct DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e> {
-    //world: &'b mut World,
-    //deserialize_impl: &'c legion_prefab::DeserializeImpl
-    component_registration: &'b legion_prefab::ComponentRegistration,
-    src_world: &'c World,
-    src_entity: Entity,
-    dst_world: &'d World,
-    dst_entity: Entity,
-    has_changes: &'e mut bool
-
-}
-
-impl<'b, 'c, 'd, 'e> bincode::SerializerAcceptor
-for DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e>
-{
-    type Output = ();
-
-    //TODO: Error handling needs to be passed back out
-    fn accept<T: serde::Serializer>(
-        mut self,
-        ser: T,
-    ) -> Self::Output
-    where T::Ok: 'static
-    {
-        let mut ser_erased = erased_serde::Serializer::erase(ser);
-        *self.has_changes = self.component_registration
-            .diff_single(&mut ser_erased, self.src_world, self.src_entity, self.dst_world, self.dst_entity);
     }
 }
 
