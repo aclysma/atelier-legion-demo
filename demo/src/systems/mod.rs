@@ -22,7 +22,7 @@ pub use input_systems::input_reset_for_next_frame;
 
 mod editor_systems;
 pub use editor_systems::editor_imgui_menu;
-pub use editor_systems::editor_keyboard_shortcuts;
+pub use editor_systems::editor_input;
 pub use editor_systems::draw_selection_shapes;
 pub use editor_systems::editor_refresh_selection_world;
 pub use editor_systems::editor_entity_list_window;
@@ -137,7 +137,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
 
         // Editor input
         .always_thread_local(reload_editor_state_if_file_changed)
-        .always(editor_keyboard_shortcuts)
+        .always(editor_input)
         .always(editor_imgui_menu)
         .always(editor_entity_list_window)
         .always_thread_local(editor_inspector_window)

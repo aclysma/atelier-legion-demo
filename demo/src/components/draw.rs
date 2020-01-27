@@ -19,7 +19,7 @@ use imgui_inspect_derive::Inspect;
 // A utility struct to describe color for a skia shape
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect)]
 pub struct PaintDef {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub color: Vec4,
     pub stroke_width: f32,
 }
@@ -48,7 +48,7 @@ impl From<PaintDef> for Paint {
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
 #[uuid = "c05e5c27-58ca-4d68-b825-b20f67fdaf37"]
 pub struct DrawSkiaBoxComponentDef {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub half_extents: Vec2,
     pub paint: PaintDef,
 }

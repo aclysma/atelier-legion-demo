@@ -278,6 +278,63 @@ pub fn editor_inspector_window(world: &mut World) {
         }
     });
 
+    if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
+        let registered_components = crate::create_component_registry_by_uuid();
+        for (selected_entity, prefab_entity) in selection_world.selected_to_prefab_entity() {
+            let selected_world = selection_world.selected_entities_world();
+            let prefab_world = &opened_prefab.cooked_prefab().world;
+
+            // Do diffs for each component type
+            for (component_type, registration) in &registered_components {
+
+                // bincode - DiffSingleSerializerAcceptor doesn't compile without adding a trait bound to bincode
+                {
+                    let mut has_changes = false;
+                    let acceptor = DiffSingleSerializerAcceptor {
+                        component_registration: &registration,
+                        src_world: prefab_world,
+                        src_entity: *prefab_entity,
+                        dst_world: selected_world,
+                        dst_entity: *selected_entity,
+                        has_changes: &mut has_changes
+                    };
+                    let mut buffer = vec![];
+                    bincode::with_serializer(&mut buffer, acceptor);
+
+                    if has_changes {
+                        println!("Buffer has {} bytes", buffer.len());
+                    }
+                }
+
+/*
+                // Requires making more stuff public in bincode
+                {
+                    let mut buffer = vec![];
+                    let mut ser = bincode::Serializer::new(&mut buffer, bincode::DefaultOptions::new());
+                    let mut erased_ser = erased_serde::Serializer::erase(&mut ser);
+                    registration.diff_single(&mut erased_ser, prefab_world, *prefab_entity, selected_world, *selected_entity);
+                    if !buffer.is_empty() {
+                        println!("Buffer has {} bytes", buffer.len());
+                    }
+                }
+*/
+
+                /*
+                // ron - kind of works
+                {
+                    let mut ser = ron::ser::Serializer::new(None, false);
+                    let mut erased_ser = erased_serde::Serializer::erase(&mut ser);
+                    registration.diff_single(&mut erased_ser, prefab_world, *prefab_entity, selected_world, *selected_entity);
+                    let s = ser.into_output_string();
+                    if !s.is_empty() && s != "[]" {
+                        println!("diff was {}", s);
+                    }
+                }
+*/
+            }
+        }
+    }
+
     // As a temporary solution, combine the selected entities with the data from the prefab that was
     // opened and write it to disk as a new prefab
     if change_detected {
@@ -367,14 +424,45 @@ pub fn editor_inspector_window(world: &mut World) {
     }
 }
 
+
+struct DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e> {
+    //world: &'b mut World,
+    //deserialize_impl: &'c legion_prefab::DeserializeImpl
+    component_registration: &'b legion_prefab::ComponentRegistration,
+    src_world: &'c World,
+    src_entity: Entity,
+    dst_world: &'d World,
+    dst_entity: Entity,
+    has_changes: &'e mut bool
+
+}
+
+impl<'b, 'c, 'd, 'e> bincode::SerializerAcceptor
+for DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e>
+{
+    type Output = ();
+
+    //TODO: Error handling needs to be passed back out
+    fn accept<T: serde::Serializer>(
+        mut self,
+        ser: T,
+    ) -> Self::Output
+    where T::Ok: 'static
+    {
+        let mut ser_erased = erased_serde::Serializer::erase(ser);
+        *self.has_changes = self.component_registration
+            .diff_single(&mut ser_erased, self.src_world, self.src_entity, self.dst_world, self.dst_entity);
+    }
+}
+
 #[derive(Inspect)]
 struct TestInspect {
     #[inspect_slider(min_value = 100.0, max_value = 500.0)]
     float_value: f32
 }
 
-pub fn editor_keyboard_shortcuts() -> Box<dyn Schedulable> {
-    SystemBuilder::new("editor_keyboard_shortcuts")
+pub fn editor_input() -> Box<dyn Schedulable> {
+    SystemBuilder::new("editor_input")
         .write_resource::<EditorStateResource>()
         .read_resource::<InputResource>()
         .read_resource::<ViewportResource>()

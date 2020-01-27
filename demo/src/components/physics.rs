@@ -27,7 +27,7 @@ legion_prefab::register_component_type!(RigidBodyBallComponentDef);
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
 #[uuid = "36df3006-a5ad-4997-9ccc-0860f49195ad"]
 pub struct RigidBodyBoxComponentDef {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub half_extents: glm::Vec2,
     pub is_static: bool,
 }
