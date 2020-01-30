@@ -8,6 +8,10 @@ use std::sync::Arc;
 use crate::resources::time::TimeState;
 use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
 use crate::pipeline::PrefabAsset;
+use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor};
+use prefab_format::{
+    ComponentTypeUuid, EntityUuid
+};
 
 pub struct WindowOptions {
     pub show_imgui_metrics: bool,
@@ -306,8 +310,45 @@ impl EditorStateResource {
         })
     }
 
+    fn get_selected_uuids(world: &World) -> HashSet<EntityUuid> {
+        // Get the UUIDs of all selected entities
+        let mut selected_uuids = HashSet::new();
+        let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+
+        if let Some(opened_prefab) = editor_state.opened_prefab() {
+            // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
+            use std::iter::FromIterator;
+            let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+            // Iterate all selected prefab entities
+            let editor_selection_resource = world.resources.get::<EditorSelectionResource>().unwrap();
+            for (_, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
+                // Insert the UUID into selected_uuids
+                selected_uuids.insert(prefab_entity_to_uuid[prefab_entity]);
+            }
+        }
+
+        selected_uuids
+    }
+
+    fn restore_selected_uuids(world: &World, selected_uuids: &HashSet<EntityUuid>) {
+        let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+        let mut selected_entities : HashSet<Entity> = HashSet::default();
+        for selected_uuid in selected_uuids {
+            if let Some(opened_prefab) = editor_state.opened_prefab.as_ref() {
+                if let Some(prefab_entity) = &opened_prefab.cooked_prefab.entities.get(selected_uuid) {
+                    let world_entity = opened_prefab.prefab_to_world_mappings[prefab_entity];
+                    selected_entities.insert(world_entity);
+                }
+            }
+        }
+
+        let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
+        editor_selection_resource.enqueue_set_selection(selected_entities.into_iter().collect());
+    }
+
     pub fn hot_reload_if_asset_changed(world: &mut World) {
-        // See if we need to reload by comparing the prefab asset's version with the cooked prefab's version
+        // Detect if we need to reload. Do this comparing the prefab asset's version with the cooked prefab's version
         let mut prefab_to_reload = None;
         {
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
@@ -320,43 +361,112 @@ impl EditorStateResource {
             }
         }
 
-        if let Some(prefab_to_reload) = prefab_to_reload {
-            let mut selected_uuids = HashSet::new();
-
-            {
-                // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
-                use std::iter::FromIterator;
-                let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(prefab_to_reload.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
-
-                // Iterate all selected prefab entities
-                let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
-                for (_, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
-                    // Insert the UUID into selected_uuids
-                    selected_uuids.insert(prefab_entity_to_uuid[prefab_entity]);
-                }
-            }
+        // If prefab_to_reload is not none, do the reload
+        if let Some(opened_prefab) = prefab_to_reload {
+            // Save the selected entity UUIDs
+            let selected_uuids = Self::get_selected_uuids(world);
 
             // Delete the old stuff from the world
-            for x in prefab_to_reload.prefab_to_world_mappings.values() {
+            for x in opened_prefab.prefab_to_world_mappings.values() {
                 world.delete(*x);
             }
 
             // re-cook and load the prefab
-            Self::open_prefab(world, prefab_to_reload.uuid);
+            Self::open_prefab(world, opened_prefab.uuid);
 
+            // Restore selection
+            Self::restore_selected_uuids(world, &selected_uuids);
+        }
+    }
+
+    pub fn apply_diffs(
+        world: &mut World,
+        diffs: Arc<Vec<ComponentDiff>>
+    ) {
+        // Clone the currently opened prefab Arc so we can refer back to it
+        let mut opened_prefab = {
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            let mut selected_entities : HashSet<Entity> = HashSet::default();
-            for selected_uuid in selected_uuids {
-                if let Some(opened_prefab) = editor_state.opened_prefab.as_ref() {
-                    if let Some(prefab_entity) = &opened_prefab.cooked_prefab.entities.get(&selected_uuid) {
-                        let world_entity = opened_prefab.prefab_to_world_mappings[prefab_entity];
-                        selected_entities.insert(world_entity);
-                    }
-                }
+            if editor_state.opened_prefab.is_none() {
+                return;
             }
 
-            let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
-            editor_selection_resource.enqueue_set_selection(selected_entities.into_iter().collect());
+            editor_state.opened_prefab.as_ref().unwrap().clone()
+        };
+
+        // Get the UUIDs of all selected entities
+        let selected_uuids = Self::get_selected_uuids(world);
+
+        // Delete the old stuff from the world
+        for x in opened_prefab.prefab_to_world_mappings.values() {
+            world.delete(*x);
+        }
+
+        {
+            // Apply the diffs to the cooked data
+            let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
+            let new_cooked_prefab = Arc::new(
+                crate::component_diffs::apply_diffs_to_cooked_prefab(
+                    &opened_prefab.cooked_prefab,
+                    &universe.universe,
+                    &diffs
+                )
+            );
+
+            // Update the opened prefab state
+            let new_opened_prefab = OpenedPrefabState {
+                uuid: opened_prefab.uuid,
+                cooked_prefab: new_cooked_prefab,
+                prefab_handle: opened_prefab.prefab_handle.clone(),
+                version: opened_prefab.version,
+                prefab_to_world_mappings: Default::default(), // These will get populated by reset()
+                world_to_prefab_mappings: Default::default()  // These will get populated by reset()
+            };
+
+            // Set opened_prefab (TODO: Probably better to pass new_opened_prefab in and let reset() assign to opened_prefab)
+            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+            editor_state.opened_prefab = Some(Arc::new(new_opened_prefab));
+        }
+
+        // Spawn everything
+        Self::reset(world);
+
+        Self::restore_selected_uuids(world, &selected_uuids);
+
+        //TEMP: Apply diffs to uncooked and save
+        {
+            let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
+
+            use atelier_loader::Loader;
+            use atelier_loader::handle::AssetHandle;
+
+            let load_handle = asset_resource.loader().add_ref(opened_prefab.uuid);
+            let handle = atelier_loader::handle::Handle::<crate::pipeline::PrefabAsset>::new(asset_resource.tx().clone(), load_handle);
+
+            let prefab_asset = loop {
+                asset_resource.update();
+                if let atelier_loader::LoadStatus::Loaded = handle.load_status::<atelier_loader::rpc_loader::RpcLoader>(asset_resource.loader()) {
+                    break handle.asset(asset_resource.storage()).unwrap()
+                }
+            };
+
+            let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
+            let uncooked_prefab = crate::component_diffs::apply_diffs_to_prefab(&prefab_asset.prefab, &universe.universe, &diffs);
+
+            {
+                let registered_components = crate::create_component_registry_by_uuid();
+                let prefab_serde_context = legion_prefab::PrefabSerdeContext {
+                    registered_components,
+                };
+
+                let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
+                let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &uncooked_prefab);
+                prefab_format::serialize(&mut ron_ser, &prefab_ser, uncooked_prefab.prefab_id()).expect("failed to round-trip prefab");
+                let output = ron_ser.into_output_string();
+                println!("Exporting prefab:");
+                println!("{}", output);
+
+                std::fs::write("assets/demo_level.prefab", output);
+            }
         }
     }
 }

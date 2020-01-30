@@ -49,6 +49,8 @@ pub mod daemon;
 
 mod prefab_cooking;
 
+mod component_diffs;
+
 pub mod app;
 
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
