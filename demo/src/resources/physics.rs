@@ -54,17 +54,17 @@ impl PhysicsResource {
             // This is a workaround for this issue: https://github.com/rustsim/nphysics/issues/248
             // It's not a long term fix since a linear search across all colliders to find the ones
             // attached to this body is expensive. This is only necessary if creating/destroying
-            // entities between calls to step() or maintain()
-//            let mut colliders_to_remove = vec![];
-//            for (collider_handle, collider) in self.colliders.iter() {
-//                if collider.body() == body_to_delete {
-//                    colliders_to_remove.push(collider_handle);
-//                }
-//            }
-//
-//            for collider_to_remove in colliders_to_remove {
-//                self.colliders.remove(collider_to_remove);
-//            }
+            // entities in the same frame (between step() and maintain() calls)
+            let mut colliders_to_remove = vec![];
+            for (collider_handle, collider) in self.colliders.iter() {
+                if collider.body() == body_to_delete {
+                    colliders_to_remove.push(collider_handle);
+                }
+            }
+
+            for collider_to_remove in colliders_to_remove {
+                self.colliders.remove(collider_to_remove);
+            }
         }
     }
 

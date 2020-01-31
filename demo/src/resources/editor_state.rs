@@ -314,7 +314,6 @@ impl EditorStateResource {
         // Get the UUIDs of all selected entities
         let mut selected_uuids = HashSet::new();
         let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-
         if let Some(opened_prefab) = editor_state.opened_prefab() {
             // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
             use std::iter::FromIterator;
@@ -324,10 +323,13 @@ impl EditorStateResource {
             let editor_selection_resource = world.resources.get::<EditorSelectionResource>().unwrap();
             for (_, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
                 // Insert the UUID into selected_uuids
-                selected_uuids.insert(prefab_entity_to_uuid[prefab_entity]);
+                //TODO: This is failing to find the UUID occasionally which causes selection to be
+                // lost
+                if let Some(uuid) = prefab_entity_to_uuid.get(prefab_entity) {
+                    selected_uuids.insert(*uuid);
+                }
             }
         }
-
         selected_uuids
     }
 
