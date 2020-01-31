@@ -38,11 +38,12 @@ uuid = "0.8"
 type-uuid = "0.1"
 image2 = { version = "0.11", features = [ "ser" ] }
 inventory = "0.1"
-bincode = "1.2"
+#bincode = "1.2"
+bincode = { git="https://github.com/aclysma/bincode.git", branch="new-trait-bound" }
 mopa = "0.2"
 itertools = "0.8"
 
-serde-diff = { git = "https://github.com/kabergstrom/serde-diff.git" }
+serde-diff = { git = "https://github.com/aclysma/serde-diff.git", branch = "diff-indicates-has-changes" }
 legion-prefab = { path = "../prefab/legion-prefab" }
 prefab-format = { path = "../prefab/prefab-format" }
 

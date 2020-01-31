@@ -9,13 +9,15 @@ use crate::resources::PhysicsResource;
 use legion::prelude::*;
 use std::ops::Range;
 use legion::storage::ComponentStorage;
+use skulpin::imgui;
+use imgui_inspect_derive::Inspect;
 
 use crate::components::Position2DComponent;
 
 //
 // Add a ball rigid body
 //
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
+#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
 #[uuid = "fa518c0a-a65a-44c8-9d35-3f4f336b4de4"]
 pub struct RigidBodyBallComponentDef {
     pub radius: f32,
@@ -24,11 +26,11 @@ pub struct RigidBodyBallComponentDef {
 
 legion_prefab::register_component_type!(RigidBodyBallComponentDef);
 
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone)]
+#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
 #[uuid = "36df3006-a5ad-4997-9ccc-0860f49195ad"]
 pub struct RigidBodyBoxComponentDef {
-    #[serde_diff(inline)]
-    pub half_extents: glm::Vec2,
+    #[serde_diff(opaque)]
+    pub half_extents: Vec2,
     pub is_static: bool,
 }
 
@@ -137,7 +139,7 @@ impl CloneMergeFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
 
         for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Cuboid::new(
-                from.half_extents,
+                *from.half_extents,
             ));
             transform_shape_to_rigid_body(
                 &mut physics,

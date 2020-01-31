@@ -14,7 +14,7 @@ use crate::math::Vec2;
 #[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
 #[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
 pub struct Position2DComponentDef {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub position: Vec2,
 }
 
@@ -26,7 +26,7 @@ legion_prefab::register_component_type!(Position2DComponentDef);
 #[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Inspect)]
 #[uuid = "8bf67228-f96c-4649-b306-ecd107194cf0"]
 pub struct Position2DComponent {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub position: Vec2,
 }
 
@@ -47,7 +47,7 @@ legion_prefab::register_component_type!(Position2DComponent);
 #[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
 #[uuid = "8bf67228-f96c-4649-b306-ecd107194cf0"]
 pub struct Scale2DComponent {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub scale: glm::Vec2,
     pub uniform_scale: f32
 }
@@ -61,7 +61,7 @@ legion_prefab::register_component_type!(Scale2DComponent);
 #[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
 #[uuid = "fe5d26b5-582d-4464-8dec-ba234e31aa41"]
 pub struct PositionReference {
-    #[serde_diff(inline)]
+    #[serde_diff(opaque)]
     pub handle: Handle<Position2DComponentDef>,
 }
 
