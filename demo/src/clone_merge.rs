@@ -104,7 +104,7 @@ impl CloneMergeImpl {
              src_data: *const u8,
              dst_data: *mut u8,
              num_components: usize| {
-                println!(
+                log::trace!(
                     "Clone type {} -> {}",
                     std::any::type_name::<FromT>(),
                     std::any::type_name::<IntoT>()
@@ -150,7 +150,7 @@ impl CloneMergeImpl {
              src_data: *const u8,
              dst_data: *mut u8,
              num_components: usize| {
-                println!(
+                log::trace!(
                     "Clone type {} -> {}",
                     std::any::type_name::<FromT>(),
                     std::any::type_name::<IntoT>()
@@ -217,7 +217,7 @@ impl CloneMergeImpl {
                   src_data: *const u8,
                   dst_data: *mut u8,
                   num_components: usize| {
-                println!(
+                log::trace!(
                     "Clone type {} -> {}",
                     std::any::type_name::<FromT>(),
                     std::any::type_name::<IntoT>()

@@ -78,12 +78,12 @@ impl Importer for PrefabImporter {
         prefab_format::deserialize(&mut de, &prefab_deser)?;
         let prefab = prefab_deser.prefab();
 
-        println!("IMPORTER: iterate positions");
+        log::trace!("IMPORTER: iterate positions");
         let query = <legion::prelude::Read<crate::components::Position2DComponentDef>>::query();
         for pos in query.iter(&prefab.world) {
-            println!("position: {:?}", pos);
+            log::trace!("position: {:?}", pos);
         }
-        println!("IMPORTER: done iterating positions");
+        log::trace!("IMPORTER: done iterating positions");
 
         let prefab_asset = PrefabAsset { prefab };
 
@@ -97,13 +97,13 @@ impl Importer for PrefabImporter {
                 ron::ser::to_string_pretty(&prefab_asset, ron::ser::PrettyConfig::default())
                     .unwrap();
 
-            println!("Serialized legion world:");
-            println!("legion_world_str {}", legion_world_str);
+            log::trace!("Serialized legion world:");
+            log::trace!("legion_world_str {}", legion_world_str);
 
             let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
             let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &prefab_asset.prefab);
             prefab_format::serialize(&mut ron_ser, &prefab_ser, prefab_asset.prefab.prefab_id()).expect("failed to round-trip prefab");
-            println!("Round-tripped legion world: {}", ron_ser.into_output_string());
+            log::trace!("Round-tripped legion world: {}", ron_ser.into_output_string());
         }
 
         // Add the ID to the .meta

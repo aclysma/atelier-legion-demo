@@ -232,6 +232,6 @@ impl app::AppHandler for DemoApp {
         &mut self,
         error: &app::AppError,
     ) {
-        println!("{}", error);
+        log::error!("{}", error);
     }
 }

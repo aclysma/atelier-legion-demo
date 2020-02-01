@@ -313,11 +313,11 @@ fn generate_diffs_from_changes(
         let selected_world = selection_resource.selected_entities_world();
         let prefab_world = &opened_prefab.cooked_prefab().world;
 
-        println!("{} selected entities", selection_resource.selected_to_prefab_entity().len());
+        log::trace!("{} selected entities", selection_resource.selected_to_prefab_entity().len());
 
         // Iterate the entities in the selection world and prefab world
         for (selected_entity, prefab_entity) in selection_resource.selected_to_prefab_entity() {
-            println!("diffing {:?} {:?}", selected_entity, prefab_entity);
+            log::trace!("diffing {:?} {:?}", selected_entity, prefab_entity);
             // Do diffs for each component type
             for (component_type, registration) in &registered_components {
                 let mut has_changes = false;
@@ -500,7 +500,7 @@ fn handle_translate_gizmo_input(
     subworld: &SubWorld,
 ) {
     if let Some(drag_in_progress) = editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left) {
-        println!("drag in progress");
+        log::trace!("drag in progress");
         // See what if any axis we will operate on
         let mut translate_x = false;
         let mut translate_y = false;
@@ -534,11 +534,11 @@ fn handle_translate_gizmo_input(
         let query = <(Write<Position2DComponent>)>::query();
 
         for (entity_handle, mut position) in query.iter_entities_mut(selection_world.selected_entities_world_mut()) {
-            println!("looking at entity");
+            log::trace!("looking at entity");
             // Can use editor_draw.is_shape_drag_just_finished(MouseButton::Left) to see if this is the final drag,
             // in which case we might want to save an undo step
             *position.position += world_space_previous_frame_delta;
-            println!("{:?}", *position.position);
+            log::trace!("{:?}", *position.position);
         }
 
         let persist_to_disk = editor_draw.is_shape_drag_just_finished(MouseButton::Left);

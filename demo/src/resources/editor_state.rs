@@ -100,8 +100,8 @@ pub struct EditorStateResource {
     window_options_editing: WindowOptions,
     active_editor_tool: EditorTool,
     opened_prefab: Option<Arc<OpenedPrefabState>>,
-    pending_diffs: Vec<QueuedDiff>
-
+    diffs_pending_apply: Vec<QueuedDiff>,
+    diffs_pending_disk_persist: Vec<QueuedDiff>,
 }
 
 impl EditorStateResource {
@@ -112,7 +112,8 @@ impl EditorStateResource {
             window_options_editing: WindowOptions::new_editing(),
             active_editor_tool: EditorTool::Translate,
             opened_prefab: None,
-            pending_diffs: Default::default()
+            diffs_pending_apply: Default::default(),
+            diffs_pending_disk_persist: Default::default(),
         }
     }
 
@@ -210,6 +211,7 @@ impl EditorStateResource {
     }
 
     fn reset(world: &mut World) {
+        log::info!("RESET THE WORLD");
         {
             let mut time_resource = world.resources.get_mut::<TimeResource>().unwrap();
             time_resource.set_simulation_time_paused(true, SimulationTimePauseReason::Editor);
@@ -237,6 +239,11 @@ impl EditorStateResource {
             let mut world_to_prefab_mappings = HashMap::with_capacity(prefab_to_world_mappings.len());
             for (k, v) in &prefab_to_world_mappings {
                 world_to_prefab_mappings.insert(*v, *k);
+            }
+
+            for (cooked_prefab_entity_uuid, cooked_prefab_entity) in &opened_prefab.cooked_prefab.entities {
+                let world_entity = prefab_to_world_mappings.get(cooked_prefab_entity).unwrap(); //TODO: Don't unwrap this
+                log::info!("Prefab entity {} {:?} spawned as world entity {:?}", uuid::Uuid::from_bytes(*cooked_prefab_entity_uuid).to_string(), cooked_prefab_entity, world_entity);
             }
 
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
@@ -322,6 +329,7 @@ impl EditorStateResource {
         // Get the UUIDs of all selected entities
         let mut selected_uuids = HashSet::new();
         let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+
         if let Some(opened_prefab) = editor_state.opened_prefab() {
             // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
             use std::iter::FromIterator;
@@ -329,12 +337,17 @@ impl EditorStateResource {
 
             // Iterate all selected prefab entities
             let editor_selection_resource = world.resources.get::<EditorSelectionResource>().unwrap();
-            for (_, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
+
+            for (selected_entity, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
+                let entity_uuid = prefab_entity_to_uuid.get(prefab_entity);
                 // Insert the UUID into selected_uuids
-                //TODO: This is failing to find the UUID occasionally which causes selection to be
-                // lost
-                if let Some(uuid) = prefab_entity_to_uuid.get(prefab_entity) {
+                if let Some(uuid) = entity_uuid {
+                    log::info!("Selected entity {:?} corresponds to prefab entity {:?} uuid {:?}", selected_entity, prefab_entity, uuid::Uuid::from_bytes(*uuid).to_string());
                     selected_uuids.insert(*uuid);
+                } else {
+                    //TODO: For now this is a panic because it really shouldn't happen and we want to make sure it's visible if it does, but
+                    // losing selection info shouldn't be fatal
+                    panic!("Could not find prefab entity {:?} which should have corresponded with selected entity {:?}", prefab_entity, selected_entity);
                 }
             }
         }
@@ -373,6 +386,8 @@ impl EditorStateResource {
 
         // If prefab_to_reload is not none, do the reload
         if let Some(opened_prefab) = prefab_to_reload {
+            log::info!("Source file change detected, reloading");
+
             // Save the selected entity UUIDs
             let selected_uuids = Self::get_selected_uuids(world);
 
@@ -390,28 +405,63 @@ impl EditorStateResource {
     }
 
     pub fn enqueue_apply_diffs(&mut self, diffs: Vec<ComponentDiff>, persist_to_disk: bool) {
-        self.pending_diffs.push(QueuedDiff { diffs, persist_to_disk });
+        self.diffs_pending_apply.push(QueuedDiff { diffs, persist_to_disk });
     }
 
     pub fn process_diffs(world: &mut World) {
+        // flush these, world entities can change after this call leading to entities not being
+        // found and selections lost
+        EditorSelectionResource::process_selection_ops(world);
+
+        // Take all the diffs that are queued to be applied this frame
         let mut pending_diffs = vec![];
         {
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            if !editor_state.pending_diffs.is_empty() {
-                std::mem::swap(&mut pending_diffs, &mut editor_state.pending_diffs);
+            if !editor_state.diffs_pending_apply.is_empty() {
+                std::mem::swap(&mut pending_diffs, &mut editor_state.diffs_pending_apply);
             }
         }
 
-        for queued_diff in pending_diffs.drain(..) {
-            EditorStateResource::apply_diffs(world, queued_diff.diffs, queued_diff.persist_to_disk);
+        // Apply the diffs to the world state
+        for queued_diff in &pending_diffs {
+            EditorStateResource::apply_diffs(world, &queued_diff.diffs);
+        }
+
+        // Add the diffs to the persist queue and see if we need to actually persist anything yet
+        let diffs_to_apply_to_disk : Option<Vec<_>> = {
+            // Push all the diffs we just applied into the persist queue
+            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+            editor_state.diffs_pending_disk_persist.append(&mut pending_diffs);
+
+            // Find the last diff with the persist_to_disk flag set
+            let mut last_persist_diff_index = None;
+            for (i, diff) in editor_state.diffs_pending_disk_persist.iter().enumerate() {
+                if diff.persist_to_disk {
+                    last_persist_diff_index = Some(i);
+                }
+            }
+
+            // Pull all the diffs up to and including the flagged diff so that we can apply those to
+            // disk
+            last_persist_diff_index.map(|last_persist_diff_index| {
+                editor_state.diffs_pending_disk_persist.drain(0..=last_persist_diff_index).flat_map(|x| x.diffs).collect()
+            })
+        };
+
+        // Apply changes to disk, if any have been flagged to trigger persisting to disk
+        if let Some(diffs) = diffs_to_apply_to_disk {
+            EditorStateResource::persist_diffs(world, &diffs);
         }
     }
 
-    pub fn apply_diffs(
+    fn apply_diffs(
         world: &mut World,
-        diffs: Vec<ComponentDiff>,
-        persist_to_disk: bool
+        diffs: &[ComponentDiff]
     ) {
+        for diff in diffs {
+            log::info!("Apply diff to entity {:?}", uuid::Uuid::from_bytes(*diff.entity_uuid()).to_string());
+        }
+
         // Clone the currently opened prefab Arc so we can refer back to it
         let mut opened_prefab = {
             let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
@@ -460,42 +510,63 @@ impl EditorStateResource {
         Self::reset(world);
 
         Self::restore_selected_uuids(world, &selected_uuids);
+    }
 
-        //TEMP: Apply diffs to uncooked and save
-        if persist_to_disk {
-            let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
-
-            use atelier_loader::Loader;
-            use atelier_loader::handle::AssetHandle;
-
-            let load_handle = asset_resource.loader().add_ref(opened_prefab.uuid);
-            let handle = atelier_loader::handle::Handle::<crate::pipeline::PrefabAsset>::new(asset_resource.tx().clone(), load_handle);
-
-            let prefab_asset = loop {
-                asset_resource.update();
-                if let atelier_loader::LoadStatus::Loaded = handle.load_status::<atelier_loader::rpc_loader::RpcLoader>(asset_resource.loader()) {
-                    break handle.asset(asset_resource.storage()).unwrap()
-                }
-            };
-
-            let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
-            let uncooked_prefab = crate::component_diffs::apply_diffs_to_prefab(&prefab_asset.prefab, &universe.universe, &diffs);
-
-            {
-                let registered_components = crate::create_component_registry_by_uuid();
-                let prefab_serde_context = legion_prefab::PrefabSerdeContext {
-                    registered_components,
-                };
-
-                let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
-                let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &uncooked_prefab);
-                prefab_format::serialize(&mut ron_ser, &prefab_ser, uncooked_prefab.prefab_id()).expect("failed to round-trip prefab");
-                let output = ron_ser.into_output_string();
-                println!("Exporting prefab:");
-                println!("{}", output);
-
-                std::fs::write("assets/demo_level.prefab", output);
-            }
+    fn persist_diffs(
+        world: &mut World,
+        diffs: &[ComponentDiff]
+    ) {
+        for diff in diffs {
+            log::info!("Persist diff to entity {:?}", uuid::Uuid::from_bytes(*diff.entity_uuid()).to_string());
         }
+
+        //
+        // Check that a prefab is opened
+        //
+        let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+        if editor_state.opened_prefab.is_none() {
+            return;
+        }
+
+        let opened_prefab = editor_state.opened_prefab.as_ref().unwrap();
+
+        //
+        // Fetch the uncooked prefab data
+        //
+        use atelier_loader::Loader;
+        use atelier_loader::handle::AssetHandle;
+        let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
+        let load_handle = asset_resource.loader().add_ref(opened_prefab.uuid);
+        let handle = atelier_loader::handle::Handle::<crate::pipeline::PrefabAsset>::new(asset_resource.tx().clone(), load_handle);
+
+        let prefab_asset = loop {
+            asset_resource.update();
+            if let atelier_loader::LoadStatus::Loaded = handle.load_status::<atelier_loader::rpc_loader::RpcLoader>(asset_resource.loader()) {
+                break handle.asset(asset_resource.storage()).unwrap()
+            }
+        };
+
+        //
+        // Apply the diffs to the uncooked prefab, producing a new uncooked prefab
+        //
+        let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
+        let uncooked_prefab = crate::component_diffs::apply_diffs_to_prefab(&prefab_asset.prefab, &universe.universe, &diffs);
+
+        //
+        // Persist the uncooked prefab to disk
+        //
+        let registered_components = crate::create_component_registry_by_uuid();
+        let prefab_serde_context = legion_prefab::PrefabSerdeContext {
+            registered_components,
+        };
+
+        let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
+        let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &uncooked_prefab);
+        prefab_format::serialize(&mut ron_ser, &prefab_ser, uncooked_prefab.prefab_id()).expect("failed to round-trip prefab");
+        let output = ron_ser.into_output_string();
+        log::trace!("Exporting prefab:");
+        log::trace!("{}", output);
+
+        std::fs::write("assets/demo_level.prefab", output);
     }
 }
