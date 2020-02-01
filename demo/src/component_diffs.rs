@@ -62,7 +62,7 @@ for DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e>
     {
         let mut ser_erased = erased_serde::Serializer::erase(ser);
         *self.has_changes = self.component_registration
-            .diff_single(&mut ser_erased, self.src_world, self.src_entity, self.dst_world, self.dst_entity);
+            .diff_single(&mut ser_erased, self.src_world, self.src_entity, self.dst_world, self.dst_entity)
     }
 }
 

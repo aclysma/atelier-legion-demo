@@ -1,6 +1,6 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource, EditorDrawResource};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 
@@ -21,6 +21,7 @@ use prefab_format::{EntityUuid, ComponentTypeUuid};
 use legion_prefab::CookedPrefab;
 use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffSingleSerializerAcceptor};
 use std::sync::Arc;
+use crate::components::Position2DComponent;
 
 pub fn editor_refresh_selection_world(world: &mut World) {
     let mut selection_world = world
@@ -240,7 +241,7 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
 }
 
 pub fn editor_inspector_window(world: &mut World) {
-    let diffs = {
+    {
         let mut selection_world = world
             .resources
             .get::<EditorSelectionResource>()
@@ -283,70 +284,69 @@ pub fn editor_inspector_window(world: &mut World) {
         });
 
         if change_detected {
-            //
-            // Capture diffs from the edit
-            //
-            if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
-                let registered_components = crate::create_component_registry_by_uuid();
-
-                // Create a lookup from prefab entity to the entity UUID
-                use std::iter::FromIterator;
-                let prefab_entity_to_uuid: HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
-
-                let mut diffs = vec![];
-
-                // We will be diffing data between the prefab and the selected world
-                let selected_world = selection_world.selected_entities_world();
-                let prefab_world = &opened_prefab.cooked_prefab().world;
-
-                println!("{} selected entities", selection_world.selected_to_prefab_entity().len());
-
-                // Iterate the entities in the selection world and prefab world
-                for (selected_entity, prefab_entity) in selection_world.selected_to_prefab_entity() {
-                    println!("diffing {:?} {:?}", selected_entity, prefab_entity);
-                    // Do diffs for each component type
-                    for (component_type, registration) in &registered_components {
-                        let mut has_changes = false;
-                        let acceptor = DiffSingleSerializerAcceptor {
-                            component_registration: &registration,
-                            src_world: prefab_world,
-                            src_entity: *prefab_entity,
-                            dst_world: selected_world,
-                            dst_entity: *selected_entity,
-                            has_changes: &mut has_changes
-                        };
-                        let mut data = vec![];
-                        bincode::with_serializer(&mut data, acceptor);
-
-                        if has_changes {
-                            let entity_uuid = *prefab_entity_to_uuid.get(prefab_entity).unwrap();
-                            diffs.push(ComponentDiff::new(
-                                entity_uuid,
-                                *component_type,
-                                data
-                            ));
-                        }
-                    }
-                }
-
-                Some(Arc::new(diffs))
-            } else {
-                None
+            let diffs = generate_diffs_from_changes(&*editor_ui_state, &*selection_world);
+            if let Some(diffs) = diffs {
+                editor_ui_state.enqueue_apply_diffs(diffs, true);
             }
-        } else {
-            None
         }
-    };
-
-    if let Some(diffs) = diffs {
-        EditorStateResource::apply_diffs(world, diffs.clone());
     }
+
 }
 
-#[derive(Inspect)]
-struct TestInspect {
-    #[inspect_slider(min_value = 100.0, max_value = 500.0)]
-    float_value: f32
+fn generate_diffs_from_changes(
+    editor_ui_state: &EditorStateResource,
+    selection_resource: &EditorSelectionResource
+) -> Option<Vec<ComponentDiff>> {
+    //
+    // Capture diffs from the edit
+    //
+    if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
+        let registered_components = crate::create_component_registry_by_uuid();
+
+        // Create a lookup from prefab entity to the entity UUID
+        use std::iter::FromIterator;
+        let prefab_entity_to_uuid: HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+        let mut diffs = vec![];
+
+        // We will be diffing data between the prefab and the selected world
+        let selected_world = selection_resource.selected_entities_world();
+        let prefab_world = &opened_prefab.cooked_prefab().world;
+
+        println!("{} selected entities", selection_resource.selected_to_prefab_entity().len());
+
+        // Iterate the entities in the selection world and prefab world
+        for (selected_entity, prefab_entity) in selection_resource.selected_to_prefab_entity() {
+            println!("diffing {:?} {:?}", selected_entity, prefab_entity);
+            // Do diffs for each component type
+            for (component_type, registration) in &registered_components {
+                let mut has_changes = false;
+                let acceptor = DiffSingleSerializerAcceptor {
+                    component_registration: &registration,
+                    src_world: prefab_world,
+                    src_entity: *prefab_entity,
+                    dst_world: selected_world,
+                    dst_entity: *selected_entity,
+                    has_changes: &mut has_changes
+                };
+                let mut data = vec![];
+                bincode::with_serializer(&mut data, acceptor);
+
+                if has_changes {
+                    let entity_uuid = *prefab_entity_to_uuid.get(prefab_entity).unwrap();
+                    diffs.push(ComponentDiff::new(
+                        entity_uuid,
+                        *component_type,
+                        data
+                    ));
+                }
+            }
+        }
+
+        Some(diffs)
+    } else {
+        None
+    }
 }
 
 pub fn editor_input() -> Box<dyn Schedulable> {
@@ -356,7 +356,9 @@ pub fn editor_input() -> Box<dyn Schedulable> {
         .read_resource::<ViewportResource>()
         .write_resource::<EditorSelectionResource>()
         .write_resource::<DebugDrawResource>()
-        .build(|command_buffer, _, (editor_state, input_state, viewport, editor_selection, debug_draw), _| {
+        .write_resource::<EditorDrawResource>()
+        .with_query(<(Read<Position2DComponent>)>::query())
+        .build(|command_buffer, subworld, (editor_state, input_state, viewport, editor_selection, debug_draw, editor_draw), (position_query)| {
             if input_state.is_key_just_down(VirtualKeyCode::Key1) {
                 EditorStateResource::enqueue_set_active_editor_tool(
                     command_buffer,
@@ -382,54 +384,78 @@ pub fn editor_input() -> Box<dyn Schedulable> {
                 editor_state.enqueue_toggle_pause(command_buffer);
             }
 
-            if let Some(position) = input_state.mouse_button_just_clicked_position(MouseButton::Left) {
-                let position = to_glm(position);
-                let world_space = ncollide2d::math::Point::from(viewport.ui_space_to_world_space(position));
+            editor_draw.update(&*input_state, &*viewport);
 
-                let collision_groups = CollisionGroups::default();
-                let results = editor_selection.editor_selection_world().interferences_with_point(&world_space, &collision_groups);
+            handle_translate_gizmo_input(&mut *debug_draw, &mut *editor_draw, &mut *editor_state, &mut *editor_selection, subworld);
 
-                let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-                editor_selection.enqueue_set_selection(results);
-            } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
-                // Drag complete, check AABB
-                let target_position0: glm::Vec2 = viewport
-                    .ui_space_to_world_space(to_glm(drag_complete.begin_position))
-                    .into();
-                let target_position1: glm::Vec2 = viewport
-                    .ui_space_to_world_space(to_glm(drag_complete.end_position))
-                    .into();
-
-                let mins = glm::vec2(
-                    f32::min(target_position0.x, target_position1.x),
-                    f32::min(target_position0.y, target_position1.y),
-                );
-
-                let maxs = glm::vec2(
-                    f32::max(target_position0.x, target_position1.x),
-                    f32::max(target_position0.y, target_position1.y),
-                );
-
-                let aabb = ncollide2d::bounding_volume::AABB::new(
-                    nalgebra::Point::from(mins),
-                    nalgebra::Point::from(maxs),
-                );
-
-                let collision_groups = CollisionGroups::default();
-                let results = editor_selection
-                    .editor_selection_world()
-                    .interferences_with_aabb(&aabb, &collision_groups);
-
-                let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-                editor_selection.enqueue_set_selection(results);
-            } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
-                debug_draw.add_rect(
-                    viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),
-                    viewport.ui_space_to_world_space(to_glm(drag_in_progress.end_position)),
-                    glm::vec4(1.0, 1.0, 0.0, 1.0),
-                );
+            match editor_state.active_editor_tool() {
+                //EditorTool::Select => handle_select_tool_input(&*entity_set, &*input_state, &* camera_state, &* editor_collision_world, &mut* editor_selected_components, &mut*debug_draw, &editor_ui_state),
+                EditorTool::Translate => draw_translate_gizmo(&mut *debug_draw, &mut *editor_draw, &mut *editor_selection, subworld, position_query),
+                //EditorTool::Scale => draw_scale_gizmo(&*entity_set, &mut* editor_selected_components, &mut*debug_draw, &mut *editor_draw, &* transform_components),
+                //EditorTool::Rotate => draw_rotate_gizmo(&*entity_set, &mut* editor_selected_components, &mut*debug_draw, &mut *editor_draw, &* transform_components)
+                _ => {}
             }
+
+            handle_selection(&*editor_draw, &*input_state, &*viewport, &mut *editor_selection, &mut *debug_draw);
         })
+}
+
+fn handle_selection(
+    editor_draw: &EditorDrawResource,
+    input_state: &InputResource,
+    viewport: &ViewportResource,
+    editor_selection: &mut EditorSelectionResource,
+    debug_draw: &mut DebugDrawResource
+) {
+    if editor_draw.is_interacting_with_anything() {
+        // no selection
+    } else if let Some(position) = input_state.mouse_button_just_clicked_position(MouseButton::Left) {
+        let position = to_glm(position);
+        let world_space = ncollide2d::math::Point::from(viewport.ui_space_to_world_space(position));
+
+        let collision_groups = CollisionGroups::default();
+        let results = editor_selection.editor_selection_world().interferences_with_point(&world_space, &collision_groups);
+
+        let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
+        editor_selection.enqueue_set_selection(results);
+    } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
+        // Drag complete, check AABB
+        let target_position0: glm::Vec2 = viewport
+            .ui_space_to_world_space(to_glm(drag_complete.begin_position))
+            .into();
+        let target_position1: glm::Vec2 = viewport
+            .ui_space_to_world_space(to_glm(drag_complete.end_position))
+            .into();
+
+        let mins = glm::vec2(
+            f32::min(target_position0.x, target_position1.x),
+            f32::min(target_position0.y, target_position1.y),
+        );
+
+        let maxs = glm::vec2(
+            f32::max(target_position0.x, target_position1.x),
+            f32::max(target_position0.y, target_position1.y),
+        );
+
+        let aabb = ncollide2d::bounding_volume::AABB::new(
+            nalgebra::Point::from(mins),
+            nalgebra::Point::from(maxs),
+        );
+
+        let collision_groups = CollisionGroups::default();
+        let results = editor_selection
+            .editor_selection_world()
+            .interferences_with_aabb(&aabb, &collision_groups);
+
+        let results : Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
+        editor_selection.enqueue_set_selection(results);
+    } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
+        debug_draw.add_rect(
+            viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),
+            viewport.ui_space_to_world_space(to_glm(drag_in_progress.end_position)),
+            glm::vec4(1.0, 1.0, 0.0, 1.0),
+        );
+    }
 }
 
 pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
@@ -459,10 +485,178 @@ pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
         })
 }
 
+use legion::filter::EntityFilterTuple;
+use legion::filter::ComponentFilter;
+use legion::filter::Passthrough;
+use legion::system::SystemQuery;
+use legion::system::SubWorld;
+
+
+fn handle_translate_gizmo_input(
+    debug_draw: &mut DebugDrawResource,
+    editor_draw: &mut EditorDrawResource,
+    editor_ui_state: &mut EditorStateResource,
+    selection_world: &mut EditorSelectionResource,
+    subworld: &SubWorld,
+) {
+    if let Some(drag_in_progress) = editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left) {
+        println!("drag in progress");
+        // See what if any axis we will operate on
+        let mut translate_x = false;
+        let mut translate_y = false;
+        if drag_in_progress.shape_id == "x_axis_translate" {
+            translate_x = true;
+        } else if drag_in_progress.shape_id == "y_axis_translate" {
+            translate_y = true;
+        } else if drag_in_progress.shape_id == "xy_axis_translate" {
+            translate_x = true;
+            translate_y = true;
+        }
+
+        // Early out if we didn't touch either axis
+        if !translate_x && !translate_y {
+            return;
+        }
+
+        // Determine the drag distance in ui_space
+        let mut world_space_previous_frame_delta = drag_in_progress.world_space_previous_frame_delta;
+        let mut world_space_accumulated_delta = drag_in_progress.world_space_accumulated_frame_delta;
+        if !translate_x {
+            world_space_previous_frame_delta.x = 0.0;
+            world_space_accumulated_delta.x = 0.0;
+        }
+
+        if !translate_y {
+            world_space_previous_frame_delta.y = 0.0;
+            world_space_accumulated_delta.y = 0.0;
+        }
+
+        let query = <(Write<Position2DComponent>)>::query();
+
+        for (entity_handle, mut position) in query.iter_entities_mut(selection_world.selected_entities_world_mut()) {
+            println!("looking at entity");
+            // Can use editor_draw.is_shape_drag_just_finished(MouseButton::Left) to see if this is the final drag,
+            // in which case we might want to save an undo step
+            *position.position += world_space_previous_frame_delta;
+            println!("{:?}", *position.position);
+        }
+
+        let persist_to_disk = editor_draw.is_shape_drag_just_finished(MouseButton::Left);
+
+        let diffs = generate_diffs_from_changes(&*editor_ui_state, &*selection_world);
+        if let Some(diffs) = diffs {
+            editor_ui_state.enqueue_apply_diffs(diffs, persist_to_disk);
+        }
+    }
+}
+
+
+fn draw_translate_gizmo(
+    debug_draw: &mut DebugDrawResource,
+    editor_draw: &mut EditorDrawResource,
+    selection_world: &mut EditorSelectionResource,
+    subworld: &SubWorld,
+    position_query: &mut legion::system::SystemQuery<
+        Read<Position2DComponent>,
+        EntityFilterTuple<ComponentFilter<Position2DComponent>, Passthrough, Passthrough>
+    >
+) {
+
+    for (entity, position) in position_query.iter_entities(subworld) {
+
+        if !selection_world.is_entity_selected(entity) {
+            continue;
+        }
+
+        let x_color = glm::vec4(0.0, 1.0, 0.0, 1.0);
+        let y_color = glm::vec4(1.0, 0.6, 0.0, 1.0);
+        let xy_color = glm::vec4(1.0, 1.0, 0.0, 1.0);
+
+        let xy_position = glm::Vec2::new(position.position.x, position.position.y);
+
+        //TODO: Make this resolution independent. Need a UI multiplier?
+
+        let ui_multiplier = 0.01;
+
+        // x axis line
+        editor_draw.add_line(
+            "x_axis_translate",
+            debug_draw,
+            xy_position,
+            xy_position + glm::vec2(100.0, 0.0).scale(ui_multiplier),
+            x_color
+        );
+
+        editor_draw.add_line(
+            "x_axis_translate",
+            debug_draw,
+            xy_position + glm::vec2(85.0, 15.0).scale(ui_multiplier),
+            xy_position + glm::vec2(100.0, 0.0).scale(ui_multiplier),
+            x_color
+        );
+
+        editor_draw.add_line(
+            "x_axis_translate",
+            debug_draw,
+            xy_position + glm::vec2(85.0, -15.0).scale(ui_multiplier),
+            xy_position + glm::vec2(100.0, 0.0).scale(ui_multiplier),
+            x_color
+        );
+
+        // y axis line
+        editor_draw.add_line(
+            "y_axis_translate",
+            debug_draw,
+            xy_position,
+            xy_position + glm::vec2(0.0, 100.0).scale(ui_multiplier),
+            y_color
+        );
+
+        editor_draw.add_line(
+            "y_axis_translate",
+            debug_draw,
+            xy_position + glm::vec2(-15.0, 85.0).scale(ui_multiplier),
+            xy_position + glm::vec2(0.0, 100.0).scale(ui_multiplier),
+            y_color
+        );
+
+        editor_draw.add_line(
+            "y_axis_translate",
+            debug_draw,
+            xy_position + glm::vec2(15.0, 85.0).scale(ui_multiplier),
+            xy_position + glm::vec2(0.0, 100.0).scale(ui_multiplier),
+            y_color
+        );
+
+        // xy line
+        editor_draw.add_line(
+            "xy_axis_translate",
+            debug_draw,
+            xy_position + glm::vec2(0.0, 25.0).scale(ui_multiplier),
+            xy_position + glm::vec2(25.0, 25.0).scale(ui_multiplier),
+            xy_color
+        );
+
+        // xy line
+        editor_draw.add_line(
+            "xy_axis_translate",
+            debug_draw,
+            xy_position + glm::vec2(25.0, 0.0).scale(ui_multiplier),
+            xy_position + glm::vec2(25.0, 25.0).scale(ui_multiplier),
+            xy_color
+        );
+    }
+}
+
+
 pub fn editor_process_selection_ops(world: &mut World) {
     EditorSelectionResource::process_selection_ops(world);
 }
 
 pub fn reload_editor_state_if_file_changed(world: &mut World) {
     EditorStateResource::hot_reload_if_asset_changed(world);
+}
+
+pub fn editor_process_edit_diffs(world: &mut World) {
+    EditorStateResource::process_diffs(world);
 }

@@ -75,6 +75,8 @@ impl EditorSelectionResource {
 
     pub fn selected_entities_world(&self) -> &World { &self.selected_entities_world }
 
+    pub fn selected_entities_world_mut(&mut self) -> &mut World { &mut self.selected_entities_world }
+
     pub fn selected_to_prefab_entity(&self) -> &HashMap<Entity, Entity> { &self.selected_to_prefab_entity }
 
     pub fn selected_entity_aabbs(&mut self) -> HashMap<Entity, Option<AABB<f32>>> {

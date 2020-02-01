@@ -89,12 +89,19 @@ impl OpenedPrefabState {
     }
 }
 
+struct QueuedDiff {
+    diffs: Vec<ComponentDiff>,
+    persist_to_disk: bool
+}
+
 pub struct EditorStateResource {
     editor_mode: EditorMode,
     window_options_running: WindowOptions,
     window_options_editing: WindowOptions,
     active_editor_tool: EditorTool,
     opened_prefab: Option<Arc<OpenedPrefabState>>,
+    pending_diffs: Vec<QueuedDiff>
+
 }
 
 impl EditorStateResource {
@@ -105,6 +112,7 @@ impl EditorStateResource {
             window_options_editing: WindowOptions::new_editing(),
             active_editor_tool: EditorTool::Translate,
             opened_prefab: None,
+            pending_diffs: Default::default()
         }
     }
 
@@ -381,9 +389,28 @@ impl EditorStateResource {
         }
     }
 
+    pub fn enqueue_apply_diffs(&mut self, diffs: Vec<ComponentDiff>, persist_to_disk: bool) {
+        self.pending_diffs.push(QueuedDiff { diffs, persist_to_disk });
+    }
+
+    pub fn process_diffs(world: &mut World) {
+        let mut pending_diffs = vec![];
+        {
+            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+            if !editor_state.pending_diffs.is_empty() {
+                std::mem::swap(&mut pending_diffs, &mut editor_state.pending_diffs);
+            }
+        }
+
+        for queued_diff in pending_diffs.drain(..) {
+            EditorStateResource::apply_diffs(world, queued_diff.diffs, queued_diff.persist_to_disk);
+        }
+    }
+
     pub fn apply_diffs(
         world: &mut World,
-        diffs: Arc<Vec<ComponentDiff>>
+        diffs: Vec<ComponentDiff>,
+        persist_to_disk: bool
     ) {
         // Clone the currently opened prefab Arc so we can refer back to it
         let mut opened_prefab = {
@@ -435,7 +462,7 @@ impl EditorStateResource {
         Self::restore_selected_uuids(world, &selected_uuids);
 
         //TEMP: Apply diffs to uncooked and save
-        {
+        if persist_to_disk {
             let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
 
             use atelier_loader::Loader;

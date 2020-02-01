@@ -29,6 +29,7 @@ pub use editor_systems::editor_entity_list_window;
 pub use editor_systems::editor_process_selection_ops;
 pub use editor_systems::editor_inspector_window;
 pub use editor_systems::reload_editor_state_if_file_changed;
+pub use editor_systems::editor_process_edit_diffs;
 
 use legion::prelude::*;
 use legion::schedule::Builder;
@@ -143,6 +144,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         .always_thread_local(editor_inspector_window)
 
         // Editor processing
+        .always_thread_local(editor_process_edit_diffs)
         .always_thread_local(editor_process_selection_ops)
 
         // Editor output

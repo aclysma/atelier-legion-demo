@@ -43,7 +43,7 @@ bincode = { git="https://github.com/aclysma/bincode.git", branch="new-trait-boun
 mopa = "0.2"
 itertools = "0.8"
 
-serde-diff = { git = "https://github.com/aclysma/serde-diff.git", branch = "diff-indicates-has-changes" }
+serde-diff = { git = "https://github.com/amethyst/serde-diff.git" }
 legion-prefab = { path = "../prefab/legion-prefab" }
 prefab-format = { path = "../prefab/prefab-format" }
 

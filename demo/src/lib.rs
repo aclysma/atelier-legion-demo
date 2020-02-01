@@ -195,7 +195,7 @@ impl app::AppHandler for DemoApp {
         world.resources.insert(camera);
         world.resources.insert(viewport);
         world.resources.insert(DebugDrawResource::new());
-        //world.resources.insert(EditorDrawResource::new());
+        world.resources.insert(EditorDrawResource::new());
         world.resources.insert(EditorSelectionResource::new(
             create_editor_selection_registry(),
             world,
