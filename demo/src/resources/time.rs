@@ -9,12 +9,18 @@ pub enum SimulationTimePauseReason {
     User = 2,
 }
 
+enum TimeOp {
+    SetPaused(bool, SimulationTimePauseReason),
+    ResetSimulationTime
+}
+
 // For now just wrap the input helper that skulpin provides
 pub struct TimeResource {
     pub time_state: TimeState,
     pub simulation_time: TimeContext,
     pub print_fps_event: skulpin::PeriodicEvent,
     pub simulation_pause_flags: u8, // No flags set means simulation is not paused
+    pending_time_ops: Vec<TimeOp>
 }
 
 impl TimeResource {
@@ -26,6 +32,7 @@ impl TimeResource {
             simulation_time: TimeContext::new(),
             print_fps_event: Default::default(),
             simulation_pause_flags: 0,
+            pending_time_ops: Default::default()
         }
     }
 
@@ -71,31 +78,25 @@ impl TimeResource {
         }
     }
 
-    fn enqueue_command<F>(
-        command_buffer: &mut CommandBuffer,
-        f: F,
-    ) where
-        F: 'static + Fn(&World, legion::resource::FetchMut<Self>),
-    {
-        command_buffer.exec_mut(move |world| {
-            let editor_state = world.resources.get_mut::<Self>().unwrap();
-            (f)(world, editor_state);
-        })
-    }
-
     pub fn enqueue_set_simulation_time_paused(
-        command_buffer: &mut CommandBuffer,
+        &mut self,
         paused: bool,
         reason: SimulationTimePauseReason,
     ) {
-        Self::enqueue_command(command_buffer, move |world, mut time_resource| {
-            time_resource.set_simulation_time_paused(paused, reason);
-        })
+        self.pending_time_ops.push(TimeOp::SetPaused(paused, reason));
     }
 
-    pub fn enqueue_reset_simulation_time(command_buffer: &mut CommandBuffer) {
-        Self::enqueue_command(command_buffer, move |world, mut time_resource| {
-            time_resource.reset_simulation_time();
-        })
+    pub fn enqueue_reset_simulation_time(&mut self) {
+        self.pending_time_ops.push(TimeOp::ResetSimulationTime);
+    }
+
+    pub fn process_time_ops(&mut self) {
+        let time_ops : Vec<_> = self.pending_time_ops.drain(..).collect();
+        for time_op in time_ops {
+            match time_op {
+                TimeOp::SetPaused(paused, reason) => self.set_simulation_time_paused(paused, reason),
+                TimeOp::ResetSimulationTime => self.reset_simulation_time()
+            }
+        }
     }
 }

@@ -94,13 +94,13 @@ impl CloneMergeFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
         _src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         _src_entities: &[Entity],
         _dst_entities: &[Entity],
         from: &[RigidBodyBallComponentDef],
         into: &mut [std::mem::MaybeUninit<Self>],
     ) {
-        let mut physics = dst_resources.get_mut::<PhysicsResource>().unwrap();
+        let mut physics = resources.get_mut::<PhysicsResource>().unwrap();
 
         let position_components = crate::components::try_iter_components_in_storage::<
             Position2DComponent,
@@ -125,13 +125,13 @@ impl CloneMergeFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
         _src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         _src_entities: &[Entity],
         _dst_entities: &[Entity],
         from: &[RigidBodyBoxComponentDef],
         into: &mut [std::mem::MaybeUninit<Self>],
     ) {
-        let mut physics = dst_resources.get_mut::<PhysicsResource>().unwrap();
+        let mut physics = resources.get_mut::<PhysicsResource>().unwrap();
 
         let position_components = crate::components::try_iter_components_in_storage::<
             Position2DComponent,

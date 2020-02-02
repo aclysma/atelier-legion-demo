@@ -131,15 +131,17 @@ pub fn apply_diffs(
 ) -> (World, HashMap<EntityUuid, Entity>) {
     let registered_components = crate::create_component_registry_by_uuid();
 
+    let resources = Resources::default();
+
     // We want to do plain copies of all the data
-    let clone_impl = crate::create_copy_clone_impl();
+    let clone_impl = crate::create_copy_clone_impl(&resources);
 
     // Create an empty world to populate
     let mut new_world = universe.create_world();
 
     // Copy everything from the opened prefab into the new world as a baseline
     let mut result_mappings = Default::default();
-    new_world.clone_merge(
+    new_world.clone_from(
         world,
         &clone_impl,
         None,

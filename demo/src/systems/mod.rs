@@ -32,9 +32,10 @@ pub use editor_systems::reload_editor_state_if_file_changed;
 pub use editor_systems::editor_process_edit_diffs;
 
 use legion::prelude::*;
-use legion::schedule::Builder;
+use legion::systems::schedule::Builder;
 use crate::resources::EditorMode;
 use std::marker::PhantomData;
+use crate::systems::editor_systems::editor_process_editor_ops;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct ScheduleCriteria {
@@ -56,7 +57,7 @@ impl ScheduleCriteria {
 
 struct ScheduleBuilder<'a> {
     criteria: &'a ScheduleCriteria,
-    schedule: legion::schedule::Builder,
+    schedule: legion::systems::schedule::Builder,
 }
 
 impl<'a> ScheduleBuilder<'a> {
@@ -110,7 +111,7 @@ impl<'a> ScheduleBuilder<'a> {
         self
     }
 
-    fn always_thread_local<F: FnMut(&mut World) + 'static>(
+    fn always_thread_local<F: FnMut(&mut World, &mut Resources) + 'static>(
         mut self,
         f: F,
     ) -> Self {
@@ -146,6 +147,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         // Editor processing
         .always_thread_local(editor_process_edit_diffs)
         .always_thread_local(editor_process_selection_ops)
+        .always_thread_local(editor_process_editor_ops)
 
         // Editor output
         .always(draw_selection_shapes)

@@ -12,6 +12,16 @@ use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor};
 use prefab_format::{
     ComponentTypeUuid, EntityUuid
 };
+use itertools::Itertools;
+
+enum EditorOp {
+    Play,
+    Pause,
+    Reset,
+    OpenPrefab(AssetUuid),
+    TogglePause,
+    SetActiveEditorTool(EditorTool)
+}
 
 pub struct WindowOptions {
     pub show_imgui_metrics: bool,
@@ -100,6 +110,7 @@ pub struct EditorStateResource {
     window_options_editing: WindowOptions,
     active_editor_tool: EditorTool,
     opened_prefab: Option<Arc<OpenedPrefabState>>,
+    pending_editor_ops: Vec<EditorOp>,
     diffs_pending_apply: Vec<QueuedDiff>,
     diffs_pending_disk_persist: Vec<QueuedDiff>,
 }
@@ -112,6 +123,7 @@ impl EditorStateResource {
             window_options_editing: WindowOptions::new_editing(),
             active_editor_tool: EditorTool::Translate,
             opened_prefab: None,
+            pending_editor_ops: Default::default(),
             diffs_pending_apply: Default::default(),
             diffs_pending_disk_persist: Default::default(),
         }
@@ -161,14 +173,25 @@ impl EditorStateResource {
         time_state.set_simulation_time_paused(true, SimulationTimePauseReason::Editor);
     }
 
-    fn open_prefab(
+    pub fn toggle_pause(
+        &mut self,
+        time_state: &mut TimeResource
+    ) {
+        match self.editor_mode {
+            EditorMode::Active => self.play(time_state),
+            EditorMode::Inactive => self.pause(time_state),
+        };
+    }
+
+    pub fn open_prefab(
+        &mut self,
         world: &mut World,
+        resources: &Resources,
         prefab_uuid: AssetUuid,
     ) {
         {
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
-            let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
+            let mut universe = resources.get_mut::<UniverseResource>().unwrap();
+            let mut asset_resource = resources.get_mut::<AssetResource>().unwrap();
 
             use atelier_loader::Loader;
             use atelier_loader::handle::AssetHandle;
@@ -204,32 +227,35 @@ impl EditorStateResource {
                 prefab_to_world_mappings: Default::default(),
                 world_to_prefab_mappings: Default::default(),
             };
-            editor_state.opened_prefab = Some(Arc::new(opened_prefab));
+            self.opened_prefab = Some(Arc::new(opened_prefab));
         }
 
-        Self::reset(world);
+        self.reset(world, resources);
     }
 
-    fn reset(world: &mut World) {
+    fn reset(
+        &mut self,
+        world: &mut World,
+        resources: &Resources
+    ) {
         log::info!("RESET THE WORLD");
         {
-            let mut time_resource = world.resources.get_mut::<TimeResource>().unwrap();
+            let mut time_resource = resources.get_mut::<TimeResource>().unwrap();
             time_resource.set_simulation_time_paused(true, SimulationTimePauseReason::Editor);
             time_resource.reset_simulation_time();
         }
 
         // Clone the Arc containing all relevant data about the prefab we're currently editing
         let opened_prefab = {
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            editor_state.editor_mode = EditorMode::Active;
-            editor_state.opened_prefab.clone()
+            self.editor_mode = EditorMode::Active;
+            self.opened_prefab.clone()
         };
 
         // If a prefab is opened, reset all the data
         if let Some(opened_prefab) = opened_prefab {
             let mut prefab_to_world_mappings = HashMap::default();
-            let clone_impl = crate::create_spawn_clone_impl();
-            world.clone_merge(
+            let clone_impl = crate::create_spawn_clone_impl(resources);
+            world.clone_from(
                 &opened_prefab.cooked_prefab.world,
                 &clone_impl,
                 Some(&opened_prefab.prefab_to_world_mappings),
@@ -246,7 +272,6 @@ impl EditorStateResource {
                 log::info!("Prefab entity {} {:?} spawned as world entity {:?}", uuid::Uuid::from_bytes(*cooked_prefab_entity_uuid).to_string(), cooked_prefab_entity, world_entity);
             }
 
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
             let new_opened_prefab = OpenedPrefabState {
                 uuid: opened_prefab.uuid,
                 cooked_prefab: opened_prefab.cooked_prefab.clone(),
@@ -256,89 +281,76 @@ impl EditorStateResource {
                 world_to_prefab_mappings
             };
 
-            editor_state.opened_prefab = Some(Arc::new(new_opened_prefab));
+            self.opened_prefab = Some(Arc::new(new_opened_prefab));
         }
-    }
-
-    fn enqueue_command<F>(
-        command_buffer: &mut CommandBuffer,
-        f: F,
-    ) where
-        F: 'static + Fn(&World, legion::resource::FetchMut<Self>),
-    {
-        command_buffer.exec_mut(move |world| {
-            let editor_state = world.resources.get_mut::<Self>().unwrap();
-            (f)(world, editor_state);
-        })
     }
 
     pub fn active_editor_tool(&self) -> EditorTool {
         self.active_editor_tool
     }
 
-    pub fn enqueue_play(command_buffer: &mut CommandBuffer) {
-        Self::enqueue_command(command_buffer, move |world, mut editor_state| {
-            let mut time_resource = world.resources.get_mut::<TimeResource>().unwrap();
-            editor_state.play(&mut *time_resource);
-        });
+    pub fn enqueue_play(&mut self) {
+        self.pending_editor_ops.push(EditorOp::Play);
     }
 
-    pub fn enqueue_pause(command_buffer: &mut CommandBuffer) {
-        Self::enqueue_command(command_buffer, move |world, mut editor_state| {
-            let mut time_resource = world.resources.get_mut::<TimeResource>().unwrap();
-            editor_state.pause(&mut *time_resource);
-        });
+    pub fn enqueue_pause(&mut self) {
+        self.pending_editor_ops.push(EditorOp::Pause);
     }
 
-    pub fn enqueue_reset(command_buffer: &mut CommandBuffer) {
-        command_buffer.exec_mut(move |world| {
-            Self::reset(world);
-        });
+    pub fn enqueue_reset(&mut self) {
+        self.pending_editor_ops.push(EditorOp::Reset);
     }
 
     pub fn enqueue_open_prefab(
-        command_buffer: &mut CommandBuffer,
+        &mut self,
         prefab_uuid: AssetUuid,
     ) {
-        command_buffer.exec_mut(move |world| {
-            Self::open_prefab(world, prefab_uuid);
-        });
+        self.pending_editor_ops.push(EditorOp::OpenPrefab(prefab_uuid));
     }
 
     pub fn enqueue_toggle_pause(
-        &self,
-        command_buffer: &mut CommandBuffer,
+        &mut self
     ) {
-        match self.editor_mode {
-            EditorMode::Active => Self::enqueue_play(command_buffer),
-            EditorMode::Inactive => Self::enqueue_pause(command_buffer),
-        };
+        self.pending_editor_ops.push(EditorOp::TogglePause);
     }
 
     pub fn enqueue_set_active_editor_tool(
-        command_buffer: &mut CommandBuffer,
+        &mut self,
         editor_tool: EditorTool,
     ) {
-        Self::enqueue_command(command_buffer, move |world, mut editor_state| {
-            editor_state.active_editor_tool = editor_tool;
-            log::info!("Editor tool changed to {:?}", editor_tool);
-        })
+        self.pending_editor_ops.push(EditorOp::SetActiveEditorTool(editor_tool));
     }
 
-    fn get_selected_uuids(world: &World) -> HashSet<EntityUuid> {
+    pub fn set_active_editor_tool(&mut self, editor_tool: EditorTool) {
+        self.active_editor_tool = editor_tool;
+        log::info!("Editor tool changed to {:?}", editor_tool);
+    }
+
+    pub fn process_editor_ops(&mut self, world: &mut World, resources: &Resources) {
+        let editor_ops : Vec<_> = self.pending_editor_ops.drain(..).collect();
+        for editor_op in editor_ops {
+            match editor_op {
+                EditorOp::Play => self.play(&mut *resources.get_mut::<TimeResource>().unwrap()),
+                EditorOp::Pause => self.pause(&mut *resources.get_mut::<TimeResource>().unwrap()),
+                EditorOp::Reset => self.reset(world, resources),
+                EditorOp::OpenPrefab(asset_uuid) => self.open_prefab(world, resources, asset_uuid),
+                EditorOp::TogglePause => self.toggle_pause(&mut *resources.get_mut::<TimeResource>().unwrap()),
+                EditorOp::SetActiveEditorTool(editor_tool) => self.set_active_editor_tool(editor_tool)
+            }
+        }
+    }
+
+    fn get_selected_uuids(&mut self, selection_resource: &mut EditorSelectionResource, world: &World, resources: &Resources) -> HashSet<EntityUuid> {
         // Get the UUIDs of all selected entities
         let mut selected_uuids = HashSet::new();
-        let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
 
-        if let Some(opened_prefab) = editor_state.opened_prefab() {
+        if let Some(opened_prefab) = self.opened_prefab() {
             // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
             use std::iter::FromIterator;
             let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
 
             // Iterate all selected prefab entities
-            let editor_selection_resource = world.resources.get::<EditorSelectionResource>().unwrap();
-
-            for (selected_entity, prefab_entity) in editor_selection_resource.selected_to_prefab_entity() {
+            for (selected_entity, prefab_entity) in selection_resource.selected_to_prefab_entity() {
                 let entity_uuid = prefab_entity_to_uuid.get(prefab_entity);
                 // Insert the UUID into selected_uuids
                 if let Some(uuid) = entity_uuid {
@@ -354,11 +366,10 @@ impl EditorStateResource {
         selected_uuids
     }
 
-    fn restore_selected_uuids(world: &World, selected_uuids: &HashSet<EntityUuid>) {
-        let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
+    fn restore_selected_uuids(&mut self, selection_resource: &mut EditorSelectionResource, world: &World, resources: &Resources, selected_uuids: &HashSet<EntityUuid>) {
         let mut selected_entities : HashSet<Entity> = HashSet::default();
         for selected_uuid in selected_uuids {
-            if let Some(opened_prefab) = editor_state.opened_prefab.as_ref() {
+            if let Some(opened_prefab) = self.opened_prefab.as_ref() {
                 if let Some(prefab_entity) = &opened_prefab.cooked_prefab.entities.get(selected_uuid) {
                     let world_entity = opened_prefab.prefab_to_world_mappings[prefab_entity];
                     selected_entities.insert(world_entity);
@@ -366,17 +377,15 @@ impl EditorStateResource {
             }
         }
 
-        let mut editor_selection_resource = world.resources.get_mut::<EditorSelectionResource>().unwrap();
-        editor_selection_resource.enqueue_set_selection(selected_entities.into_iter().collect());
+        selection_resource.enqueue_set_selection(selected_entities.into_iter().collect());
     }
 
-    pub fn hot_reload_if_asset_changed(world: &mut World) {
+    pub fn hot_reload_if_asset_changed(&mut self, selection_resource: &mut EditorSelectionResource, world: &mut World, resources: &Resources) {
         // Detect if we need to reload. Do this comparing the prefab asset's version with the cooked prefab's version
         let mut prefab_to_reload = None;
         {
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            if let Some(opened_prefab) = &editor_state.opened_prefab {
-                let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
+            if let Some(opened_prefab) = &self.opened_prefab {
+                let mut asset_resource = resources.get_mut::<AssetResource>().unwrap();
                 let version = opened_prefab.prefab_handle.asset_version::<PrefabAsset, _>(asset_resource.storage()).unwrap();
                 if opened_prefab.version != version {
                     prefab_to_reload = Some(opened_prefab.clone());
@@ -389,7 +398,7 @@ impl EditorStateResource {
             log::info!("Source file change detected, reloading");
 
             // Save the selected entity UUIDs
-            let selected_uuids = Self::get_selected_uuids(world);
+            let selected_uuids = self.get_selected_uuids(selection_resource, world, resources);
 
             // Delete the old stuff from the world
             for x in opened_prefab.prefab_to_world_mappings.values() {
@@ -397,10 +406,10 @@ impl EditorStateResource {
             }
 
             // re-cook and load the prefab
-            Self::open_prefab(world, opened_prefab.uuid);
+            self.open_prefab(world, resources, opened_prefab.uuid);
 
             // Restore selection
-            Self::restore_selected_uuids(world, &selected_uuids);
+            self.restore_selected_uuids(selection_resource, world, resources, &selected_uuids);
         }
     }
 
@@ -408,34 +417,32 @@ impl EditorStateResource {
         self.diffs_pending_apply.push(QueuedDiff { diffs, persist_to_disk });
     }
 
-    pub fn process_diffs(world: &mut World) {
+    pub fn process_diffs(&mut self, editor_selection: &mut EditorSelectionResource, world: &mut World, resources: &Resources) {
         // flush these, world entities can change after this call leading to entities not being
         // found and selections lost
-        EditorSelectionResource::process_selection_ops(world);
+        editor_selection.process_selection_ops(self, world, resources);
 
         // Take all the diffs that are queued to be applied this frame
         let mut pending_diffs = vec![];
         {
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            if !editor_state.diffs_pending_apply.is_empty() {
-                std::mem::swap(&mut pending_diffs, &mut editor_state.diffs_pending_apply);
+            if !self.diffs_pending_apply.is_empty() {
+                std::mem::swap(&mut pending_diffs, &mut self.diffs_pending_apply);
             }
         }
 
         // Apply the diffs to the world state
         for queued_diff in &pending_diffs {
-            EditorStateResource::apply_diffs(world, &queued_diff.diffs);
+            self.apply_diffs(editor_selection, world, resources, &queued_diff.diffs);
         }
 
         // Add the diffs to the persist queue and see if we need to actually persist anything yet
         let diffs_to_apply_to_disk : Option<Vec<_>> = {
             // Push all the diffs we just applied into the persist queue
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            editor_state.diffs_pending_disk_persist.append(&mut pending_diffs);
+            self.diffs_pending_disk_persist.append(&mut pending_diffs);
 
             // Find the last diff with the persist_to_disk flag set
             let mut last_persist_diff_index = None;
-            for (i, diff) in editor_state.diffs_pending_disk_persist.iter().enumerate() {
+            for (i, diff) in self.diffs_pending_disk_persist.iter().enumerate() {
                 if diff.persist_to_disk {
                     last_persist_diff_index = Some(i);
                 }
@@ -444,18 +451,21 @@ impl EditorStateResource {
             // Pull all the diffs up to and including the flagged diff so that we can apply those to
             // disk
             last_persist_diff_index.map(|last_persist_diff_index| {
-                editor_state.diffs_pending_disk_persist.drain(0..=last_persist_diff_index).flat_map(|x| x.diffs).collect()
+                self.diffs_pending_disk_persist.drain(0..=last_persist_diff_index).flat_map(|x| x.diffs).collect()
             })
         };
 
         // Apply changes to disk, if any have been flagged to trigger persisting to disk
         if let Some(diffs) = diffs_to_apply_to_disk {
-            EditorStateResource::persist_diffs(world, &diffs);
+            self.persist_diffs(world, resources, &diffs);
         }
     }
 
     fn apply_diffs(
+        &mut self,
+        selection_resource: &mut EditorSelectionResource,
         world: &mut World,
+        resources: &Resources,
         diffs: &[ComponentDiff]
     ) {
         for diff in diffs {
@@ -464,16 +474,15 @@ impl EditorStateResource {
 
         // Clone the currently opened prefab Arc so we can refer back to it
         let mut opened_prefab = {
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            if editor_state.opened_prefab.is_none() {
+            if self.opened_prefab.is_none() {
                 return;
             }
 
-            editor_state.opened_prefab.as_ref().unwrap().clone()
+            self.opened_prefab.as_ref().unwrap().clone()
         };
 
         // Get the UUIDs of all selected entities
-        let selected_uuids = Self::get_selected_uuids(world);
+        let selected_uuids = self.get_selected_uuids(selection_resource, world, resources);
 
         // Delete the old stuff from the world
         for x in opened_prefab.prefab_to_world_mappings.values() {
@@ -482,7 +491,7 @@ impl EditorStateResource {
 
         {
             // Apply the diffs to the cooked data
-            let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
+            let mut universe = resources.get_mut::<UniverseResource>().unwrap();
             let new_cooked_prefab = Arc::new(
                 crate::component_diffs::apply_diffs_to_cooked_prefab(
                     &opened_prefab.cooked_prefab,
@@ -502,18 +511,19 @@ impl EditorStateResource {
             };
 
             // Set opened_prefab (TODO: Probably better to pass new_opened_prefab in and let reset() assign to opened_prefab)
-            let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-            editor_state.opened_prefab = Some(Arc::new(new_opened_prefab));
+            self.opened_prefab = Some(Arc::new(new_opened_prefab));
         }
 
         // Spawn everything
-        Self::reset(world);
+        self.reset(world, resources);
 
-        Self::restore_selected_uuids(world, &selected_uuids);
+        self.restore_selected_uuids(selection_resource, world, resources, &selected_uuids);
     }
 
     fn persist_diffs(
+        &mut self,
         world: &mut World,
+        resources: &Resources,
         diffs: &[ComponentDiff]
     ) {
         for diff in diffs {
@@ -523,19 +533,18 @@ impl EditorStateResource {
         //
         // Check that a prefab is opened
         //
-        let mut editor_state = world.resources.get_mut::<EditorStateResource>().unwrap();
-        if editor_state.opened_prefab.is_none() {
+        if self.opened_prefab.is_none() {
             return;
         }
 
-        let opened_prefab = editor_state.opened_prefab.as_ref().unwrap();
+        let opened_prefab = self.opened_prefab.as_ref().unwrap();
 
         //
         // Fetch the uncooked prefab data
         //
         use atelier_loader::Loader;
         use atelier_loader::handle::AssetHandle;
-        let mut asset_resource = world.resources.get_mut::<AssetResource>().unwrap();
+        let mut asset_resource = resources.get_mut::<AssetResource>().unwrap();
         let load_handle = asset_resource.loader().add_ref(opened_prefab.uuid);
         let handle = atelier_loader::handle::Handle::<crate::pipeline::PrefabAsset>::new(asset_resource.tx().clone(), load_handle);
 
@@ -549,7 +558,7 @@ impl EditorStateResource {
         //
         // Apply the diffs to the uncooked prefab, producing a new uncooked prefab
         //
-        let mut universe = world.resources.get_mut::<UniverseResource>().unwrap();
+        let mut universe = resources.get_mut::<UniverseResource>().unwrap();
         let uncooked_prefab = crate::component_diffs::apply_diffs_to_prefab(&prefab_asset.prefab, &universe.universe, &diffs);
 
         //

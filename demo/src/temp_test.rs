@@ -41,7 +41,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         let comp_registrations = legion_prefab::iter_component_registrations();
         use std::iter::FromIterator;
         let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
-            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone()), reg.clone())),
+            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), 0), reg.clone())),
         );
 
         component_types
@@ -89,8 +89,9 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("--- CLONE MERGE 1 ---");
         println!("This test just clones Position2DComponentDef");
-        let clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
-        world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
+        let resources = Resources::default();
+        let clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
+        world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
@@ -105,14 +106,14 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("--- CLONE MERGE 2 ---");
         println!("This test transforms Position2DComponentDef into Position2DComponent");
-        let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
+        let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
         clone_merge_impl.add_mapping_into::<Position2DComponentDef, Position2DComponent>();
 
         clone_merge_impl.add_mapping_closure::<Position2DComponentDef, Position2DComponent, _>(
             |_src_world,
              _src_component_storage,
              _src_component_storage_indexes,
-             _dst_resources,
+             _resources,
              _src_entities,
              _dst_entities,
              from,
@@ -125,7 +126,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
             },
         );
 
-        world.clone_merge(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
+        world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
@@ -140,7 +141,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("--- CLONE MERGE 3 ---");
         println!("This test demonstrates replacing existing entities rather than making new ones");
-        let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
+        let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
         clone_merge_impl.add_mapping_into::<Position2DComponentDef, Position2DComponent>();
 
         // Get a list of entities in the prefab
@@ -164,7 +165,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         }
 
         println!("mappings: {:#?}", mappings);
-        world.clone_merge(
+        world.clone_from(
             &prefab_asset.prefab.world,
             &clone_merge_impl,
             Some(&mappings),
@@ -199,7 +200,7 @@ pub fn temp_force_prefab_cook(asset_manager: &mut AssetResource) {
         let comp_registrations = legion_prefab::iter_component_registrations();
         use std::iter::FromIterator;
         let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
-            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone()), reg.clone())),
+            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), 0), reg.clone())),
         );
 
         component_types

@@ -34,11 +34,12 @@ impl EditorSelectionResource {
     pub fn new(
         registry: EditorSelectableRegistry,
         world: &World,
+        resources: &Resources,
     ) -> Self {
         let editor_selection_world = registry.create_editor_selection_world(world);
 
         // Create an empty world
-        let selected_entities_world = world.resources.get::<UniverseResource>().unwrap().create_world();
+        let selected_entities_world = resources.get::<UniverseResource>().unwrap().create_world();
         let selected_to_prefab_entity = HashMap::default();
 
         EditorSelectionResource {
@@ -108,27 +109,28 @@ impl EditorSelectionResource {
     }
 
     pub fn process_selection_ops(
-        world: &mut World
+        &mut self,
+        editor_state: &mut EditorStateResource,
+        world: &mut World,
+        resources: &Resources
     ) {
-        let mut editor_selection = world.resources.get_mut::<EditorSelectionResource>().unwrap();
-        let editor_state = world.resources.get::<EditorStateResource>().unwrap();
-        let universe = world.resources.get::<UniverseResource>().unwrap();
+        let universe = resources.get::<UniverseResource>().unwrap();
 
-        let ops : Vec<_> = editor_selection.pending_selection_ops.drain(..).collect();
+        let ops : Vec<_> = self.pending_selection_ops.drain(..).collect();
 
         let mut changed = false;
         for op in ops {
             changed |= match op {
-                SelectionOp::Add(e) => editor_selection.selected_entities.insert(e),
-                SelectionOp::Remove(e) => editor_selection.selected_entities.remove(&e),
-                SelectionOp::Clear => if editor_selection.selected_entities.len() > 0 {
-                    editor_selection.selected_entities.clear();
+                SelectionOp::Add(e) => self.selected_entities.insert(e),
+                SelectionOp::Remove(e) => self.selected_entities.remove(&e),
+                SelectionOp::Clear => if self.selected_entities.len() > 0 {
+                    self.selected_entities.clear();
                     true
                 } else {
                     false
                 },
                 SelectionOp::Set(entities) => {
-                    editor_selection.selected_entities = entities.iter().map(|x| *x).collect();
+                    self.selected_entities = entities.iter().map(|x| *x).collect();
                     true
                 }
             }
@@ -136,7 +138,7 @@ impl EditorSelectionResource {
 
         if changed {
             let prefab = editor_state.opened_prefab();
-            let clone_impl = crate::create_copy_clone_impl();
+            let clone_impl = crate::create_copy_clone_impl(resources);
 
             let mut world = universe.create_world();
 
@@ -145,16 +147,16 @@ impl EditorSelectionResource {
             if let Some(prefab) = prefab {
                 let prefab_world : &World = &prefab.cooked_prefab().world;
 
-                for e in &editor_selection.selected_entities {
+                for e in &self.selected_entities {
                     if let Some(prefab_entity) = prefab.world_to_prefab_mappings().get(e) {
-                        let e = world.clone_merge_single(prefab_world, *prefab_entity, &clone_impl, None);
+                        let e = world.clone_from_single(prefab_world, *prefab_entity, &clone_impl, None);
                         selected_to_prefab_entity.insert(e, *prefab_entity);
                     }
                 }
             }
 
-            editor_selection.selected_entities_world = world;
-            editor_selection.selected_to_prefab_entity = selected_to_prefab_entity;
+            self.selected_entities_world = world;
+            self.selected_to_prefab_entity = selected_to_prefab_entity;
         }
     }
 

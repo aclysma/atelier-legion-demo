@@ -13,7 +13,7 @@ where
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         from: &[FromT],
@@ -29,7 +29,7 @@ where
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         from: &[Self],
@@ -46,7 +46,7 @@ where
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         from: &[Self],
@@ -56,7 +56,7 @@ where
             src_world,
             src_component_storage,
             src_component_storage_indexes,
-            dst_resources,
+            resources,
             src_entities,
             dst_entities,
             from,
@@ -69,18 +69,19 @@ where
 /// providing custom mappings with add_mapping (which takes a closure) and add_mapping_into (which
 /// uses Rust standard library's .into(). If a mapping isn't provided for a type, the component
 /// will be cloned using ComponentRegistration passed in new()
-#[derive(Default)]
-pub struct CloneMergeImpl {
+pub struct CloneMergeImpl<'a> {
     handlers: HashMap<ComponentTypeId, Box<dyn CloneMergeMapping>>,
     components: HashMap<ComponentTypeId, ComponentRegistration>,
+    resources: &'a Resources
 }
 
-impl CloneMergeImpl {
+impl<'a> CloneMergeImpl<'a> {
     /// Creates a new implementation
-    pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>) -> Self {
+    pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>, resources: &'a Resources) -> Self {
         Self {
+            handlers: Default::default(),
             components,
-            ..Default::default()
+            resources
         }
     }
 
@@ -98,7 +99,7 @@ impl CloneMergeImpl {
             |_src_world,
              _src_component_storage,
              _src_component_storage_indexes,
-             _dst_resources,
+             _resources,
              _src_entities,
              _dst_entities,
              src_data: *const u8,
@@ -144,7 +145,7 @@ impl CloneMergeImpl {
             |src_world,
              src_component_storage,
              src_component_storage_indexes,
-             dst_resources,
+             resources,
              src_entities,
              dst_entities,
              src_data: *const u8,
@@ -167,7 +168,7 @@ impl CloneMergeImpl {
                         src_world,
                         src_component_storage,
                         src_component_storage_indexes,
-                        dst_resources,
+                        resources,
                         src_entities,
                         dst_entities,
                         from_slice,
@@ -194,7 +195,7 @@ impl CloneMergeImpl {
                 &World,                    // src_world
                 &ComponentStorage,         // src_component_storage
                 Range<usize>,              // src_component_storage_indexes
-                &Resources,                // dst_resources
+                &Resources,                // resources
                 &[Entity],                 // src_entities
                 &[Entity],                 // dst_entities
                 &[FromT],                  // src_data
@@ -211,7 +212,7 @@ impl CloneMergeImpl {
             move |src_world,
                   src_component_storage,
                   src_component_storage_indexes,
-                  dst_resources,
+                  resources,
                   src_entities,
                   dst_entities,
                   src_data: *const u8,
@@ -233,7 +234,7 @@ impl CloneMergeImpl {
                         src_world,
                         src_component_storage,
                         src_component_storage_indexes,
-                        dst_resources,
+                        resources,
                         src_entities,
                         dst_entities,
                         from_slice,
@@ -247,7 +248,7 @@ impl CloneMergeImpl {
     }
 }
 
-impl legion::world::CloneMergeImpl for CloneMergeImpl {
+impl<'a> legion::world::CloneImpl for CloneMergeImpl<'a> {
     fn map_component_type(
         &self,
         component_type: ComponentTypeId,
@@ -259,7 +260,7 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
             (handler.dst_type_id(), handler.dst_type_meta())
         } else {
             let comp_reg = &self.components[&component_type];
-            (ComponentTypeId(comp_reg.ty()), comp_reg.meta().clone())
+            (ComponentTypeId(comp_reg.ty(), 0), comp_reg.meta().clone())
         }
     }
 
@@ -268,7 +269,6 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
         src_type: ComponentTypeId,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -284,7 +284,7 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
                 src_world,
                 src_component_storage,
                 src_component_storage_indexes,
-                dst_resources,
+                self.resources,
                 src_entities,
                 dst_entities,
                 src_data,
@@ -310,7 +310,7 @@ trait CloneMergeMapping {
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         src_data: *const u8,
@@ -325,7 +325,7 @@ where
         &World,            // src_world
         &ComponentStorage, // src_component_storage
         Range<usize>,      // src_component_storage_indexes
-        &Resources,        // dst_resources
+        &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
         *const u8,         // src_data
@@ -344,7 +344,7 @@ where
         &World,            // src_world
         &ComponentStorage, // src_component_storage
         Range<usize>,      // src_component_storage_indexes
-        &Resources,        // dst_resources
+        &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
         *const u8,         // src_data
@@ -371,7 +371,7 @@ where
         &World,            // src_world
         &ComponentStorage, // src_component_storage
         Range<usize>,      // src_component_storage_indexes
-        &Resources,        // dst_resources
+        &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
         *const u8,         // src_data
@@ -392,7 +392,7 @@ where
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         src_data: *const u8,
@@ -403,7 +403,7 @@ where
             src_world,
             src_component_storage,
             src_component_storage_indexes,
-            dst_resources,
+            resources,
             src_entities,
             dst_entities,
             src_data,

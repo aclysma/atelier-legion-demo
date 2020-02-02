@@ -22,9 +22,11 @@ pub fn cook_prefab(
     registered_components_by_uuid: &HashMap<ComponentTypeUuid, ComponentRegistration>,
     prefab_uuid: AssetUuid,
 ) -> CookedPrefab {
+    let resources = Resources::default();
+
     // Create the clone_merge impl. For prefab cooking, we will clone everything so we don't need to
     // set up any transformations
-    let clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
+    let clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
 
     // This will allow us to look up prefabs by AssetUuid
     let mut prefab_lookup = HashMap::new();
@@ -68,7 +70,7 @@ pub fn cook_prefab(
         // be populated as this happens so that we can trace where data in the prefab landed in
         // the cooked world
         let mut result_mappings = HashMap::new();
-        world.clone_merge(
+        world.clone_from(
             &prefab_asset.prefab.world,
             &clone_merge_impl,
             None,

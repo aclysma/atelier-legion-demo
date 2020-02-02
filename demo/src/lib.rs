@@ -74,7 +74,7 @@ pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistra
     let comp_registrations = legion_prefab::iter_component_registrations();
     use std::iter::FromIterator;
     let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
-        comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone()), reg.clone())),
+        comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), 0), reg.clone())),
     );
 
     component_types
@@ -89,15 +89,15 @@ pub fn create_component_registry_by_uuid() -> HashMap<ComponentTypeUuid, Compone
     component_types
 }
 
-pub fn create_copy_clone_impl() -> CloneMergeImpl {
+pub fn create_copy_clone_impl<'a>(resources: &'a Resources) -> CloneMergeImpl<'a> {
     let component_registry = create_component_registry();
-    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
+    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry, resources);
     clone_merge_impl
 }
 
-pub fn create_spawn_clone_impl() -> CloneMergeImpl {
+pub fn create_spawn_clone_impl<'a>(resources: &'a Resources) -> CloneMergeImpl<'a> {
     let component_registry = create_component_registry();
-    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry);
+    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry, resources);
     clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDef, DrawSkiaCircleComponent>();
     clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDef, DrawSkiaBoxComponent>();
     clone_merge_impl.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();
@@ -155,15 +155,13 @@ impl DemoApp {
     }
 
     // Determine the current state of the game
-    fn get_current_schedule_criteria(world: &World) -> ScheduleCriteria {
+    fn get_current_schedule_criteria(resources: &Resources) -> ScheduleCriteria {
         ScheduleCriteria::new(
-            world
-                .resources
+            resources
                 .get::<TimeResource>()
                 .unwrap()
                 .is_simulation_paused(),
-            world
-                .resources
+            resources
                 .get::<EditorStateResource>()
                 .unwrap()
                 .editor_mode(),
@@ -175,11 +173,12 @@ impl app::AppHandler for DemoApp {
     fn init(
         &mut self,
         world: &mut World,
+        resources: &mut Resources
     ) {
         let asset_manager = create_asset_manager();
         let physics = PhysicsResource::new(Vec2::y() * GRAVITY);
 
-        let window_size = world.resources.get::<InputResource>().unwrap().window_size();
+        let window_size = resources.get::<InputResource>().unwrap().window_size();
 
         let x_half_extents = crate::GROUND_HALF_EXTENTS_WIDTH * 1.5;
         let y_half_extents = x_half_extents
@@ -188,44 +187,42 @@ impl app::AppHandler for DemoApp {
         let mut camera = CameraResource::new(glm::Vec2::new(0.0, 1.0), glm::Vec2::new(x_half_extents, y_half_extents));
         let viewport = ViewportResource::new(window_size, camera.position, camera.view_half_extents);
 
-        world.resources.insert(physics);
-        world.resources.insert(FpsTextResource::new());
-        world.resources.insert(asset_manager);
-        world.resources.insert(EditorStateResource::new());
-        world.resources.insert(camera);
-        world.resources.insert(viewport);
-        world.resources.insert(DebugDrawResource::new());
-        world.resources.insert(EditorDrawResource::new());
-        world.resources.insert(EditorSelectionResource::new(
+        resources.insert(physics);
+        resources.insert(FpsTextResource::new());
+        resources.insert(asset_manager);
+        resources.insert(EditorStateResource::new());
+        resources.insert(camera);
+        resources.insert(viewport);
+        resources.insert(DebugDrawResource::new());
+        resources.insert(EditorDrawResource::new());
+        resources.insert(EditorSelectionResource::new(
             create_editor_selection_registry(),
             world,
+            resources
         ));
 
-        // Start the application with the editor paused
-        let mut command_buffer = legion::command::CommandBuffer::default();
-        EditorStateResource::enqueue_open_prefab(
-            &mut command_buffer,
-            asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"),
-        );
-        command_buffer.write(world);
+        // Start the application
+        resources.get_mut::<EditorStateResource>().unwrap().open_prefab(world, resources, asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"));
     }
 
     fn update(
         &mut self,
         world: &mut World,
+        resources: &mut Resources
     ) {
-        let current_criteria = Self::get_current_schedule_criteria(world);
+        let current_criteria = Self::get_current_schedule_criteria(resources);
         let mut schedule = self.update_schedules.get_mut(&current_criteria).unwrap();
-        schedule.execute(world);
+        schedule.execute(world, resources);
     }
 
     fn draw(
         &mut self,
         world: &mut World,
+        resources: &mut Resources
     ) {
-        let current_criteria = Self::get_current_schedule_criteria(world);
+        let current_criteria = Self::get_current_schedule_criteria(resources);
         let mut schedule = self.draw_schedules.get_mut(&current_criteria).unwrap();
-        schedule.execute(world);
+        schedule.execute(world, resources);
     }
 
     fn fatal_error(

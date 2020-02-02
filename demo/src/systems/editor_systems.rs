@@ -23,24 +23,21 @@ use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffS
 use std::sync::Arc;
 use crate::components::Position2DComponent;
 
-pub fn editor_refresh_selection_world(world: &mut World) {
-    let mut selection_world = world
-        .resources
+pub fn editor_refresh_selection_world(world: &mut World, resources: &mut Resources) {
+    let mut selection_world = resources
         .get::<EditorSelectionResource>()
         .unwrap()
         .create_editor_selection_world(world);
     selection_world.update();
-    world
-        .resources
+    resources
         .get_mut::<EditorSelectionResource>()
         .unwrap()
         .set_editor_selection_world(selection_world);
 }
 
 fn imgui_menu_tool_button(
-    command_buffer: &mut CommandBuffer,
     ui: &imgui::Ui,
-    editor_state: &EditorStateResource,
+    editor_state: &mut EditorStateResource,
     editor_tool: EditorTool,
     string: &'static str,
 ) {
@@ -51,7 +48,7 @@ fn imgui_menu_tool_button(
     };
 
     if imgui::MenuItem::new(&im_str!("{}", string)).build(ui) {
-        EditorStateResource::enqueue_set_active_editor_tool(command_buffer, editor_tool);
+        editor_state.enqueue_set_active_editor_tool(editor_tool);
     }
 
     if let Some(color_stack_token) = color_stack_token {
@@ -86,25 +83,22 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
                 ui.main_menu_bar(|| {
                     //axis-arrow
                     imgui_menu_tool_button(
-                        command_buffer,
                         ui,
-                        &*editor_state,
+                        &mut *editor_state,
                         EditorTool::Translate,
                         "\u{fd25}",
                     );
                     //resize
                     imgui_menu_tool_button(
-                        command_buffer,
                         ui,
-                        &*editor_state,
+                        &mut *editor_state,
                         EditorTool::Scale,
                         "\u{fa67}",
                     );
                     //rotate-orbit
                     imgui_menu_tool_button(
-                        command_buffer,
                         ui,
-                        &*editor_state,
+                        &mut *editor_state,
                         EditorTool::Rotate,
                         "\u{fd74}",
                     );
@@ -137,19 +131,19 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
 
                     if editor_state.is_editor_active() {
                         if imgui::MenuItem::new(im_str!("\u{e8c4} Reset")).build(ui) {
-                            EditorStateResource::enqueue_reset(command_buffer);
+                            editor_state.enqueue_reset();
                         }
 
                         if imgui::MenuItem::new(im_str!("\u{f40a} Play")).build(ui) {
-                            EditorStateResource::enqueue_play(command_buffer);
+                            editor_state.enqueue_play();
                         }
                     } else {
                         if imgui::MenuItem::new(im_str!("\u{e8c4} Reset")).build(ui) {
-                            EditorStateResource::enqueue_reset(command_buffer);
+                            editor_state.enqueue_reset();
                         }
 
                         if imgui::MenuItem::new(im_str!("\u{f3e4} Pause")).build(ui) {
-                            EditorStateResource::enqueue_pause(command_buffer);
+                            editor_state.enqueue_pause();
                         }
                     }
 
@@ -240,25 +234,21 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
     })
 }
 
-pub fn editor_inspector_window(world: &mut World) {
+pub fn editor_inspector_window(world: &mut World, resources: &mut Resources) {
     {
-        let mut selection_world = world
-            .resources
+        let mut selection_world = resources
             .get::<EditorSelectionResource>()
             .unwrap();
 
-        let mut imgui_manager = world
-            .resources
+        let mut imgui_manager = resources
             .get::<ImguiResource>()
             .unwrap();
 
-        let mut editor_ui_state = world
-            .resources
+        let mut editor_ui_state = resources
             .get_mut::<EditorStateResource>()
             .unwrap();
 
-        let mut universe_resource = world
-            .resources
+        let mut universe_resource = resources
             .get::<UniverseResource>()
             .unwrap();
 
@@ -360,28 +350,25 @@ pub fn editor_input() -> Box<dyn Schedulable> {
         .with_query(<(Read<Position2DComponent>)>::query())
         .build(|command_buffer, subworld, (editor_state, input_state, viewport, editor_selection, debug_draw, editor_draw), (position_query)| {
             if input_state.is_key_just_down(VirtualKeyCode::Key1) {
-                EditorStateResource::enqueue_set_active_editor_tool(
-                    command_buffer,
+                editor_state.enqueue_set_active_editor_tool(
                     EditorTool::Translate,
                 );
             }
 
             if input_state.is_key_just_down(VirtualKeyCode::Key2) {
-                EditorStateResource::enqueue_set_active_editor_tool(
-                    command_buffer,
+                editor_state.enqueue_set_active_editor_tool(
                     EditorTool::Scale,
                 );
             }
 
             if input_state.is_key_just_down(VirtualKeyCode::Key3) {
-                EditorStateResource::enqueue_set_active_editor_tool(
-                    command_buffer,
+                editor_state.enqueue_set_active_editor_tool(
                     EditorTool::Rotate,
                 );
             }
 
             if input_state.is_key_just_down(VirtualKeyCode::Space) {
-                editor_state.enqueue_toggle_pause(command_buffer);
+                editor_state.enqueue_toggle_pause();
             }
 
             editor_draw.update(&*input_state, &*viewport);
@@ -488,8 +475,8 @@ pub fn draw_selection_shapes() -> Box<dyn Schedulable> {
 use legion::filter::EntityFilterTuple;
 use legion::filter::ComponentFilter;
 use legion::filter::Passthrough;
-use legion::system::SystemQuery;
-use legion::system::SubWorld;
+use legion::systems::SystemQuery;
+use legion::systems::SubWorld;
 
 
 fn handle_translate_gizmo_input(
@@ -556,7 +543,7 @@ fn draw_translate_gizmo(
     editor_draw: &mut EditorDrawResource,
     selection_world: &mut EditorSelectionResource,
     subworld: &SubWorld,
-    position_query: &mut legion::system::SystemQuery<
+    position_query: &mut legion::systems::SystemQuery<
         Read<Position2DComponent>,
         EntityFilterTuple<ComponentFilter<Position2DComponent>, Passthrough, Passthrough>
     >
@@ -649,14 +636,22 @@ fn draw_translate_gizmo(
 }
 
 
-pub fn editor_process_selection_ops(world: &mut World) {
-    EditorSelectionResource::process_selection_ops(world);
+pub fn editor_process_selection_ops(world: &mut World, resources: &mut Resources) {
+    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
+    let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+    editor_selection.process_selection_ops(&mut *editor_state, world, resources);
 }
 
-pub fn reload_editor_state_if_file_changed(world: &mut World) {
-    EditorStateResource::hot_reload_if_asset_changed(world);
+pub fn reload_editor_state_if_file_changed(world: &mut World, resources: &mut Resources) {
+    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
+    resources.get_mut::<EditorStateResource>().unwrap().hot_reload_if_asset_changed(&mut *editor_selection, world, resources);
 }
 
-pub fn editor_process_edit_diffs(world: &mut World) {
-    EditorStateResource::process_diffs(world);
+pub fn editor_process_edit_diffs(world: &mut World, resources: &mut Resources) {
+    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
+    resources.get_mut::<EditorStateResource>().unwrap().process_diffs(&mut *editor_selection, world, resources);
+}
+
+pub fn editor_process_editor_ops(world: &mut World, resources: &mut Resources) {
+    resources.get_mut::<EditorStateResource>().unwrap().process_editor_ops(world, resources);
 }

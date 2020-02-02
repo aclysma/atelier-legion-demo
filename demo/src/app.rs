@@ -67,18 +67,21 @@ pub trait AppHandler {
     fn init(
         &mut self,
         world: &mut World,
+        resources: &mut Resources,
     );
 
     /// Called frequently, this is the intended place to put non-rendering logic
     fn update(
         &mut self,
         world: &mut World,
+        resources: &mut Resources,
     );
 
     /// Called frequently, this is the intended place to put drawing code
     fn draw(
         &mut self,
         world: &mut World,
+        resources: &mut Resources,
     );
 
     fn fatal_error(
@@ -139,19 +142,18 @@ impl App {
 
         let universe = Universe::new();
         let mut world = universe.create_world();
+        let mut resources = legion::systems::resource::Resources::default();
 
-        world.resources.insert(ImguiResource::new(imgui_manager));
-        world
-            .resources
+        resources.insert(ImguiResource::new(imgui_manager));
+        resources
             .insert(AppControlResource::new(skulpin::AppControl::default()));
-        world.resources.insert(TimeResource::new());
-        world
-            .resources
+        resources.insert(TimeResource::new());
+        resources
             .insert(InputResource::new(skulpin::InputState::new(&window)));
-        world.resources.insert(CanvasDrawResource::default());
-        world.resources.insert(UniverseResource::new(universe));
+        resources.insert(CanvasDrawResource::default());
+        resources.insert(UniverseResource::new(universe));
 
-        app_handler.init(&mut world);
+        app_handler.init(&mut world, &mut resources);
 
         // Pass control of this thread to winit until the app terminates. If this app wants to quit,
         // the update loop should send the appropriate event via the channel
@@ -159,7 +161,7 @@ impl App {
 
             // Let imgui have the event first
             let input_captured = {
-                let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
+                let imgui_manager = resources.get_mut::<ImguiResource>().unwrap();
                 imgui_manager.handle_event(&window, &event);
 
                 let mut input_captured = false;
@@ -188,8 +190,8 @@ impl App {
 
             // if imgui didn't want the event, hand it off to the game
             if !input_captured {
-                let mut input_state = world.resources.get_mut::<InputResource>().unwrap();
-                let mut app_control = world.resources.get_mut::<AppControlResource>().unwrap();
+                let mut input_state = resources.get_mut::<InputResource>().unwrap();
+                let mut app_control = resources.get_mut::<AppControlResource>().unwrap();
                 input_state
                     .input_state
                     .handle_winit_event(&mut app_control, &event, window_target);
@@ -199,33 +201,31 @@ impl App {
             match event {
                 winit::event::Event::MainEventsCleared => {
                     {
-                        let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
+                        let imgui_manager = resources.get_mut::<ImguiResource>().unwrap();
                         imgui_manager.begin_frame(&window);
                     }
-                    app_handler.update(&mut world);
+                    app_handler.update(&mut world, &mut resources);
 
                     // Queue a RedrawRequested event.
                     window.request_redraw();
 
                     {
-                        let imgui_manager = world.resources.get_mut::<ImguiResource>().unwrap();
+                        let imgui_manager = resources.get_mut::<ImguiResource>().unwrap();
                         imgui_manager.render(&window);
                     }
                 }
                 winit::event::Event::RedrawRequested(_window_id) => {
-                    let imgui_manager = world.resources.get::<ImguiResource>().unwrap().clone();
+                    let imgui_manager = resources.get::<ImguiResource>().unwrap().clone();
                     if let Err(e) = renderer.draw(
                         &window,
                         imgui_manager,
                         |canvas, coordinate_system_helper, _imgui_manager| {
-                            world
-                                .resources
+                            resources
                                 .get_mut::<CanvasDrawResource>()
                                 .unwrap()
                                 .begin_draw_context(canvas, coordinate_system_helper);
-                            app_handler.draw(&mut world);
-                            world
-                                .resources
+                            app_handler.draw(&mut world, &mut resources);
+                            resources
                                 .get_mut::<CanvasDrawResource>()
                                 .unwrap()
                                 .end_draw_context();
@@ -235,7 +235,7 @@ impl App {
                         app_handler.fatal_error(&e.into());
                         {
                             let mut app_control =
-                                world.resources.get_mut::<AppControlResource>().unwrap();
+                                resources.get_mut::<AppControlResource>().unwrap();
                             app_control.enqueue_terminate_process();
                         }
                     }
@@ -245,7 +245,7 @@ impl App {
 
             // Always check if we should terminate the application
             {
-                let app_control = world.resources.get::<AppControlResource>().unwrap();
+                let app_control = resources.get::<AppControlResource>().unwrap();
                 if app_control.should_terminate_process() {
                     *control_flow = winit::event_loop::ControlFlow::Exit
                 }
