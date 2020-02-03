@@ -7,7 +7,7 @@ use atelier_loader::{
 };
 use std::collections::HashMap;
 use legion::prelude::*;
-use crate::clone_merge::CloneMergeImpl;
+use crate::clone_merge::SpawnCloneImpl;
 
 use legion::storage::ComponentTypeId;
 use prefab_format::ComponentTypeUuid;
@@ -26,7 +26,7 @@ pub fn cook_prefab(
 
     // Create the clone_merge impl. For prefab cooking, we will clone everything so we don't need to
     // set up any transformations
-    let clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
+    let clone_merge_impl = SpawnCloneImpl::new(registered_components.clone(), &resources);
 
     // This will allow us to look up prefabs by AssetUuid
     let mut prefab_lookup = HashMap::new();

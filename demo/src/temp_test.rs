@@ -7,7 +7,7 @@ use atelier_loader::{
 };
 use std::collections::HashMap;
 use legion::prelude::*;
-use crate::clone_merge::CloneMergeImpl;
+use crate::clone_merge::SpawnCloneImpl;
 use crate::components::PositionReference;
 use crate::components::Position2DComponentDef;
 use crate::components::Position2DComponent;
@@ -90,7 +90,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         println!("--- CLONE MERGE 1 ---");
         println!("This test just clones Position2DComponentDef");
         let resources = Resources::default();
-        let clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
+        let clone_merge_impl = SpawnCloneImpl::new(registered_components.clone(), &resources);
         world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
 
         println!("MERGED: iterate positions");
@@ -106,7 +106,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("--- CLONE MERGE 2 ---");
         println!("This test transforms Position2DComponentDef into Position2DComponent");
-        let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
+        let mut clone_merge_impl = SpawnCloneImpl::new(registered_components.clone(), &resources);
         clone_merge_impl.add_mapping_into::<Position2DComponentDef, Position2DComponent>();
 
         clone_merge_impl.add_mapping_closure::<Position2DComponentDef, Position2DComponent, _>(
@@ -141,7 +141,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
 
         println!("--- CLONE MERGE 3 ---");
         println!("This test demonstrates replacing existing entities rather than making new ones");
-        let mut clone_merge_impl = CloneMergeImpl::new(registered_components.clone(), &resources);
+        let mut clone_merge_impl = SpawnCloneImpl::new(registered_components.clone(), &resources);
         clone_merge_impl.add_mapping_into::<Position2DComponentDef, Position2DComponent>();
 
         // Get a list of entities in the prefab

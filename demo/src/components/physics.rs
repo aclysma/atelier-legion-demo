@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
-use crate::clone_merge::CloneMergeFrom;
+use crate::clone_merge::SpawnFrom;
 use crate::math::Vec2;
 use crate::resources::PhysicsResource;
 use legion::prelude::*;
@@ -89,8 +89,8 @@ fn transform_shape_to_rigid_body(
     })
 }
 
-impl CloneMergeFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
-    fn clone_merge_from(
+impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
+    fn spawn_from(
         _src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
@@ -120,8 +120,8 @@ impl CloneMergeFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
     }
 }
 
-impl CloneMergeFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
-    fn clone_merge_from(
+impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
+    fn spawn_from(
         _src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,

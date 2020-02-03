@@ -234,7 +234,10 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
     })
 }
 
-pub fn editor_inspector_window(world: &mut World, resources: &mut Resources) {
+pub fn editor_inspector_window(
+    world: &mut World,
+    resources: &mut Resources
+) {
     {
         let mut selection_world = resources
             .get::<EditorSelectionResource>()
@@ -639,19 +642,19 @@ fn draw_translate_gizmo(
 pub fn editor_process_selection_ops(world: &mut World, resources: &mut Resources) {
     let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
     let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-    editor_selection.process_selection_ops(&mut *editor_state, world, resources);
+    let universe = resources.get_mut::<UniverseResource>().unwrap();
+
+    editor_selection.process_selection_ops(&mut *editor_state, & *universe, world);
 }
 
 pub fn reload_editor_state_if_file_changed(world: &mut World, resources: &mut Resources) {
-    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
-    resources.get_mut::<EditorStateResource>().unwrap().hot_reload_if_asset_changed(&mut *editor_selection, world, resources);
+    EditorStateResource::hot_reload_if_asset_changed(world, resources);
 }
 
 pub fn editor_process_edit_diffs(world: &mut World, resources: &mut Resources) {
-    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
-    resources.get_mut::<EditorStateResource>().unwrap().process_diffs(&mut *editor_selection, world, resources);
+    EditorStateResource::process_diffs(world, resources);
 }
 
 pub fn editor_process_editor_ops(world: &mut World, resources: &mut Resources) {
-    resources.get_mut::<EditorStateResource>().unwrap().process_editor_ops(world, resources);
+    EditorStateResource::process_editor_ops(world, resources);
 }

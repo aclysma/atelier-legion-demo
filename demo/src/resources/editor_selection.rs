@@ -111,11 +111,9 @@ impl EditorSelectionResource {
     pub fn process_selection_ops(
         &mut self,
         editor_state: &mut EditorStateResource,
+        universe_resource: &UniverseResource,
         world: &mut World,
-        resources: &Resources
     ) {
-        let universe = resources.get::<UniverseResource>().unwrap();
-
         let ops : Vec<_> = self.pending_selection_ops.drain(..).collect();
 
         let mut changed = false;
@@ -138,9 +136,9 @@ impl EditorSelectionResource {
 
         if changed {
             let prefab = editor_state.opened_prefab();
-            let clone_impl = crate::create_copy_clone_impl(resources);
+            let clone_impl = crate::create_copy_clone_impl();
 
-            let mut world = universe.create_world();
+            let mut world = universe_resource.create_world();
 
             let mut selected_to_prefab_entity = HashMap::new();
 

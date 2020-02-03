@@ -21,7 +21,8 @@ pub use temp_test::temp_force_prefab_cook;
 mod asset_storage;
 
 mod clone_merge;
-use clone_merge::CloneMergeImpl;
+use clone_merge::SpawnCloneImpl;
+use clone_merge::CopyCloneImpl;
 
 mod components;
 use components::*;
@@ -89,15 +90,15 @@ pub fn create_component_registry_by_uuid() -> HashMap<ComponentTypeUuid, Compone
     component_types
 }
 
-pub fn create_copy_clone_impl<'a>(resources: &'a Resources) -> CloneMergeImpl<'a> {
+pub fn create_copy_clone_impl() -> CopyCloneImpl {
     let component_registry = create_component_registry();
-    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry, resources);
+    let mut clone_merge_impl = clone_merge::CopyCloneImpl::new(component_registry);
     clone_merge_impl
 }
 
-pub fn create_spawn_clone_impl<'a>(resources: &'a Resources) -> CloneMergeImpl<'a> {
+pub fn create_spawn_clone_impl<'a>(resources: &'a Resources) -> SpawnCloneImpl<'a> {
     let component_registry = create_component_registry();
-    let mut clone_merge_impl = clone_merge::CloneMergeImpl::new(component_registry, resources);
+    let mut clone_merge_impl = clone_merge::SpawnCloneImpl::new(component_registry, resources);
     clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDef, DrawSkiaCircleComponent>();
     clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDef, DrawSkiaBoxComponent>();
     clone_merge_impl.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();
@@ -202,7 +203,7 @@ impl app::AppHandler for DemoApp {
         ));
 
         // Start the application
-        resources.get_mut::<EditorStateResource>().unwrap().open_prefab(world, resources, asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"));
+        EditorStateResource::open_prefab(world, resources, asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"));
     }
 
     fn update(
