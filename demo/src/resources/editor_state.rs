@@ -1,18 +1,20 @@
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, VecDeque};
 use legion::prelude::*;
 use crate::resources::{TimeResource, AssetResource, UniverseResource, EditorSelectionResource};
 use crate::resources::SimulationTimePauseReason;
 use atelier_core::AssetUuid;
-use legion_prefab::CookedPrefab;
+use legion_prefab::{CookedPrefab, ComponentRegistration};
 use std::sync::Arc;
 use crate::resources::time::TimeState;
 use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
 use crate::pipeline::PrefabAsset;
-use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor};
+use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffSingleSerializerAcceptor};
 use prefab_format::{
     ComponentTypeUuid, EntityUuid
 };
 use itertools::Itertools;
+use std::collections::vec_deque;
+use crate::clone_merge::CopyCloneImpl;
 
 enum EditorOp {
     Play,
@@ -20,7 +22,9 @@ enum EditorOp {
     Reset,
     OpenPrefab(AssetUuid),
     TogglePause,
-    SetActiveEditorTool(EditorTool)
+    SetActiveEditorTool(EditorTool),
+    Undo,
+    Redo
 }
 
 pub struct WindowOptions {
@@ -60,7 +64,6 @@ impl WindowOptions {
 // If adding to this, don't forget to hook up keyboard shortcuts and buttons
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum EditorTool {
-    //Select,
     Translate,
     Scale,
     Rotate,
@@ -99,9 +102,10 @@ impl OpenedPrefabState {
     }
 }
 
-struct QueuedDiff {
+struct EditorDiffStep {
     diffs: Vec<ComponentDiff>,
-    persist_to_disk: bool
+    undo_diffs: Vec<ComponentDiff>,
+    commit_changes: bool
 }
 
 pub struct EditorStateResource {
@@ -111,8 +115,13 @@ pub struct EditorStateResource {
     active_editor_tool: EditorTool,
     opened_prefab: Option<Arc<OpenedPrefabState>>,
     pending_editor_ops: Vec<EditorOp>,
-    diffs_pending_apply: Vec<QueuedDiff>,
-    diffs_pending_disk_persist: Vec<QueuedDiff>,
+    diffs_pending_apply: Vec<EditorDiffStep>,
+    diffs_pending_commit: Vec<EditorDiffStep>,
+    undo_chain: VecDeque<Arc<EditorDiffStep>>,
+    undo_chain_position: usize,
+    //diffs_pending_disk_persist: Vec<QueuedDiff>,
+
+    gizmo_transaction: Option<EditorTransaction>
 }
 
 impl EditorStateResource {
@@ -125,7 +134,11 @@ impl EditorStateResource {
             opened_prefab: None,
             pending_editor_ops: Default::default(),
             diffs_pending_apply: Default::default(),
-            diffs_pending_disk_persist: Default::default(),
+            diffs_pending_commit: Default::default(),
+            undo_chain: Default::default(),
+            undo_chain_position: 0,
+            //diffs_pending_disk_persist: Default::default(),
+            gizmo_transaction: None
         }
     }
 
@@ -318,6 +331,18 @@ impl EditorStateResource {
         self.pending_editor_ops.push(EditorOp::TogglePause);
     }
 
+    pub fn enqueue_undo(
+        &mut self
+    ) {
+        self.pending_editor_ops.push(EditorOp::Undo);
+    }
+
+    pub fn enqueue_redo(
+        &mut self
+    ) {
+        self.pending_editor_ops.push(EditorOp::Redo);
+    }
+
     pub fn enqueue_set_active_editor_tool(
         &mut self,
         editor_tool: EditorTool,
@@ -358,6 +383,12 @@ impl EditorStateResource {
                 EditorOp::SetActiveEditorTool(editor_tool) => {
                     let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
                     editor_state.set_active_editor_tool(editor_tool)
+                },
+                EditorOp::Undo => {
+                    EditorStateResource::undo(world, resources);
+                },
+                EditorOp::Redo => {
+                    EditorStateResource::redo(world, resources);
                 }
             }
         }
@@ -373,16 +404,18 @@ impl EditorStateResource {
             let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
 
             // Iterate all selected prefab entities
-            for (selected_entity, prefab_entity) in selection_resource.selected_to_prefab_entity() {
-                let entity_uuid = prefab_entity_to_uuid.get(prefab_entity);
-                // Insert the UUID into selected_uuids
-                if let Some(uuid) = entity_uuid {
-                    log::info!("Selected entity {:?} corresponds to prefab entity {:?} uuid {:?}", selected_entity, prefab_entity, uuid::Uuid::from_bytes(*uuid).to_string());
-                    selected_uuids.insert(*uuid);
-                } else {
-                    //TODO: For now this is a panic because it really shouldn't happen and we want to make sure it's visible if it does, but
-                    // losing selection info shouldn't be fatal
-                    panic!("Could not find prefab entity {:?} which should have corresponded with selected entity {:?}", prefab_entity, selected_entity);
+            for selected_entity in selection_resource.selected_entities() {
+                if let Some(prefab_entity) = opened_prefab.world_to_prefab_mappings.get(selected_entity) {
+                    let entity_uuid = prefab_entity_to_uuid.get(prefab_entity);
+                    // Insert the UUID into selected_uuids
+                    if let Some(uuid) = entity_uuid {
+                        log::info!("Selected entity {:?} corresponds to prefab entity {:?} uuid {:?}", selected_entity, prefab_entity, uuid::Uuid::from_bytes(*uuid).to_string());
+                        selected_uuids.insert(*uuid);
+                    } else {
+                        //TODO: For now this is a panic because it really shouldn't happen and we want to make sure it's visible if it does, but
+                        // losing selection info shouldn't be fatal
+                        panic!("Could not find prefab entity {:?} which should have corresponded with selected entity {:?}", prefab_entity, selected_entity);
+                    }
                 }
             }
         }
@@ -443,64 +476,137 @@ impl EditorStateResource {
         }
     }
 
-    pub fn enqueue_apply_diffs(&mut self, diffs: Vec<ComponentDiff>, persist_to_disk: bool) {
-        self.diffs_pending_apply.push(QueuedDiff { diffs, persist_to_disk });
+    pub fn enqueue_transaction(&mut self, tx: &EditorTransaction, commit: bool) {
+        let registered_components = crate::create_component_registry_by_uuid();
+        let diff_step = tx.create_diff_step(&registered_components);
+
+        if diff_step.diffs.len() > 0 {
+            self.diffs_pending_apply.push(diff_step);
+        }
     }
 
     pub fn process_diffs(
         world: &mut World,
         resources: &mut Resources
     ) {
-        let mut pending_diffs = vec![];
+        //
+        // First, apply diffs to the world state
+        //
+        let mut diffs_pending_apply = vec![];
         {
+            // These are scoped so they won't be borrowed when calling apply_diffs
             let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+            let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
 
-            {
-                // flush selection ops, world entities can change after this call leading to entities not being
-                // found and selections lost
-                let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
-                let universe_resource = resources.get::<UniverseResource>().unwrap();
-                editor_selection.process_selection_ops(&mut *editor_state, & *universe_resource, world);
+            // flush selection ops, world entities can change after this call leading to entities not being
+            // found and selections lost
+            let universe_resource = resources.get::<UniverseResource>().unwrap();
+            editor_selection.process_selection_ops(&mut *editor_state, & *universe_resource, world);
 
-                // Take all the diffs that are queued to be applied this frame
-                if !editor_state.diffs_pending_apply.is_empty() {
-                    std::mem::swap(&mut pending_diffs, &mut editor_state.diffs_pending_apply);
-                }
+            // Take all the diffs that are queued to be applied this frame
+            if !editor_state.diffs_pending_apply.is_empty() {
+                std::mem::swap(&mut diffs_pending_apply, &mut editor_state.diffs_pending_apply);
             }
         }
 
         // Apply the diffs to the world state
-        for queued_diff in &pending_diffs {
+        for queued_diff in &diffs_pending_apply {
             Self::apply_diffs(world, resources, &queued_diff.diffs);
         }
 
+        //
+        // Now commit changes if flagged to do so
+        //
         let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
 
-        // Add the diffs to the persist queue and see if we need to actually persist anything yet
-        let diffs_to_apply_to_disk : Option<Vec<_>> = {
-            // Push all the diffs we just applied into the persist queue
-            editor_state.diffs_pending_disk_persist.append(&mut pending_diffs);
+        // Push all the diffs we just applied into the persist queue
+        editor_state.diffs_pending_commit.append(&mut diffs_pending_apply);
 
-            // Find the last diff with the persist_to_disk flag set
-            let mut last_persist_diff_index = None;
-            for (i, diff) in editor_state.diffs_pending_disk_persist.iter().enumerate() {
-                if diff.persist_to_disk {
-                    last_persist_diff_index = Some(i);
-                }
+        // Find the last diff with the persist_to_disk flag set
+        let last_commit = editor_state.diffs_pending_commit.iter().enumerate().rfind(|(index, diff)| diff.commit_changes);
+
+        // Push it all committed changes into the undo chain
+        if let Some(last_commit) = last_commit {
+            let (last_commit_index, _) = last_commit;
+
+            let diffs_to_commit : Vec<EditorDiffStep> = editor_state.diffs_pending_commit.drain(0..=last_commit_index).collect(); //.flat_map(|x| (x.diffs, x.undo_diffs)).collect());
+            let mut diffs = vec![];
+            let mut undo_diffs = vec![];
+
+            for mut diff_to_commit in diffs_to_commit {
+                diffs.append(&mut diff_to_commit.diffs);
+                undo_diffs.append(&mut diff_to_commit.undo_diffs);
             }
 
-            // Pull all the diffs up to and including the flagged diff so that we can apply those to
-            // disk
-            last_persist_diff_index.map(|last_persist_diff_index| {
-                editor_state.diffs_pending_disk_persist.drain(0..=last_persist_diff_index).flat_map(|x| x.diffs).collect()
-            })
+            let combined_diff_step = EditorDiffStep { diffs, undo_diffs, commit_changes: true };
+            editor_state.push_to_undo_queue(combined_diff_step);
+        }
+    }
+
+    fn push_to_undo_queue(&mut self, diff_step: EditorDiffStep) {
+        // Drop everything that follows the current undo chain index
+        self.undo_chain.truncate(self.undo_chain_position);
+
+        // Push the given data onto the chain
+        self.undo_chain.push_back(Arc::new(diff_step));
+
+        // We assume the caller has done whatever was needed
+        self.undo_chain_position += 1;
+
+        log::info!("Pushed to undo queue, undo chain length: {} position: {}", self.undo_chain.len(), self.undo_chain_position);
+    }
+
+    fn undo(
+        world: &mut World,
+        resources: &Resources
+    ) {
+        //TODO: Undo anything that was uncommitted, or if anything was uncommitted, we could just cancel
+        // the current operation
+
+        let diffs = {
+            let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+            log::info!("Going to undo, undo chain length: {} position: {}", editor_state.undo_chain.len(), editor_state.undo_chain_position);
+
+            if editor_state.undo_chain_position > 0 {
+                // reduce undo_index
+                editor_state.undo_chain_position -= 1;
+
+                // undo whatever is at self.undo_chain[self.undo_chain_index]
+                Some(editor_state.undo_chain[editor_state.undo_chain_position].clone())
+            } else {
+                None
+            }
         };
 
-        // Apply changes to disk, if any have been flagged to trigger persisting to disk
-        if let Some(diffs) = diffs_to_apply_to_disk {
-            let mut asset_resource = resources.get_mut::<AssetResource>().unwrap();
-            let universe_resource = resources.get::<UniverseResource>().unwrap();
-            editor_state.persist_diffs(world, &mut *asset_resource, &*universe_resource, &diffs);
+        if let Some(diffs) = diffs {
+            Self::apply_diffs(world, resources, &diffs.undo_diffs);
+        }
+    }
+
+    fn redo(
+        world: &mut World,
+        resources: &Resources
+    ) {
+        //TODO: Unclear what to do if there are uncommitted diffs
+        let diffs = {
+            let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+            log::info!("Going to redo, undo chain length: {} position: {}", editor_state.undo_chain.len(), editor_state.undo_chain_position);
+
+            if editor_state.undo_chain_position < editor_state.undo_chain.len() {
+                // redo whatever is at self.undo_chain[self.undo_chain_index]
+                let diffs = editor_state.undo_chain[editor_state.undo_chain_position].clone();
+
+                // increase undo_index
+                editor_state.undo_chain_position += 1;
+
+                Some(diffs)
+            } else {
+                None
+            }
+        };
+
+        if let Some(diffs) = diffs {
+            Self::apply_diffs(world, resources, &diffs.diffs);
         }
     }
 
@@ -626,5 +732,154 @@ impl EditorStateResource {
         log::trace!("{}", output);
 
         std::fs::write("assets/demo_level.prefab", output);
+    }
+
+    pub fn create_transaction_from_selected(
+        &self,
+        selection_resources: &EditorSelectionResource,
+        universe_resource: &UniverseResource
+    ) -> Option<EditorTransaction> {
+        if let Some(opened_prefab) = &self.opened_prefab {
+            // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
+            use std::iter::FromIterator;
+            let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+            let mut tx_builder = EditorTransactionBuilder::new();
+            for world_entity in selection_resources.selected_entities() {
+                if let Some(prefab_entity) = opened_prefab.world_to_prefab_mappings().get(world_entity) {
+                    if let Some(entity_uuid) = prefab_entity_to_uuid.get(prefab_entity) {
+                        tx_builder = tx_builder.add_entity(*prefab_entity, *entity_uuid);
+                    }
+                }
+            }
+
+            Some(tx_builder.begin(&universe_resource.universe, &opened_prefab.cooked_prefab().world))
+        } else {
+            None
+        }
+    }
+}
+
+struct TransactionBuilderEntityInfo {
+    entity_uuid: EntityUuid,
+    entity: Entity
+}
+
+#[derive(Default)]
+pub struct EditorTransactionBuilder {
+    entities: Vec<TransactionBuilderEntityInfo>
+}
+
+impl EditorTransactionBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    //TODO: should this take a uuid?
+    //TODO: need a mapping from before to after? or maybe after -> { before, uuid }
+    pub fn add_entity(mut self, entity: Entity, entity_uuid: EntityUuid) -> Self {
+        self.entities.push(TransactionBuilderEntityInfo { entity, entity_uuid });
+        self
+    }
+
+    pub fn begin(mut self, universe: &Universe, src_world: &World) -> EditorTransaction {
+        let mut before_world = universe.create_world();
+        let mut after_world = universe.create_world();
+
+        let mut uuid_to_entities = HashMap::new();
+
+        let clone_impl = crate::create_copy_clone_impl();
+
+        for entity_info in self.entities {
+            let before_entity = before_world.clone_from_single(&src_world, entity_info.entity, &clone_impl, None);
+            let after_entity = after_world.clone_from_single(&src_world, entity_info.entity, &clone_impl, None);
+            uuid_to_entities.insert(entity_info.entity_uuid, TransactionEntityInfo { before_entity, after_entity });
+        }
+
+        EditorTransaction {
+            before_world,
+            after_world,
+            uuid_to_entities
+        }
+    }
+}
+
+struct TransactionEntityInfo {
+    before_entity: Entity,
+    after_entity: Entity
+}
+
+pub struct EditorTransaction {
+    before_world: legion::world::World,
+    after_world: legion::world::World,
+    uuid_to_entities: HashMap<EntityUuid, TransactionEntityInfo>
+}
+
+impl EditorTransaction {
+    pub fn world(&self) -> &World {
+        &self.after_world
+    }
+
+    pub fn world_mut(&mut self) -> &mut World {
+        &mut self.after_world
+    }
+
+    fn create_diff_step(&self, registered_components: &HashMap<ComponentTypeUuid, ComponentRegistration>) -> EditorDiffStep {
+        log::trace!("create diffs for {} entities", self.uuid_to_entities.len());
+
+        let mut diffs = vec![];
+        let mut undo_diffs = vec![];
+
+        // Iterate the entities in the selection world and prefab world
+        for (entity_uuid, entity_info) in &self.uuid_to_entities {
+            log::trace!("diffing {:?} {:?}", entity_info.before_entity, entity_info.after_entity);
+            // Do diffs for each component type
+            for (component_type, registration) in registered_components {
+                let mut has_changes = false;
+                let acceptor = DiffSingleSerializerAcceptor {
+                    component_registration: &registration,
+                    src_world: &self.before_world,
+                    src_entity: entity_info.before_entity,
+                    dst_world: &self.after_world,
+                    dst_entity: entity_info.after_entity,
+                    has_changes: &mut has_changes
+                };
+                let mut data = vec![];
+                bincode::with_serializer(&mut data, acceptor);
+
+                if has_changes {
+                    let undo_acceptor = DiffSingleSerializerAcceptor {
+                        component_registration: &registration,
+                        src_world: &self.after_world,
+                        src_entity: entity_info.after_entity,
+                        dst_world: &self.before_world,
+                        dst_entity: entity_info.before_entity,
+                        has_changes: &mut has_changes
+                    };
+                    let mut undo_data = vec![];
+                    bincode::with_serializer(&mut undo_data, undo_acceptor);
+
+                    diffs.push(ComponentDiff::new(
+                        *entity_uuid,
+                        *component_type,
+                        data
+                    ));
+
+                    undo_diffs.push(ComponentDiff::new(
+                        *entity_uuid,
+                        *component_type,
+                        undo_data
+                    ));
+                }
+            }
+        }
+
+        undo_diffs.reverse();
+
+        for diff in &diffs {
+            println!("generated diff for entity {}", uuid::Uuid::from_bytes(*diff.entity_uuid()).to_string());
+        }
+
+        EditorDiffStep { diffs, undo_diffs, commit_changes: true }
     }
 }

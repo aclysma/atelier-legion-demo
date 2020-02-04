@@ -123,7 +123,6 @@ pub fn apply_diffs_to_cooked_prefab(
 }
 
 pub fn apply_diffs(
-    //prefab: &Prefab,
     world: &World,
     uuid_to_entity: &HashMap<EntityUuid, Entity>,
     universe: &Universe,

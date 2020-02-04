@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::collections::HashSet;
 use std::collections::HashMap;
 
-use crate::resources::{EditorStateResource, UniverseResource};
+use crate::resources::{EditorStateResource, UniverseResource, EditorTransactionBuilder};
 use crate::selection::EditorSelectableRegistry;
 
 enum SelectionOp {
@@ -18,15 +18,10 @@ enum SelectionOp {
 pub struct EditorSelectionResource {
     registry: EditorSelectableRegistry,
     editor_selection_world: CollisionWorld<f32, Entity>,
+
     // These are entities in the world
     selected_entities: HashSet<Entity>,
 
-    // This is a separate world that includes copied data from the prefab for each entity that is
-    // selected
-    selected_entities_world: World,
-
-    // Mapping from the selection world to the prefab
-    selected_to_prefab_entity: HashMap<Entity, Entity>,
     pending_selection_ops: Vec<SelectionOp>
 }
 
@@ -34,20 +29,13 @@ impl EditorSelectionResource {
     pub fn new(
         registry: EditorSelectableRegistry,
         world: &World,
-        resources: &Resources,
     ) -> Self {
         let editor_selection_world = registry.create_editor_selection_world(world);
-
-        // Create an empty world
-        let selected_entities_world = resources.get::<UniverseResource>().unwrap().create_world();
-        let selected_to_prefab_entity = HashMap::default();
 
         EditorSelectionResource {
             registry,
             editor_selection_world,
             selected_entities: Default::default(),
-            selected_entities_world,
-            selected_to_prefab_entity,
             pending_selection_ops: Default::default()
         }
     }
@@ -73,12 +61,6 @@ impl EditorSelectionResource {
     pub fn selected_entities(&self) -> &HashSet<Entity> {
         &self.selected_entities
     }
-
-    pub fn selected_entities_world(&self) -> &World { &self.selected_entities_world }
-
-    pub fn selected_entities_world_mut(&mut self) -> &mut World { &mut self.selected_entities_world }
-
-    pub fn selected_to_prefab_entity(&self) -> &HashMap<Entity, Entity> { &self.selected_to_prefab_entity }
 
     pub fn selected_entity_aabbs(&mut self) -> HashMap<Entity, Option<AABB<f32>>> {
         Self::get_entity_aabbs(&self.selected_entities, &mut self.editor_selection_world)
@@ -132,29 +114,6 @@ impl EditorSelectionResource {
                     true
                 }
             }
-        }
-
-        if changed {
-            let prefab = editor_state.opened_prefab();
-            let clone_impl = crate::create_copy_clone_impl();
-
-            let mut world = universe_resource.create_world();
-
-            let mut selected_to_prefab_entity = HashMap::new();
-
-            if let Some(prefab) = prefab {
-                let prefab_world : &World = &prefab.cooked_prefab().world;
-
-                for e in &self.selected_entities {
-                    if let Some(prefab_entity) = prefab.world_to_prefab_mappings().get(e) {
-                        let e = world.clone_from_single(prefab_world, *prefab_entity, &clone_impl, None);
-                        selected_to_prefab_entity.insert(e, *prefab_entity);
-                    }
-                }
-            }
-
-            self.selected_entities_world = world;
-            self.selected_to_prefab_entity = selected_to_prefab_entity;
         }
     }
 

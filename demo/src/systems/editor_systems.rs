@@ -1,6 +1,6 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource, EditorDrawResource};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransactionBuilder, EditorTransaction};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 
@@ -147,6 +147,14 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
                         }
                     }
 
+                    if imgui::MenuItem::new(im_str!("Undo")).build(ui) {
+                        editor_state.enqueue_undo();
+                    }
+
+                    if imgui::MenuItem::new(im_str!("Redo")).build(ui) {
+                        editor_state.enqueue_redo();
+                    }
+
                     ui.text(im_str!(
                         "FPS: {:.1}",
                         time_state.system_time().updates_per_second_smoothed()
@@ -255,7 +263,18 @@ pub fn editor_inspector_window(
             .get::<UniverseResource>()
             .unwrap();
 
-        let mut change_detected = false;
+        let opened_prefab = editor_ui_state.opened_prefab();
+        if opened_prefab.is_none() {
+            return;
+        }
+
+        let opened_prefab = opened_prefab.unwrap();
+
+        // Create a lookup from prefab entity to the entity UUID
+        use std::iter::FromIterator;
+        let prefab_entity_to_uuid: HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
+
+        //let mut transaction_to_commit = None;
         imgui_manager.with_ui(|ui: &mut imgui::Ui| {
             use imgui::im_str;
 
@@ -266,79 +285,16 @@ pub fn editor_inspector_window(
                     .position([0.0, 300.0], imgui::Condition::Once)
                     .size([350.0, 300.0], imgui::Condition::Once)
                     .build(ui, || {
-                        let registry = crate::create_editor_inspector_registry();
-
-                        let selected_world : &World = selection_world.selected_entities_world();
-                        if registry.render_mut(selected_world, ui, &Default::default()) {
-                            change_detected = true;
+                        let mut tx = editor_ui_state.create_transaction_from_selected(&*selection_world, &*universe_resource);
+                        if let Some(mut tx) = tx {
+                            let registry = crate::create_editor_inspector_registry();
+                            if registry.render_mut(tx.world_mut(), ui, &Default::default()) {
+                                editor_ui_state.enqueue_transaction(&tx, true);
+                            }
                         }
                     });
             }
         });
-
-        if change_detected {
-            let diffs = generate_diffs_from_changes(&*editor_ui_state, &*selection_world);
-            if let Some(diffs) = diffs {
-                editor_ui_state.enqueue_apply_diffs(diffs, true);
-            }
-        }
-    }
-
-}
-
-fn generate_diffs_from_changes(
-    editor_ui_state: &EditorStateResource,
-    selection_resource: &EditorSelectionResource
-) -> Option<Vec<ComponentDiff>> {
-    //
-    // Capture diffs from the edit
-    //
-    if let Some(opened_prefab) = editor_ui_state.opened_prefab() {
-        let registered_components = crate::create_component_registry_by_uuid();
-
-        // Create a lookup from prefab entity to the entity UUID
-        use std::iter::FromIterator;
-        let prefab_entity_to_uuid: HashMap<Entity, EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
-
-        let mut diffs = vec![];
-
-        // We will be diffing data between the prefab and the selected world
-        let selected_world = selection_resource.selected_entities_world();
-        let prefab_world = &opened_prefab.cooked_prefab().world;
-
-        log::trace!("{} selected entities", selection_resource.selected_to_prefab_entity().len());
-
-        // Iterate the entities in the selection world and prefab world
-        for (selected_entity, prefab_entity) in selection_resource.selected_to_prefab_entity() {
-            log::trace!("diffing {:?} {:?}", selected_entity, prefab_entity);
-            // Do diffs for each component type
-            for (component_type, registration) in &registered_components {
-                let mut has_changes = false;
-                let acceptor = DiffSingleSerializerAcceptor {
-                    component_registration: &registration,
-                    src_world: prefab_world,
-                    src_entity: *prefab_entity,
-                    dst_world: selected_world,
-                    dst_entity: *selected_entity,
-                    has_changes: &mut has_changes
-                };
-                let mut data = vec![];
-                bincode::with_serializer(&mut data, acceptor);
-
-                if has_changes {
-                    let entity_uuid = *prefab_entity_to_uuid.get(prefab_entity).unwrap();
-                    diffs.push(ComponentDiff::new(
-                        entity_uuid,
-                        *component_type,
-                        data
-                    ));
-                }
-            }
-        }
-
-        Some(diffs)
-    } else {
-        None
     }
 }
 
@@ -350,8 +306,9 @@ pub fn editor_input() -> Box<dyn Schedulable> {
         .write_resource::<EditorSelectionResource>()
         .write_resource::<DebugDrawResource>()
         .write_resource::<EditorDrawResource>()
+        .read_resource::<UniverseResource>()
         .with_query(<(Read<Position2DComponent>)>::query())
-        .build(|command_buffer, subworld, (editor_state, input_state, viewport, editor_selection, debug_draw, editor_draw), (position_query)| {
+        .build(|command_buffer, subworld, (editor_state, input_state, viewport, editor_selection, debug_draw, editor_draw, universe_resource), (position_query)| {
             if input_state.is_key_just_down(VirtualKeyCode::Key1) {
                 editor_state.enqueue_set_active_editor_tool(
                     EditorTool::Translate,
@@ -376,7 +333,13 @@ pub fn editor_input() -> Box<dyn Schedulable> {
 
             editor_draw.update(&*input_state, &*viewport);
 
-            handle_translate_gizmo_input(&mut *debug_draw, &mut *editor_draw, &mut *editor_state, &mut *editor_selection, subworld);
+            let mut tx = editor_state.create_transaction_from_selected(&*editor_selection, &*universe_resource);
+            //handle_translate_gizmo_input(&mut *debug_draw, &mut *editor_draw, &mut *editor_state, &mut *editor_selection, subworld);
+            if let Some(mut tx) = tx {
+                let mut commit = false;
+                commit |= handle_translate_gizmo_input(&mut *editor_draw, &mut tx);
+                editor_state.enqueue_transaction(&tx, commit);
+            }
 
             match editor_state.active_editor_tool() {
                 //EditorTool::Select => handle_select_tool_input(&*entity_set, &*input_state, &* camera_state, &* editor_collision_world, &mut* editor_selected_components, &mut*debug_draw, &editor_ui_state),
@@ -483,12 +446,9 @@ use legion::systems::SubWorld;
 
 
 fn handle_translate_gizmo_input(
-    debug_draw: &mut DebugDrawResource,
     editor_draw: &mut EditorDrawResource,
-    editor_ui_state: &mut EditorStateResource,
-    selection_world: &mut EditorSelectionResource,
-    subworld: &SubWorld,
-) {
+    tx: &mut EditorTransaction,
+) -> bool {
     if let Some(drag_in_progress) = editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left) {
         log::trace!("drag in progress");
         // See what if any axis we will operate on
@@ -505,7 +465,7 @@ fn handle_translate_gizmo_input(
 
         // Early out if we didn't touch either axis
         if !translate_x && !translate_y {
-            return;
+            return false;
         }
 
         // Determine the drag distance in ui_space
@@ -523,7 +483,7 @@ fn handle_translate_gizmo_input(
 
         let query = <(Write<Position2DComponent>)>::query();
 
-        for (entity_handle, mut position) in query.iter_entities_mut(selection_world.selected_entities_world_mut()) {
+        for (entity_handle, mut position) in query.iter_entities_mut(tx.world_mut()) {
             log::trace!("looking at entity");
             // Can use editor_draw.is_shape_drag_just_finished(MouseButton::Left) to see if this is the final drag,
             // in which case we might want to save an undo step
@@ -531,12 +491,9 @@ fn handle_translate_gizmo_input(
             log::trace!("{:?}", *position.position);
         }
 
-        let persist_to_disk = editor_draw.is_shape_drag_just_finished(MouseButton::Left);
-
-        let diffs = generate_diffs_from_changes(&*editor_ui_state, &*selection_world);
-        if let Some(diffs) = diffs {
-            editor_ui_state.enqueue_apply_diffs(diffs, persist_to_disk);
-        }
+        editor_draw.is_shape_drag_just_finished(MouseButton::Left)
+    } else {
+        false
     }
 }
 

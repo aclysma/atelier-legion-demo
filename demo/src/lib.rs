@@ -199,7 +199,6 @@ impl app::AppHandler for DemoApp {
         resources.insert(EditorSelectionResource::new(
             create_editor_selection_registry(),
             world,
-            resources
         ));
 
         // Start the application
