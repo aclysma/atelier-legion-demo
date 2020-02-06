@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use std::collections::HashSet;
 use std::collections::HashMap;
 
-use crate::resources::{EditorStateResource, UniverseResource, EditorTransactionBuilder};
+use crate::resources::{EditorStateResource, UniverseResource};
 use crate::selection::EditorSelectableRegistry;
 
 enum SelectionOp {

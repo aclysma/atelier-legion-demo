@@ -7,6 +7,7 @@ use legion_prefab::Prefab;
 use std::collections::HashMap;
 use legion::prelude::*;
 
+#[derive(Clone)]
 pub struct ComponentDiff {
     entity_uuid: EntityUuid,
     component_type: ComponentTypeUuid,

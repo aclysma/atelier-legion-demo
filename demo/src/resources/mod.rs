@@ -27,8 +27,8 @@ mod editor_state;
 pub use editor_state::EditorStateResource;
 pub use editor_state::EditorTool;
 pub use editor_state::EditorMode;
+pub use editor_state::EditorTransactionId;
 pub use editor_state::EditorTransaction;
-pub use editor_state::EditorTransactionBuilder;
 
 mod editor_selection;
 pub use editor_selection::EditorSelectionResource;

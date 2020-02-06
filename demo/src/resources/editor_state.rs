@@ -1,20 +1,23 @@
 use std::collections::{HashSet, HashMap, VecDeque};
 use legion::prelude::*;
+use legion::storage::ComponentTypeId;
 use crate::resources::{TimeResource, AssetResource, UniverseResource, EditorSelectionResource};
 use crate::resources::SimulationTimePauseReason;
 use atelier_core::AssetUuid;
-use legion_prefab::{CookedPrefab, ComponentRegistration};
+use legion_prefab::{CookedPrefab, ComponentRegistration, Prefab};
 use std::sync::Arc;
 use crate::resources::time::TimeState;
 use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
 use crate::pipeline::PrefabAsset;
-use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffSingleSerializerAcceptor};
+use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffSingleSerializerAcceptor, apply_diffs_to_prefab};
 use prefab_format::{
     ComponentTypeUuid, EntityUuid
 };
 use itertools::Itertools;
 use std::collections::vec_deque;
 use crate::clone_merge::CopyCloneImpl;
+use crate::transactions::{TransactionBuilder, TransactionDiffs};
+use crate::transactions::Transaction;
 
 enum EditorOp {
     Play,
@@ -24,7 +27,8 @@ enum EditorOp {
     TogglePause,
     SetActiveEditorTool(EditorTool),
     Undo,
-    Redo
+    Redo,
+    Save
 }
 
 pub struct WindowOptions {
@@ -79,6 +83,7 @@ pub struct OpenedPrefabState {
     uuid: AssetUuid,
     version: u32,
     prefab_handle: atelier_loader::handle::Handle<PrefabAsset>,
+    uncooked_prefab: Arc<Prefab>,
     cooked_prefab: Arc<CookedPrefab>,
     prefab_to_world_mappings: HashMap<Entity, Entity>,
     world_to_prefab_mappings: HashMap<Entity, Entity>,
@@ -103,9 +108,13 @@ impl OpenedPrefabState {
 }
 
 struct EditorDiffStep {
-    diffs: Vec<ComponentDiff>,
-    undo_diffs: Vec<ComponentDiff>,
+    diffs: TransactionDiffs,
     commit_changes: bool
+}
+
+struct CurrentTransactionInfo {
+    id: EditorTransactionId,
+    diffs: TransactionDiffs
 }
 
 pub struct EditorStateResource {
@@ -116,12 +125,15 @@ pub struct EditorStateResource {
     opened_prefab: Option<Arc<OpenedPrefabState>>,
     pending_editor_ops: Vec<EditorOp>,
     diffs_pending_apply: Vec<EditorDiffStep>,
-    diffs_pending_commit: Vec<EditorDiffStep>,
     undo_chain: VecDeque<Arc<EditorDiffStep>>,
     undo_chain_position: usize,
-    //diffs_pending_disk_persist: Vec<QueuedDiff>,
 
-    gizmo_transaction: Option<EditorTransaction>
+    pub gizmo_transaction: Option<EditorTransaction>,
+
+    component_registry: Arc<HashMap<ComponentTypeId, ComponentRegistration>>,
+    component_registry_by_uuid: Arc<HashMap<ComponentTypeUuid, ComponentRegistration>>,
+
+    current_transaction_info: Option<CurrentTransactionInfo>
 }
 
 impl EditorStateResource {
@@ -134,11 +146,15 @@ impl EditorStateResource {
             opened_prefab: None,
             pending_editor_ops: Default::default(),
             diffs_pending_apply: Default::default(),
-            diffs_pending_commit: Default::default(),
             undo_chain: Default::default(),
             undo_chain_position: 0,
-            //diffs_pending_disk_persist: Default::default(),
-            gizmo_transaction: None
+
+            gizmo_transaction: None,
+
+            component_registry: Arc::new(crate::create_component_registry()),
+            component_registry_by_uuid: Arc::new(crate::create_component_registry_by_uuid()),
+
+            current_transaction_info: None,
         }
     }
 
@@ -217,15 +233,25 @@ impl EditorStateResource {
                 }
             };
 
+            let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+
             // Load the uncooked prefab from disk and cook it. (Eventually this will be handled
             // during atelier's build step
             let mut universe = resources.get_mut::<UniverseResource>().unwrap();
             let cooked_prefab = Arc::new(crate::prefab_cooking::cook_prefab(
                 &*universe,
                 &mut *asset_resource,
-                &crate::create_component_registry(),
-                &crate::create_component_registry_by_uuid(),
+                &editor_state.component_registry,
+                &editor_state.component_registry_by_uuid,
                 prefab_uuid,
+            ));
+
+            // Duplicate the prefab data so we can apply diffs to it. This is temporary and will eventually be
+            // done within the daemon
+            let uncooked_prefab = Arc::new(crate::component_diffs::apply_diffs_to_prefab(
+                &handle.asset(asset_resource.storage()).unwrap().prefab,
+                &universe.universe,
+                &[]
             ));
 
             // Store the cooked prefab and relevant metadata in an Arc on the EditorStateResource.
@@ -235,12 +261,12 @@ impl EditorStateResource {
                 uuid: prefab_uuid,
                 version,
                 prefab_handle: handle,
+                uncooked_prefab,
                 cooked_prefab,
                 prefab_to_world_mappings: Default::default(),
                 world_to_prefab_mappings: Default::default(),
             };
 
-            let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
             editor_state.opened_prefab = Some(Arc::new(opened_prefab));
         }
 
@@ -292,6 +318,7 @@ impl EditorStateResource {
                 uuid: opened_prefab.uuid,
                 cooked_prefab: opened_prefab.cooked_prefab.clone(),
                 prefab_handle: opened_prefab.prefab_handle.clone(),
+                uncooked_prefab: opened_prefab.uncooked_prefab.clone(),
                 version: opened_prefab.version,
                 prefab_to_world_mappings,
                 world_to_prefab_mappings
@@ -304,6 +331,10 @@ impl EditorStateResource {
 
     pub fn active_editor_tool(&self) -> EditorTool {
         self.active_editor_tool
+    }
+
+    pub fn enqueue_save(&mut self) {
+        self.pending_editor_ops.push(EditorOp::Save);
     }
 
     pub fn enqueue_play(&mut self) {
@@ -389,6 +420,10 @@ impl EditorStateResource {
                 },
                 EditorOp::Redo => {
                     EditorStateResource::redo(world, resources);
+                },
+                EditorOp::Save => {
+                    let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+                    editor_state.save();
                 }
             }
         }
@@ -476,12 +511,12 @@ impl EditorStateResource {
         }
     }
 
-    pub fn enqueue_transaction(&mut self, tx: &EditorTransaction, commit: bool) {
-        let registered_components = crate::create_component_registry_by_uuid();
-        let diff_step = tx.create_diff_step(&registered_components);
-
-        if diff_step.diffs.len() > 0 {
-            self.diffs_pending_apply.push(diff_step);
+    pub fn enqueue_diffs(&mut self, diffs: TransactionDiffs, commit_changes: bool) {
+        if diffs.apply_diffs.len() > 0 {
+            self.diffs_pending_apply.push(EditorDiffStep {
+                diffs,
+                commit_changes
+            });
         }
     }
 
@@ -489,9 +524,7 @@ impl EditorStateResource {
         world: &mut World,
         resources: &mut Resources
     ) {
-        //
-        // First, apply diffs to the world state
-        //
+        // Flush selection ops grab all the diffs pending apply
         let mut diffs_pending_apply = vec![];
         {
             // These are scoped so they won't be borrowed when calling apply_diffs
@@ -510,36 +543,15 @@ impl EditorStateResource {
         }
 
         // Apply the diffs to the world state
-        for queued_diff in &diffs_pending_apply {
-            Self::apply_diffs(world, resources, &queued_diff.diffs);
-        }
+        for queued_diff in diffs_pending_apply {
+            // Apply the diff to world state
+            Self::apply_diffs(world, resources, &queued_diff.diffs.apply_diffs);
 
-        //
-        // Now commit changes if flagged to do so
-        //
-        let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-
-        // Push all the diffs we just applied into the persist queue
-        editor_state.diffs_pending_commit.append(&mut diffs_pending_apply);
-
-        // Find the last diff with the persist_to_disk flag set
-        let last_commit = editor_state.diffs_pending_commit.iter().enumerate().rfind(|(index, diff)| diff.commit_changes);
-
-        // Push it all committed changes into the undo chain
-        if let Some(last_commit) = last_commit {
-            let (last_commit_index, _) = last_commit;
-
-            let diffs_to_commit : Vec<EditorDiffStep> = editor_state.diffs_pending_commit.drain(0..=last_commit_index).collect(); //.flat_map(|x| (x.diffs, x.undo_diffs)).collect());
-            let mut diffs = vec![];
-            let mut undo_diffs = vec![];
-
-            for mut diff_to_commit in diffs_to_commit {
-                diffs.append(&mut diff_to_commit.diffs);
-                undo_diffs.append(&mut diff_to_commit.undo_diffs);
+            // If commit is flagged, add an undo step will be added
+            if queued_diff.commit_changes {
+                let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+                editor_state.push_to_undo_queue(queued_diff);
             }
-
-            let combined_diff_step = EditorDiffStep { diffs, undo_diffs, commit_changes: true };
-            editor_state.push_to_undo_queue(combined_diff_step);
         }
     }
 
@@ -560,9 +572,7 @@ impl EditorStateResource {
         world: &mut World,
         resources: &Resources
     ) {
-        //TODO: Undo anything that was uncommitted, or if anything was uncommitted, we could just cancel
-        // the current operation
-
+        //TODO: Unclear what to do if there is an active transaction
         let diffs = {
             let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
             log::info!("Going to undo, undo chain length: {} position: {}", editor_state.undo_chain.len(), editor_state.undo_chain_position);
@@ -579,7 +589,7 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diffs(world, resources, &diffs.undo_diffs);
+            Self::apply_diffs(world, resources, &diffs.diffs.revert_diffs);
         }
     }
 
@@ -587,7 +597,7 @@ impl EditorStateResource {
         world: &mut World,
         resources: &Resources
     ) {
-        //TODO: Unclear what to do if there are uncommitted diffs
+        //TODO: Unclear what to do if there is an active transaction
         let diffs = {
             let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
             log::info!("Going to redo, undo chain length: {} position: {}", editor_state.undo_chain.len(), editor_state.undo_chain_position);
@@ -606,7 +616,7 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diffs(world, resources, &diffs.diffs);
+            Self::apply_diffs(world, resources, &diffs.diffs.apply_diffs);
         }
     }
 
@@ -651,11 +661,18 @@ impl EditorStateResource {
                     )
                 );
 
+                let new_uncooked_prefab = Arc::new(crate::component_diffs::apply_diffs_to_prefab(
+                    &opened_prefab.uncooked_prefab,
+                    &universe.universe,
+                    &diffs
+                ));
+
                 // Update the opened prefab state
                 let new_opened_prefab = OpenedPrefabState {
                     uuid: opened_prefab.uuid,
                     cooked_prefab: new_cooked_prefab,
                     prefab_handle: opened_prefab.prefab_handle.clone(),
+                    uncooked_prefab: new_uncooked_prefab,
                     version: opened_prefab.version,
                     prefab_to_world_mappings: Default::default(), // These will get populated by reset()
                     world_to_prefab_mappings: Default::default()  // These will get populated by reset()
@@ -676,17 +693,9 @@ impl EditorStateResource {
         editor_state.restore_selected_uuids(&mut *selection_resource, world, &selected_uuids);
     }
 
-    fn persist_diffs(
+    fn save(
         &mut self,
-        world: &mut World,
-        asset_resource: &mut AssetResource,
-        universe_resource: &UniverseResource,
-        diffs: &[ComponentDiff]
     ) {
-        for diff in diffs {
-            log::info!("Persist diff to entity {:?}", uuid::Uuid::from_bytes(*diff.entity_uuid()).to_string());
-        }
-
         //
         // Check that a prefab is opened
         //
@@ -697,26 +706,6 @@ impl EditorStateResource {
         let opened_prefab = self.opened_prefab.as_ref().unwrap();
 
         //
-        // Fetch the uncooked prefab data
-        //
-        use atelier_loader::Loader;
-        use atelier_loader::handle::AssetHandle;
-        let load_handle = asset_resource.loader().add_ref(opened_prefab.uuid);
-        let handle = atelier_loader::handle::Handle::<crate::pipeline::PrefabAsset>::new(asset_resource.tx().clone(), load_handle);
-
-        let prefab_asset = loop {
-            asset_resource.update();
-            if let atelier_loader::LoadStatus::Loaded = handle.load_status::<atelier_loader::rpc_loader::RpcLoader>(asset_resource.loader()) {
-                break handle.asset(asset_resource.storage()).unwrap()
-            }
-        };
-
-        //
-        // Apply the diffs to the uncooked prefab, producing a new uncooked prefab
-        //
-        let uncooked_prefab = crate::component_diffs::apply_diffs_to_prefab(&prefab_asset.prefab, &universe_resource.universe, &diffs);
-
-        //
         // Persist the uncooked prefab to disk
         //
         let registered_components = crate::create_component_registry_by_uuid();
@@ -725,8 +714,8 @@ impl EditorStateResource {
         };
 
         let mut ron_ser = ron::ser::Serializer::new(Some(ron::ser::PrettyConfig::default()), true);
-        let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &uncooked_prefab);
-        prefab_format::serialize(&mut ron_ser, &prefab_ser, uncooked_prefab.prefab_id()).expect("failed to round-trip prefab");
+        let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &opened_prefab.uncooked_prefab);
+        prefab_format::serialize(&mut ron_ser, &prefab_ser, opened_prefab.uncooked_prefab.prefab_id()).expect("failed to round-trip prefab");
         let output = ron_ser.into_output_string();
         log::trace!("Exporting prefab:");
         log::trace!("{}", output);
@@ -744,7 +733,7 @@ impl EditorStateResource {
             use std::iter::FromIterator;
             let prefab_entity_to_uuid : HashMap<Entity, prefab_format::EntityUuid> = HashMap::from_iter(opened_prefab.cooked_prefab().entities.iter().map(|(k, v)| (*v, *k)));
 
-            let mut tx_builder = EditorTransactionBuilder::new();
+            let mut tx_builder = TransactionBuilder::new();
             for world_entity in selection_resources.selected_entities() {
                 if let Some(prefab_entity) = opened_prefab.world_to_prefab_mappings().get(world_entity) {
                     if let Some(entity_uuid) = prefab_entity_to_uuid.get(prefab_entity) {
@@ -753,133 +742,81 @@ impl EditorStateResource {
                 }
             }
 
-            Some(tx_builder.begin(&universe_resource.universe, &opened_prefab.cooked_prefab().world))
+            Some(EditorTransaction::new(tx_builder, &universe_resource.universe, &opened_prefab.cooked_prefab().world))
         } else {
             None
         }
     }
 }
 
-struct TransactionBuilderEntityInfo {
-    entity_uuid: EntityUuid,
-    entity: Entity
-}
-
-#[derive(Default)]
-pub struct EditorTransactionBuilder {
-    entities: Vec<TransactionBuilderEntityInfo>
-}
-
-impl EditorTransactionBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    //TODO: should this take a uuid?
-    //TODO: need a mapping from before to after? or maybe after -> { before, uuid }
-    pub fn add_entity(mut self, entity: Entity, entity_uuid: EntityUuid) -> Self {
-        self.entities.push(TransactionBuilderEntityInfo { entity, entity_uuid });
-        self
-    }
-
-    pub fn begin(mut self, universe: &Universe, src_world: &World) -> EditorTransaction {
-        let mut before_world = universe.create_world();
-        let mut after_world = universe.create_world();
-
-        let mut uuid_to_entities = HashMap::new();
-
-        let clone_impl = crate::create_copy_clone_impl();
-
-        for entity_info in self.entities {
-            let before_entity = before_world.clone_from_single(&src_world, entity_info.entity, &clone_impl, None);
-            let after_entity = after_world.clone_from_single(&src_world, entity_info.entity, &clone_impl, None);
-            uuid_to_entities.insert(entity_info.entity_uuid, TransactionEntityInfo { before_entity, after_entity });
-        }
-
-        EditorTransaction {
-            before_world,
-            after_world,
-            uuid_to_entities
-        }
-    }
-}
-
-struct TransactionEntityInfo {
-    before_entity: Entity,
-    after_entity: Entity
-}
+#[derive(Clone, Copy, PartialEq)]
+pub struct EditorTransactionId(uuid::Uuid);
 
 pub struct EditorTransaction {
-    before_world: legion::world::World,
-    after_world: legion::world::World,
-    uuid_to_entities: HashMap<EntityUuid, TransactionEntityInfo>
+    id: EditorTransactionId,
+    transaction: crate::transactions::Transaction
 }
 
+
 impl EditorTransaction {
+    pub fn new(builder: TransactionBuilder, universe: &Universe, world: &World) -> EditorTransaction {
+        let id = EditorTransactionId(uuid::Uuid::new_v4());
+        let transaction = builder.begin(universe, world);
+
+        EditorTransaction {
+            id,
+            transaction
+        }
+    }
+
     pub fn world(&self) -> &World {
-        &self.after_world
+        self.transaction.world()
     }
 
     pub fn world_mut(&mut self) -> &mut World {
-        &mut self.after_world
+        self.transaction.world_mut()
     }
 
-    fn create_diff_step(&self, registered_components: &HashMap<ComponentTypeUuid, ComponentRegistration>) -> EditorDiffStep {
-        log::trace!("create diffs for {} entities", self.uuid_to_entities.len());
+    pub fn update(&mut self, editor_state: &mut EditorStateResource) {
+        log::info!("update transaction");
+        self.do_update(editor_state, false);
+    }
 
-        let mut diffs = vec![];
-        let mut undo_diffs = vec![];
+    pub fn commit(mut self, editor_state: &mut EditorStateResource) {
+        log::info!("commit transaction");
+        self.do_update(editor_state, true);
+    }
 
-        // Iterate the entities in the selection world and prefab world
-        for (entity_uuid, entity_info) in &self.uuid_to_entities {
-            log::trace!("diffing {:?} {:?}", entity_info.before_entity, entity_info.after_entity);
-            // Do diffs for each component type
-            for (component_type, registration) in registered_components {
-                let mut has_changes = false;
-                let acceptor = DiffSingleSerializerAcceptor {
-                    component_registration: &registration,
-                    src_world: &self.before_world,
-                    src_entity: entity_info.before_entity,
-                    dst_world: &self.after_world,
-                    dst_entity: entity_info.after_entity,
-                    has_changes: &mut has_changes
-                };
-                let mut data = vec![];
-                bincode::with_serializer(&mut data, acceptor);
+    pub fn do_update(&mut self, editor_state: &mut EditorStateResource, commit_changes: bool) {
+        let commit_current_tx = match &editor_state.current_transaction_info {
+            Some(info) => info.id != self.id,
+            None => false
+        };
 
-                if has_changes {
-                    let undo_acceptor = DiffSingleSerializerAcceptor {
-                        component_registration: &registration,
-                        src_world: &self.after_world,
-                        src_entity: entity_info.after_entity,
-                        dst_world: &self.before_world,
-                        dst_entity: entity_info.before_entity,
-                        has_changes: &mut has_changes
-                    };
-                    let mut undo_data = vec![];
-                    bincode::with_serializer(&mut undo_data, undo_acceptor);
-
-                    diffs.push(ComponentDiff::new(
-                        *entity_uuid,
-                        *component_type,
-                        data
-                    ));
-
-                    undo_diffs.push(ComponentDiff::new(
-                        *entity_uuid,
-                        *component_type,
-                        undo_data
-                    ));
-                }
-            }
+        if commit_current_tx {
+            log::info!("commiting prior transaction");
+            let mut current_transaction_info = None;
+            std::mem::swap(&mut current_transaction_info, &mut editor_state.current_transaction_info);
+            editor_state.enqueue_diffs(current_transaction_info.unwrap().diffs, true);
         }
 
-        undo_diffs.reverse();
-
-        for diff in &diffs {
-            println!("generated diff for entity {}", uuid::Uuid::from_bytes(*diff.entity_uuid()).to_string());
+        let diffs = self.transaction.create_transaction_diffs(&*editor_state.component_registry_by_uuid);
+        if !commit_changes {
+            log::info!("saving transaction for future commit");
+            editor_state.current_transaction_info = Some(CurrentTransactionInfo {
+                id: self.id,
+                diffs: diffs.clone()
+            });
+        } else {
+            editor_state.current_transaction_info = None;
         }
 
-        EditorDiffStep { diffs, undo_diffs, commit_changes: true }
+        editor_state.enqueue_diffs(diffs, commit_changes);
+    }
+
+    pub fn cancel(&mut self, editor_state: &mut EditorStateResource) {
+        log::info!("cancel transaction");
+        unimplemented!();
     }
 }
+

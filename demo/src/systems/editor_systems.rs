@@ -1,8 +1,9 @@
 use legion::prelude::*;
 
-use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransactionBuilder, EditorTransaction};
+use crate::resources::{EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource, DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransaction};
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
+use crate::transactions::{TransactionBuilder, Transaction};
 
 use skulpin::{imgui, VirtualKeyCode, MouseButton, LogicalPosition};
 use imgui::im_str;
@@ -147,6 +148,10 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
                         }
                     }
 
+                    if imgui::MenuItem::new(im_str!("Save")).build(ui) {
+                        editor_state.enqueue_save();
+                    }
+
                     if imgui::MenuItem::new(im_str!("Undo")).build(ui) {
                         editor_state.enqueue_undo();
                     }
@@ -289,7 +294,7 @@ pub fn editor_inspector_window(
                         if let Some(mut tx) = tx {
                             let registry = crate::create_editor_inspector_registry();
                             if registry.render_mut(tx.world_mut(), ui, &Default::default()) {
-                                editor_ui_state.enqueue_transaction(&tx, true);
+                                tx.commit(&mut editor_ui_state);
                             }
                         }
                     });
@@ -333,12 +338,29 @@ pub fn editor_input() -> Box<dyn Schedulable> {
 
             editor_draw.update(&*input_state, &*viewport);
 
-            let mut tx = editor_state.create_transaction_from_selected(&*editor_selection, &*universe_resource);
+            let mut gizmo_tx = None;
+            std::mem::swap(&mut gizmo_tx, &mut editor_state.gizmo_transaction);
+
+            if gizmo_tx.is_none() {
+                gizmo_tx = editor_state.create_transaction_from_selected(&*editor_selection, &*universe_resource);
+            }
+
             //handle_translate_gizmo_input(&mut *debug_draw, &mut *editor_draw, &mut *editor_state, &mut *editor_selection, subworld);
-            if let Some(mut tx) = tx {
-                let mut commit = false;
-                commit |= handle_translate_gizmo_input(&mut *editor_draw, &mut tx);
-                editor_state.enqueue_transaction(&tx, commit);
+            if let Some(mut gizmo_tx) = gizmo_tx {
+                let mut result = GizmoResult::NoChange;
+                result = result.max(handle_translate_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
+
+                match result {
+                    GizmoResult::NoChange => {
+                    },
+                    GizmoResult::Update => {
+                        gizmo_tx.update(editor_state);
+                        editor_state.gizmo_transaction = Some(gizmo_tx);
+                    },
+                    GizmoResult::Commit => {
+                        gizmo_tx.commit(editor_state);
+                    }
+                }
             }
 
             match editor_state.active_editor_tool() {
@@ -444,13 +466,19 @@ use legion::filter::Passthrough;
 use legion::systems::SystemQuery;
 use legion::systems::SubWorld;
 
+#[derive(Ord, PartialOrd, PartialEq, Eq)]
+enum GizmoResult {
+    NoChange,
+    Update,
+    Commit
+}
 
 fn handle_translate_gizmo_input(
     editor_draw: &mut EditorDrawResource,
     tx: &mut EditorTransaction,
-) -> bool {
+) -> GizmoResult {
     if let Some(drag_in_progress) = editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left) {
-        log::trace!("drag in progress");
+        log::info!("drag in progress");
         // See what if any axis we will operate on
         let mut translate_x = false;
         let mut translate_y = false;
@@ -465,7 +493,8 @@ fn handle_translate_gizmo_input(
 
         // Early out if we didn't touch either axis
         if !translate_x && !translate_y {
-            return false;
+            log::info!("early out");
+            return GizmoResult::NoChange;
         }
 
         // Determine the drag distance in ui_space
@@ -491,9 +520,13 @@ fn handle_translate_gizmo_input(
             log::trace!("{:?}", *position.position);
         }
 
-        editor_draw.is_shape_drag_just_finished(MouseButton::Left)
+        if editor_draw.is_shape_drag_just_finished(MouseButton::Left) {
+            GizmoResult::Commit
+        } else {
+            GizmoResult::Update
+        }
     } else {
-        false
+        GizmoResult::NoChange
     }
 }
 

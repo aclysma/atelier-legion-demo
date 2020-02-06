@@ -41,6 +41,8 @@ use inspect::EditorInspectRegistry;
 
 pub mod math;
 
+pub mod transactions;
+
 mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
