@@ -25,7 +25,7 @@ atelier-loader = { path = "../atelier-assets/loader" }
 
 crossbeam-channel = "0.3"
 
-legion = { path = "../legion", default-features = false, features = ["serde-1"] }
+legion = { path = "../legion", default-features = false, features = ["serialize"] }
 
 nalgebra = { version = "0.18", features = [ "serde-serialize" ] }
 nalgebra-glm = "0.4"
@@ -43,7 +43,7 @@ bincode = { git="https://github.com/aclysma/bincode.git", branch="new-trait-boun
 mopa = "0.2"
 itertools = "0.8"
 
-serde-diff = { git = "https://github.com/aclysma/serde-diff.git", branch = "diff-indicates-has-changes" }
+serde-diff = { git = "https://github.com/amethyst/serde-diff.git" }
 legion-prefab = { path = "../prefab/legion-prefab" }
 prefab-format = { path = "../prefab/prefab-format" }
 

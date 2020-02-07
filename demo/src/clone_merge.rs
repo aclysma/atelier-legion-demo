@@ -5,15 +5,56 @@ use legion::prelude::*;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
-pub trait CloneMergeFrom<FromT: Sized>
-where
-    Self: Sized,
-{
-    fn clone_merge_from(
+/// A trivial clone merge impl that does nothing but copy data. All component types must be
+/// cloneable and no type transformations are allowed
+pub struct CopyCloneImpl {
+    components: HashMap<ComponentTypeId, ComponentRegistration>,
+}
+
+impl CopyCloneImpl {
+    pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>) -> Self {
+        Self { components }
+    }
+}
+
+impl legion::world::CloneImpl for CopyCloneImpl {
+    fn map_component_type(
+        &self,
+        component_type: ComponentTypeId,
+    ) -> (ComponentTypeId, ComponentMeta) {
+        let comp_reg = &self.components[&component_type];
+        (ComponentTypeId(comp_reg.ty(), 0), comp_reg.meta().clone())
+    }
+
+    fn clone_components(
+        &self,
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        src_type: ComponentTypeId,
+        src_entities: &[Entity],
+        dst_entities: &[Entity],
+        src_data: *const u8,
+        dst_data: *mut u8,
+        num_components: usize,
+    ) {
+        let comp_reg = &self.components[&src_type];
+        unsafe {
+            comp_reg.clone_components(src_data, dst_data, num_components);
+        }
+    }
+}
+
+/// Trait for implementing clone merge mapping from one type to another
+pub trait SpawnFrom<FromT: Sized>
+where
+    Self: Sized,
+{
+    fn spawn_from(
+        src_world: &World,
+        src_component_storage: &ComponentStorage,
+        src_component_storage_indexes: Range<usize>,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         from: &[FromT],
@@ -21,15 +62,16 @@ where
     );
 }
 
-pub trait CloneMergeInto<IntoT: Sized>
+/// Trait for implementing clone merge mapping one type into another
+pub trait SpawnInto<IntoT: Sized>
 where
     Self: Sized,
 {
-    fn clone_merge_into(
+    fn spawn_into(
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         from: &[Self],
@@ -38,25 +80,25 @@ where
 }
 
 // From implies Into
-impl<FromT, IntoT> CloneMergeInto<IntoT> for FromT
+impl<FromT, IntoT> SpawnInto<IntoT> for FromT
 where
-    IntoT: CloneMergeFrom<FromT>,
+    IntoT: SpawnFrom<FromT>,
 {
-    fn clone_merge_into(
+    fn spawn_into(
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         from: &[Self],
         into: &mut [MaybeUninit<IntoT>],
     ) {
-        IntoT::clone_merge_from(
+        IntoT::spawn_from(
             src_world,
             src_component_storage,
             src_component_storage_indexes,
-            dst_resources,
+            resources,
             src_entities,
             dst_entities,
             from,
@@ -65,22 +107,28 @@ where
     }
 }
 
+/// A CloneMergeImpl that
+///
 /// An implementation passed into legion::world::World::clone_merge. This implementation supports
 /// providing custom mappings with add_mapping (which takes a closure) and add_mapping_into (which
 /// uses Rust standard library's .into(). If a mapping isn't provided for a type, the component
 /// will be cloned using ComponentRegistration passed in new()
-#[derive(Default)]
-pub struct CloneMergeImpl {
-    handlers: HashMap<ComponentTypeId, Box<dyn CloneMergeMapping>>,
+pub struct SpawnCloneImpl<'a> {
+    handlers: HashMap<ComponentTypeId, Box<dyn SpawnCloneImplMapping>>,
     components: HashMap<ComponentTypeId, ComponentRegistration>,
+    resources: &'a Resources,
 }
 
-impl CloneMergeImpl {
+impl<'a> SpawnCloneImpl<'a> {
     /// Creates a new implementation
-    pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>) -> Self {
+    pub fn new(
+        components: HashMap<ComponentTypeId, ComponentRegistration>,
+        resources: &'a Resources,
+    ) -> Self {
         Self {
+            handlers: Default::default(),
             components,
-            ..Default::default()
+            resources,
         }
     }
 
@@ -92,19 +140,19 @@ impl CloneMergeImpl {
         let into_type_id = ComponentTypeId::of::<IntoT>();
         let into_type_meta = ComponentMeta::of::<IntoT>();
 
-        let handler = Box::new(CloneMergeMappingImpl::new(
+        let handler = Box::new(SpawnCloneImplMappingImpl::new(
             into_type_id,
             into_type_meta,
             |_src_world,
              _src_component_storage,
              _src_component_storage_indexes,
-             _dst_resources,
+             _resources,
              _src_entities,
              _dst_entities,
              src_data: *const u8,
              dst_data: *mut u8,
              num_components: usize| {
-                println!(
+                log::trace!(
                     "Clone type {} -> {}",
                     std::any::type_name::<FromT>(),
                     std::any::type_name::<IntoT>()
@@ -131,26 +179,24 @@ impl CloneMergeImpl {
     /// world's resources and all the memory that holds the components. The memory passed into
     /// the closure as IntoT MUST be initialized or undefined behavior could happen on future access
     /// of the memory
-    pub fn add_mapping<FromT: Component + Clone + CloneMergeInto<IntoT>, IntoT: Component>(
-        &mut self
-    ) {
+    pub fn add_mapping<FromT: Component + Clone + SpawnInto<IntoT>, IntoT: Component>(&mut self) {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
         let into_type_meta = ComponentMeta::of::<IntoT>();
 
-        let handler = Box::new(CloneMergeMappingImpl::new(
+        let handler = Box::new(SpawnCloneImplMappingImpl::new(
             into_type_id,
             into_type_meta,
             |src_world,
              src_component_storage,
              src_component_storage_indexes,
-             dst_resources,
+             resources,
              src_entities,
              dst_entities,
              src_data: *const u8,
              dst_data: *mut u8,
              num_components: usize| {
-                println!(
+                log::trace!(
                     "Clone type {} -> {}",
                     std::any::type_name::<FromT>(),
                     std::any::type_name::<IntoT>()
@@ -163,11 +209,11 @@ impl CloneMergeImpl {
                         num_components,
                     );
 
-                    <FromT as CloneMergeInto<IntoT>>::clone_merge_into(
+                    <FromT as SpawnInto<IntoT>>::spawn_into(
                         src_world,
                         src_component_storage,
                         src_component_storage_indexes,
-                        dst_resources,
+                        resources,
                         src_entities,
                         dst_entities,
                         from_slice,
@@ -194,7 +240,7 @@ impl CloneMergeImpl {
                 &World,                    // src_world
                 &ComponentStorage,         // src_component_storage
                 Range<usize>,              // src_component_storage_indexes
-                &Resources,                // dst_resources
+                &Resources,                // resources
                 &[Entity],                 // src_entities
                 &[Entity],                 // dst_entities
                 &[FromT],                  // src_data
@@ -205,19 +251,19 @@ impl CloneMergeImpl {
         let into_type_id = ComponentTypeId::of::<IntoT>();
         let into_type_meta = ComponentMeta::of::<IntoT>();
 
-        let handler = Box::new(CloneMergeMappingImpl::new(
+        let handler = Box::new(SpawnCloneImplMappingImpl::new(
             into_type_id,
             into_type_meta,
             move |src_world,
                   src_component_storage,
                   src_component_storage_indexes,
-                  dst_resources,
+                  resources,
                   src_entities,
                   dst_entities,
                   src_data: *const u8,
                   dst_data: *mut u8,
                   num_components: usize| {
-                println!(
+                log::trace!(
                     "Clone type {} -> {}",
                     std::any::type_name::<FromT>(),
                     std::any::type_name::<IntoT>()
@@ -233,7 +279,7 @@ impl CloneMergeImpl {
                         src_world,
                         src_component_storage,
                         src_component_storage_indexes,
-                        dst_resources,
+                        resources,
                         src_entities,
                         dst_entities,
                         from_slice,
@@ -247,7 +293,7 @@ impl CloneMergeImpl {
     }
 }
 
-impl legion::world::CloneMergeImpl for CloneMergeImpl {
+impl<'a> legion::world::CloneImpl for SpawnCloneImpl<'a> {
     fn map_component_type(
         &self,
         component_type: ComponentTypeId,
@@ -259,7 +305,7 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
             (handler.dst_type_id(), handler.dst_type_meta())
         } else {
             let comp_reg = &self.components[&component_type];
-            (ComponentTypeId(comp_reg.ty()), comp_reg.meta().clone())
+            (ComponentTypeId(comp_reg.ty(), 0), comp_reg.meta().clone())
         }
     }
 
@@ -268,7 +314,6 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
         src_type: ComponentTypeId,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -284,7 +329,7 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
                 src_world,
                 src_component_storage,
                 src_component_storage_indexes,
-                dst_resources,
+                self.resources,
                 src_entities,
                 dst_entities,
                 src_data,
@@ -302,7 +347,7 @@ impl legion::world::CloneMergeImpl for CloneMergeImpl {
 
 /// Used internally to dynamic dispatch into a Box<CloneMergeMappingImpl<T>>
 /// These are created as mappings are added to CloneMergeImpl
-trait CloneMergeMapping {
+trait SpawnCloneImplMapping {
     fn dst_type_id(&self) -> ComponentTypeId;
     fn dst_type_meta(&self) -> ComponentMeta;
     fn clone_components(
@@ -310,7 +355,7 @@ trait CloneMergeMapping {
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         src_data: *const u8,
@@ -319,13 +364,13 @@ trait CloneMergeMapping {
     );
 }
 
-struct CloneMergeMappingImpl<F>
+struct SpawnCloneImplMappingImpl<F>
 where
     F: Fn(
         &World,            // src_world
         &ComponentStorage, // src_component_storage
         Range<usize>,      // src_component_storage_indexes
-        &Resources,        // dst_resources
+        &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
         *const u8,         // src_data
@@ -338,13 +383,13 @@ where
     clone_fn: F,
 }
 
-impl<F> CloneMergeMappingImpl<F>
+impl<F> SpawnCloneImplMappingImpl<F>
 where
     F: Fn(
         &World,            // src_world
         &ComponentStorage, // src_component_storage
         Range<usize>,      // src_component_storage_indexes
-        &Resources,        // dst_resources
+        &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
         *const u8,         // src_data
@@ -357,7 +402,7 @@ where
         dst_type_meta: ComponentMeta,
         clone_fn: F,
     ) -> Self {
-        CloneMergeMappingImpl {
+        SpawnCloneImplMappingImpl {
             dst_type_id,
             dst_type_meta,
             clone_fn,
@@ -365,13 +410,13 @@ where
     }
 }
 
-impl<F> CloneMergeMapping for CloneMergeMappingImpl<F>
+impl<F> SpawnCloneImplMapping for SpawnCloneImplMappingImpl<F>
 where
     F: Fn(
         &World,            // src_world
         &ComponentStorage, // src_component_storage
         Range<usize>,      // src_component_storage_indexes
-        &Resources,        // dst_resources
+        &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
         *const u8,         // src_data
@@ -392,7 +437,7 @@ where
         src_world: &World,
         src_component_storage: &ComponentStorage,
         src_component_storage_indexes: Range<usize>,
-        dst_resources: &Resources,
+        resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
         src_data: *const u8,
@@ -403,7 +448,7 @@ where
             src_world,
             src_component_storage,
             src_component_storage_indexes,
-            dst_resources,
+            resources,
             src_entities,
             dst_entities,
             src_data,

@@ -115,7 +115,7 @@ pub fn create_demo_prefab(universe: &Universe) -> Prefab {
 //    let prefab_ser = legion_prefab::PrefabFormatSerializer::new(&prefab_serde_context, &prefab);
 //    prefab_format::serialize(&mut ron_ser, &prefab_ser, prefab.prefab_id()).expect("failed to round-trip prefab");
 //    let output = ron_ser.into_output_string();
-//    println!("Round-tripped legion world: {}", output);
+//    log::trace!("Round-tripped legion world: {}", output);
 //
 //    std::fs::write("prefab_out.ron", output);
 

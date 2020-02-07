@@ -7,7 +7,7 @@ use atelier_loader::{
 };
 use std::collections::HashMap;
 use legion::prelude::*;
-use crate::clone_merge::CloneMergeImpl;
+use crate::clone_merge::SpawnCloneImpl;
 
 use legion::storage::ComponentTypeId;
 use prefab_format::ComponentTypeUuid;
@@ -22,9 +22,11 @@ pub fn cook_prefab(
     registered_components_by_uuid: &HashMap<ComponentTypeUuid, ComponentRegistration>,
     prefab_uuid: AssetUuid,
 ) -> CookedPrefab {
+    let resources = Resources::default();
+
     // Create the clone_merge impl. For prefab cooking, we will clone everything so we don't need to
     // set up any transformations
-    let clone_merge_impl = CloneMergeImpl::new(registered_components.clone());
+    let clone_merge_impl = SpawnCloneImpl::new(registered_components.clone(), &resources);
 
     // This will allow us to look up prefabs by AssetUuid
     let mut prefab_lookup = HashMap::new();
@@ -46,7 +48,7 @@ pub fn cook_prefab(
     );
 
     for id in &prefab_cook_order {
-        println!("prefabs_in_cook_order: {}", id);
+        log::trace!("prefabs_in_cook_order: {}", id);
     }
 
     // Create a new world to hold the cooked data
@@ -57,18 +59,18 @@ pub fn cook_prefab(
     for (_, prefab_handle) in &prefab_lookup {
         let prefab_asset: &PrefabAsset = prefab_handle.asset(asset_manager.storage()).unwrap();
 
-        println!(
+        log::trace!(
             "Cloning entities from prefab {}",
             AssetUuid(prefab_asset.prefab.prefab_meta.id)
         );
-        println!("{:#?}", prefab_asset.prefab.prefab_meta.entities);
+        log::trace!("{:#?}", prefab_asset.prefab.prefab_meta.entities);
 
         // Clone all the entities from the prefab into the cooked world. As the data is copied,
         // entity will get a new Entity assigned to it in the cooked world. result_mappings will
         // be populated as this happens so that we can trace where data in the prefab landed in
         // the cooked world
         let mut result_mappings = HashMap::new();
-        world.clone_merge(
+        world.clone_from(
             &prefab_asset.prefab.world,
             &clone_merge_impl,
             None,
@@ -80,7 +82,7 @@ pub fn cook_prefab(
         for (entity_uuid, prefab_entity) in &prefab_asset.prefab.prefab_meta.entities {
             let cooked_entity = result_mappings[prefab_entity];
             entity_lookup.insert(*entity_uuid, cooked_entity);
-            println!(
+            log::trace!(
                 "entity {} ({:?}) will be {:?} in cooked data",
                 uuid::Uuid::from_bytes(*entity_uuid),
                 prefab_entity,
@@ -97,7 +99,7 @@ pub fn cook_prefab(
         let prefab_asset: &PrefabAsset = prefab_handle.asset(asset_manager.storage()).unwrap();
 
         // Iterate all the other prefabs that this prefab references
-        println!(
+        log::trace!(
             "Iterating prefabs referenced by prefab {}",
             uuid::Uuid::from_bytes(prefab_asset.prefab.prefab_meta.id)
         );
@@ -105,23 +107,23 @@ pub fn cook_prefab(
             &prefab_asset.prefab.prefab_meta.prefab_refs
         {
             // Iterate all the entities for which we have override data
-            println!(
+            log::trace!(
                 "Processing reference to prefab {}",
                 uuid::Uuid::from_bytes(*dependency_prefab_id)
             );
             for (entity_id, component_overrides) in &dependency_prefab_ref.overrides {
-                println!(
+                log::trace!(
                     "Processing referenced entity {}",
                     uuid::Uuid::from_bytes(*entity_id)
                 );
 
                 // Find where this entity is stored within the cooked data
                 let cooked_entity = entity_lookup[entity_id];
-                println!("This entity is stored at {:?}", cooked_entity);
+                log::trace!("This entity is stored at {:?}", cooked_entity);
 
                 // Iterate all the component types for which we have override data
                 for component_override in component_overrides {
-                    println!(
+                    log::trace!(
                         "processing component type {}",
                         uuid::Uuid::from_bytes(component_override.component_type)
                     );
@@ -156,7 +158,7 @@ pub fn cook_prefab(
             ron::ser::to_string_pretty(&restored, ron::ser::PrettyConfig::default()).unwrap();
 
         assert_eq!(cooked_prefab_string, cooked_prefab_string2);
-        println!("{}", cooked_prefab_string2);
+        log::trace!("{}", cooked_prefab_string2);
     }
 
     cooked_prefab

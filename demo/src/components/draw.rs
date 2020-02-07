@@ -45,7 +45,9 @@ impl From<PaintDef> for Paint {
 // Draw a box at the component's current location. Will be affected by scale, if the scale component
 // exists
 //
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
+#[derive(
+    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+)]
 #[uuid = "c05e5c27-58ca-4d68-b825-b20f67fdaf37"]
 pub struct DrawSkiaBoxComponentDef {
     #[serde_diff(opaque)]
@@ -93,7 +95,9 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
 // Draw a circle at the component's current location. Will be affected by scale, if the scale
 // component exists
 //
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
+#[derive(
+    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+)]
 #[uuid = "e47f9943-d5bf-4e1b-9601-13e47d7b737c"]
 pub struct DrawSkiaCircleComponentDef {
     pub radius: f32,

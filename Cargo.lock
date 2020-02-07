@@ -374,15 +374,15 @@ dependencies = [
 
 [[package]]
 name = "capnp"
-version = "0.11.2"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "335afa96770a201bc1cbef4c294230c303a22d5209485af942f3b6acdbfe472a"
+checksum = "e12c88f0850bda4b226c3365912fa6740a3bfb26065953602ad9daa54172a368"
 
 [[package]]
 name = "capnp-futures"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fdf25e597a72c29900d82285a3934e37a6eaea7af89214f32b4239098fcd9fd"
+checksum = "e8db791f6877886cbc488019fc9fc7380d101b5bf14784dc4b109ac91238ed35"
 dependencies = [
  "capnp",
  "futures",
@@ -390,9 +390,9 @@ dependencies = [
 
 [[package]]
 name = "capnp-rpc"
-version = "0.11.0"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "497498baca65fa28aa6710e1eec2d263ffc3f834b368e8fc7c731b33a0f85bd3"
+checksum = "0966e19b0ce4121b1353a79b6411c1b8d3c59a71684a4adabdf39683ad81742d"
 dependencies = [
  "capnp",
  "capnp-futures",
@@ -402,9 +402,9 @@ dependencies = [
 
 [[package]]
 name = "capnpc"
-version = "0.11.1"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "904ee00982aa0b212550dfa09f76db5dea92000916c1cccbe826399d6a90fb23"
+checksum = "805e848aeb68f9312f716f7dff14e55db726759f62085c7bdf471ceb43438eef"
 dependencies = [
  "capnp",
 ]
@@ -1307,16 +1307,25 @@ checksum = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
 name = "legion"
 version = "0.2.1"
 dependencies = [
- "bit-set",
+ "legion-core",
+ "legion-systems",
+]
+
+[[package]]
+name = "legion-core"
+version = "0.2.1"
+dependencies = [
  "crossbeam-channel 0.4.0",
+ "crossbeam-queue",
  "derivative",
  "downcast-rs",
  "fxhash",
  "itertools",
  "parking_lot 0.9.0",
- "paste",
+ "rayon",
  "serde",
  "smallvec 0.6.13",
+ "thiserror",
  "tracing",
 ]
 
@@ -1332,6 +1341,23 @@ dependencies = [
  "serde-diff",
  "type-uuid",
  "uuid",
+]
+
+[[package]]
+name = "legion-systems"
+version = "0.2.1"
+dependencies = [
+ "bit-set",
+ "crossbeam-channel 0.4.0",
+ "crossbeam-queue",
+ "derivative",
+ "downcast-rs",
+ "fxhash",
+ "itertools",
+ "legion-core",
+ "paste",
+ "rayon",
+ "tracing",
 ]
 
 [[package]]
@@ -2483,8 +2509,8 @@ dependencies = [
 
 [[package]]
 name = "serde-diff"
-version = "0.1.3"
-source = "git+https://github.com/aclysma/serde-diff.git?branch=diff-indicates-has-changes#107441d1a820e41939e99ec52f254211633c9b71"
+version = "0.2.0"
+source = "git+https://github.com/amethyst/serde-diff.git#83fd749e306959a1c843ff153a06c27caa8f4742"
 dependencies = [
  "serde",
  "serde-diff-derive",
@@ -2493,8 +2519,8 @@ dependencies = [
 
 [[package]]
 name = "serde-diff-derive"
-version = "0.1.3"
-source = "git+https://github.com/aclysma/serde-diff.git?branch=diff-indicates-has-changes#107441d1a820e41939e99ec52f254211633c9b71"
+version = "0.2.0"
+source = "git+https://github.com/amethyst/serde-diff.git#83fd749e306959a1c843ff153a06c27caa8f4742"
 dependencies = [
  "darling",
  "proc-macro2 1.0.8",
@@ -2824,6 +2850,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
 dependencies = [
  "unicode-width",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "205684fd018ca14432b12cce6ea3d46763311a571c3d294e71ba3f01adcf1aad"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57e4d2e50ca050ed44fb58309bdce3efa79948f84f9993ad1978de5eebdce5a7"
+dependencies = [
+ "proc-macro2 1.0.8",
+ "quote 1.0.2",
+ "syn 1.0.14",
 ]
 
 [[package]]

@@ -11,7 +11,9 @@ use crate::math::Vec2;
 // Temporary component for testing.. a separate definition component for this is unnecessary
 // but it's being used in temporary code to demonstrate clone_merge changing a component type
 //
-#[derive(TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect)]
+#[derive(
+    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+)]
 #[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
 pub struct Position2DComponentDef {
     #[serde_diff(opaque)]
