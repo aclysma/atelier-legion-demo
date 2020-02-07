@@ -11,7 +11,7 @@ pub enum SimulationTimePauseReason {
 
 enum TimeOp {
     SetPaused(bool, SimulationTimePauseReason),
-    ResetSimulationTime
+    ResetSimulationTime,
 }
 
 // For now just wrap the input helper that skulpin provides
@@ -20,7 +20,7 @@ pub struct TimeResource {
     pub simulation_time: TimeContext,
     pub print_fps_event: skulpin::PeriodicEvent,
     pub simulation_pause_flags: u8, // No flags set means simulation is not paused
-    pending_time_ops: Vec<TimeOp>
+    pending_time_ops: Vec<TimeOp>,
 }
 
 impl TimeResource {
@@ -32,7 +32,7 @@ impl TimeResource {
             simulation_time: TimeContext::new(),
             print_fps_event: Default::default(),
             simulation_pause_flags: 0,
-            pending_time_ops: Default::default()
+            pending_time_ops: Default::default(),
         }
     }
 
@@ -83,7 +83,8 @@ impl TimeResource {
         paused: bool,
         reason: SimulationTimePauseReason,
     ) {
-        self.pending_time_ops.push(TimeOp::SetPaused(paused, reason));
+        self.pending_time_ops
+            .push(TimeOp::SetPaused(paused, reason));
     }
 
     pub fn enqueue_reset_simulation_time(&mut self) {
@@ -91,11 +92,13 @@ impl TimeResource {
     }
 
     pub fn process_time_ops(&mut self) {
-        let time_ops : Vec<_> = self.pending_time_ops.drain(..).collect();
+        let time_ops: Vec<_> = self.pending_time_ops.drain(..).collect();
         for time_op in time_ops {
             match time_op {
-                TimeOp::SetPaused(paused, reason) => self.set_simulation_time_paused(paused, reason),
-                TimeOp::ResetSimulationTime => self.reset_simulation_time()
+                TimeOp::SetPaused(paused, reason) => {
+                    self.set_simulation_time_paused(paused, reason)
+                }
+                TimeOp::ResetSimulationTime => self.reset_simulation_time(),
             }
         }
     }

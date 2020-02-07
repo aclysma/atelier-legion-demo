@@ -136,22 +136,18 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         // --- Editor stuff here ---
         // Prepare to handle editor input
         .always_thread_local(editor_refresh_selection_world)
-
         // Editor input
         .always_thread_local(reload_editor_state_if_file_changed)
         .always(editor_input)
         .always(editor_imgui_menu)
         .always(editor_entity_list_window)
         .always_thread_local(editor_inspector_window)
-
         // Editor processing
         .always_thread_local(editor_process_edit_diffs)
         .always_thread_local(editor_process_selection_ops)
         .always_thread_local(editor_process_editor_ops)
-
         // Editor output
         .always(draw_selection_shapes)
-
         // --- End editor stuff ---
         .always(input_reset_for_next_frame)
         .build()

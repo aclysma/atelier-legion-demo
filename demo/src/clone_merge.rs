@@ -13,9 +13,7 @@ pub struct CopyCloneImpl {
 
 impl CopyCloneImpl {
     pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>) -> Self {
-        Self {
-            components
-        }
+        Self { components }
     }
 }
 
@@ -118,16 +116,19 @@ where
 pub struct SpawnCloneImpl<'a> {
     handlers: HashMap<ComponentTypeId, Box<dyn SpawnCloneImplMapping>>,
     components: HashMap<ComponentTypeId, ComponentRegistration>,
-    resources: &'a Resources
+    resources: &'a Resources,
 }
 
 impl<'a> SpawnCloneImpl<'a> {
     /// Creates a new implementation
-    pub fn new(components: HashMap<ComponentTypeId, ComponentRegistration>, resources: &'a Resources) -> Self {
+    pub fn new(
+        components: HashMap<ComponentTypeId, ComponentRegistration>,
+        resources: &'a Resources,
+    ) -> Self {
         Self {
             handlers: Default::default(),
             components,
-            resources
+            resources,
         }
     }
 
@@ -178,9 +179,7 @@ impl<'a> SpawnCloneImpl<'a> {
     /// world's resources and all the memory that holds the components. The memory passed into
     /// the closure as IntoT MUST be initialized or undefined behavior could happen on future access
     /// of the memory
-    pub fn add_mapping<FromT: Component + Clone + SpawnInto<IntoT>, IntoT: Component>(
-        &mut self
-    ) {
+    pub fn add_mapping<FromT: Component + Clone + SpawnInto<IntoT>, IntoT: Component>(&mut self) {
         let from_type_id = ComponentTypeId::of::<FromT>();
         let into_type_id = ComponentTypeId::of::<IntoT>();
         let into_type_meta = ComponentMeta::of::<IntoT>();

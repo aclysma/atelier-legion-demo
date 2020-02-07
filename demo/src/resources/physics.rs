@@ -75,7 +75,8 @@ impl PhysicsResource {
             &mut self.geometrical_world,
             &mut self.bodies,
             &mut self.colliders,
-            &mut self.joint_constraints);
+            &mut self.joint_constraints,
+        );
     }
 
     pub fn step(&mut self) {
@@ -89,6 +90,5 @@ impl PhysicsResource {
             &mut self.joint_constraints,
             &mut self.force_generators,
         );
-
     }
 }

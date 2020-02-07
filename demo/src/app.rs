@@ -145,11 +145,9 @@ impl App {
         let mut resources = legion::systems::resource::Resources::default();
 
         resources.insert(ImguiResource::new(imgui_manager));
-        resources
-            .insert(AppControlResource::new(skulpin::AppControl::default()));
+        resources.insert(AppControlResource::new(skulpin::AppControl::default()));
         resources.insert(TimeResource::new());
-        resources
-            .insert(InputResource::new(skulpin::InputState::new(&window)));
+        resources.insert(InputResource::new(skulpin::InputState::new(&window)));
         resources.insert(CanvasDrawResource::default());
         resources.insert(UniverseResource::new(universe));
 
@@ -158,32 +156,33 @@ impl App {
         // Pass control of this thread to winit until the app terminates. If this app wants to quit,
         // the update loop should send the appropriate event via the channel
         event_loop.run(move |event, window_target, control_flow| {
-
             // Let imgui have the event first
             let input_captured = {
                 let imgui_manager = resources.get_mut::<ImguiResource>().unwrap();
                 imgui_manager.handle_event(&window, &event);
 
                 let mut input_captured = false;
-                input_captured |= imgui_manager.want_capture_keyboard() && match event {
-                    winit::event::Event::WindowEvent {
-                        event: winit::event::WindowEvent::KeyboardInput { .. },
-                        ..
-                    } => true,
-                    _ => false
-                };
+                input_captured |= imgui_manager.want_capture_keyboard()
+                    && match event {
+                        winit::event::Event::WindowEvent {
+                            event: winit::event::WindowEvent::KeyboardInput { .. },
+                            ..
+                        } => true,
+                        _ => false,
+                    };
 
-                input_captured |= imgui_manager.want_capture_mouse() && match event {
-                    winit::event::Event::WindowEvent {
-                        event: winit::event::WindowEvent::MouseInput { .. },
-                        ..
-                    } => true,
-                    winit::event::Event::WindowEvent {
-                        event: winit::event::WindowEvent::MouseWheel { .. },
-                        ..
-                    } => true,
-                    _ => false
-                };
+                input_captured |= imgui_manager.want_capture_mouse()
+                    && match event {
+                        winit::event::Event::WindowEvent {
+                            event: winit::event::WindowEvent::MouseInput { .. },
+                            ..
+                        } => true,
+                        winit::event::Event::WindowEvent {
+                            event: winit::event::WindowEvent::MouseWheel { .. },
+                            ..
+                        } => true,
+                        _ => false,
+                    };
 
                 input_captured
             };

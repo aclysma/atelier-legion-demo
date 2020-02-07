@@ -7,7 +7,9 @@ use crate::components::Position2DComponent;
 use crate::components::DrawSkiaBoxComponent;
 use crate::components::DrawSkiaCircleComponent;
 
-use crate::resources::{CanvasDrawResource, CameraResource, InputResource, ViewportResource, DebugDrawResource};
+use crate::resources::{
+    CanvasDrawResource, CameraResource, InputResource, ViewportResource, DebugDrawResource,
+};
 use crate::resources::ImguiResource;
 use crate::resources::FpsTextResource;
 
@@ -40,7 +42,11 @@ pub fn draw() -> Box<dyn Schedulable> {
                     let window_size = input_resource.window_size();
                     let camera_position = camera_state.position;
                     camera_state.view_half_extents = glm::Vec2::new(x_half_extents, y_half_extents);
-                    viewport_state.update(window_size, camera_position, camera_state.view_half_extents);
+                    viewport_state.update(
+                        window_size,
+                        camera_position,
+                        camera_state.view_half_extents,
+                    );
 
                     coordinate_system_helper
                         .use_visible_range(
@@ -93,8 +99,9 @@ pub fn draw() -> Box<dyn Schedulable> {
                                 line_list.color.x,
                                 line_list.color.y,
                                 line_list.color.z,
-                                line_list.color.w),
-                            None
+                                line_list.color.w,
+                            ),
+                            None,
                         );
 
                         let from = line_list.points[0];
@@ -109,17 +116,14 @@ pub fn draw() -> Box<dyn Schedulable> {
 
                     debug_draw.clear();
 
-
                     // Switch to using logical screen-space coordinates
                     coordinate_system_helper.use_logical_coordinates(canvas);
 
                     //
                     // Draw FPS text
                     //
-                    let mut text_paint = skia_safe::Paint::new(
-                        skia_safe::Color4f::new(1.0, 1.0, 0.0, 1.0),
-                        None,
-                    );
+                    let mut text_paint =
+                        skia_safe::Paint::new(skia_safe::Color4f::new(1.0, 1.0, 0.0, 1.0), None);
                     text_paint.set_anti_alias(true);
                     text_paint.set_style(skia_safe::paint::Style::StrokeAndFill);
                     text_paint.set_stroke_width(1.0);

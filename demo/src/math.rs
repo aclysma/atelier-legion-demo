@@ -8,14 +8,12 @@ use skulpin::imgui;
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec2 {
-    value: glm::Vec2
+    value: glm::Vec2,
 }
 
 impl Vec2 {
     pub fn zero() -> Self {
-        Vec2 {
-            value: glm::zero()
-        }
+        Vec2 { value: glm::zero() }
     }
 }
 
@@ -40,7 +38,6 @@ impl DerefMut for Vec2 {
         &mut self.value
     }
 }
-
 
 impl InspectRenderDefault<Vec2> for Vec2 {
     fn render(
@@ -83,21 +80,16 @@ impl InspectRenderDefault<Vec2> for Vec2 {
     }
 }
 
-
-
-
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec4 {
-    value: glm::Vec4
+    value: glm::Vec4,
 }
 
 impl Vec4 {
     pub fn zero() -> Self {
-        Vec4 {
-            value: glm::zero()
-        }
+        Vec4 { value: glm::zero() }
     }
 }
 
@@ -122,7 +114,6 @@ impl DerefMut for Vec4 {
         &mut self.value
     }
 }
-
 
 impl InspectRenderDefault<Vec4> for Vec4 {
     fn render(

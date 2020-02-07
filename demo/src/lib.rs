@@ -176,7 +176,7 @@ impl app::AppHandler for DemoApp {
     fn init(
         &mut self,
         world: &mut World,
-        resources: &mut Resources
+        resources: &mut Resources,
     ) {
         let asset_manager = create_asset_manager();
         let physics = PhysicsResource::new(Vec2::y() * GRAVITY);
@@ -184,11 +184,15 @@ impl app::AppHandler for DemoApp {
         let window_size = resources.get::<InputResource>().unwrap().window_size();
 
         let x_half_extents = crate::GROUND_HALF_EXTENTS_WIDTH * 1.5;
-        let y_half_extents = x_half_extents
-            / (window_size.width as f32 / window_size.height as f32);
+        let y_half_extents =
+            x_half_extents / (window_size.width as f32 / window_size.height as f32);
 
-        let mut camera = CameraResource::new(glm::Vec2::new(0.0, 1.0), glm::Vec2::new(x_half_extents, y_half_extents));
-        let viewport = ViewportResource::new(window_size, camera.position, camera.view_half_extents);
+        let mut camera = CameraResource::new(
+            glm::Vec2::new(0.0, 1.0),
+            glm::Vec2::new(x_half_extents, y_half_extents),
+        );
+        let viewport =
+            ViewportResource::new(window_size, camera.position, camera.view_half_extents);
 
         resources.insert(physics);
         resources.insert(FpsTextResource::new());
@@ -204,13 +208,17 @@ impl app::AppHandler for DemoApp {
         ));
 
         // Start the application
-        EditorStateResource::open_prefab(world, resources, asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"));
+        EditorStateResource::open_prefab(
+            world,
+            resources,
+            asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"),
+        );
     }
 
     fn update(
         &mut self,
         world: &mut World,
-        resources: &mut Resources
+        resources: &mut Resources,
     ) {
         let current_criteria = Self::get_current_schedule_criteria(resources);
         let mut schedule = self.update_schedules.get_mut(&current_criteria).unwrap();
@@ -220,7 +228,7 @@ impl app::AppHandler for DemoApp {
     fn draw(
         &mut self,
         world: &mut World,
-        resources: &mut Resources
+        resources: &mut Resources,
     ) {
         let current_criteria = Self::get_current_schedule_criteria(resources);
         let mut schedule = self.draw_schedules.get_mut(&current_criteria).unwrap();

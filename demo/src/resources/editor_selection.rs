@@ -12,7 +12,7 @@ enum SelectionOp {
     Add(Entity),
     Remove(Entity),
     Set(Vec<Entity>),
-    Clear
+    Clear,
 }
 
 pub struct EditorSelectionResource {
@@ -22,7 +22,7 @@ pub struct EditorSelectionResource {
     // These are entities in the world
     selected_entities: HashSet<Entity>,
 
-    pending_selection_ops: Vec<SelectionOp>
+    pending_selection_ops: Vec<SelectionOp>,
 }
 
 impl EditorSelectionResource {
@@ -36,7 +36,7 @@ impl EditorSelectionResource {
             registry,
             editor_selection_world,
             selected_entities: Default::default(),
-            pending_selection_ops: Default::default()
+            pending_selection_ops: Default::default(),
         }
     }
 
@@ -66,12 +66,18 @@ impl EditorSelectionResource {
         Self::get_entity_aabbs(&self.selected_entities, &mut self.editor_selection_world)
     }
 
-    pub fn enqueue_add_to_selection(&mut self, entity: Entity) {
+    pub fn enqueue_add_to_selection(
+        &mut self,
+        entity: Entity,
+    ) {
         log::info!("Remove entity {:?} from selection", entity);
         self.pending_selection_ops.push(SelectionOp::Add(entity));
     }
 
-    pub fn enqueue_remove_from_selection(&mut self, entity: Entity) {
+    pub fn enqueue_remove_from_selection(
+        &mut self,
+        entity: Entity,
+    ) {
         log::info!("Add entity {:?} to selection", entity);
         self.pending_selection_ops.push(SelectionOp::Remove(entity));
     }
@@ -81,12 +87,19 @@ impl EditorSelectionResource {
         self.pending_selection_ops.push(SelectionOp::Clear);
     }
 
-    pub fn enqueue_set_selection(&mut self, selected_entities: Vec<Entity>) {
+    pub fn enqueue_set_selection(
+        &mut self,
+        selected_entities: Vec<Entity>,
+    ) {
         log::info!("Selected entities: {:?}", selected_entities);
-        self.pending_selection_ops.push(SelectionOp::Set(selected_entities));
+        self.pending_selection_ops
+            .push(SelectionOp::Set(selected_entities));
     }
 
-    pub fn is_entity_selected(&self, entity: Entity) -> bool {
+    pub fn is_entity_selected(
+        &self,
+        entity: Entity,
+    ) -> bool {
         self.selected_entities.contains(&entity)
     }
 
@@ -96,19 +109,21 @@ impl EditorSelectionResource {
         universe_resource: &UniverseResource,
         world: &mut World,
     ) {
-        let ops : Vec<_> = self.pending_selection_ops.drain(..).collect();
+        let ops: Vec<_> = self.pending_selection_ops.drain(..).collect();
 
         let mut changed = false;
         for op in ops {
             changed |= match op {
                 SelectionOp::Add(e) => self.selected_entities.insert(e),
                 SelectionOp::Remove(e) => self.selected_entities.remove(&e),
-                SelectionOp::Clear => if self.selected_entities.len() > 0 {
-                    self.selected_entities.clear();
-                    true
-                } else {
-                    false
-                },
+                SelectionOp::Clear => {
+                    if self.selected_entities.len() > 0 {
+                        self.selected_entities.clear();
+                        true
+                    } else {
+                        false
+                    }
+                }
                 SelectionOp::Set(entities) => {
                     self.selected_entities = entities.iter().map(|x| *x).collect();
                     true
@@ -119,23 +134,28 @@ impl EditorSelectionResource {
 
     // The main reason for having such a specific function here is that it's awkward for an external
     // caller to borrow entities and world seperately
-    fn get_entity_aabbs(entities: &HashSet<Entity>, world: &CollisionWorld<f32, Entity>) -> HashMap<Entity, Option<AABB<f32>>> {
+    fn get_entity_aabbs(
+        entities: &HashSet<Entity>,
+        world: &CollisionWorld<f32, Entity>,
+    ) -> HashMap<Entity, Option<AABB<f32>>> {
         let mut entity_aabbs = HashMap::new();
         for e in entities {
             entity_aabbs.insert(*e, None);
         }
 
         for (_, shape) in world.collision_objects() {
-            let entry = entity_aabbs.entry(*shape.data())
-                .and_modify(|aabb: &mut Option<AABB<f32>>| {
-                    let mut new_aabb = shape.shape().aabb(shape.position());
-                    if let Some(existing_aabb) = aabb {
-                        use ncollide2d::bounding_volume::BoundingVolume;
-                        new_aabb.merge(existing_aabb);
-                    };
+            let entry =
+                entity_aabbs
+                    .entry(*shape.data())
+                    .and_modify(|aabb: &mut Option<AABB<f32>>| {
+                        let mut new_aabb = shape.shape().aabb(shape.position());
+                        if let Some(existing_aabb) = aabb {
+                            use ncollide2d::bounding_volume::BoundingVolume;
+                            new_aabb.merge(existing_aabb);
+                        };
 
-                    *aabb = Some(new_aabb);
-                });
+                        *aabb = Some(new_aabb);
+                    });
         }
 
         entity_aabbs

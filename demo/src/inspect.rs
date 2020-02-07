@@ -1,4 +1,3 @@
-
 use legion::prelude::*;
 
 use std::marker::PhantomData;
@@ -13,14 +12,14 @@ trait RegisteredEditorInspectorT: Send + Sync {
         &self,
         world: &World,
         ui: &Ui,
-        args: &InspectArgsStruct
+        args: &InspectArgsStruct,
     );
 
     fn render_mut(
         &self,
         world: &World,
         ui: &Ui,
-        args: &InspectArgsStruct
+        args: &InspectArgsStruct,
     ) -> bool;
 }
 
@@ -32,8 +31,8 @@ struct RegisteredEditorInspector<T> {
 }
 
 impl<T> RegisteredEditorInspector<T>
-    where
-        T: InspectRenderStruct<T>,
+where
+    T: InspectRenderStruct<T>,
 {
     fn new() -> Self {
         RegisteredEditorInspector {
@@ -43,14 +42,14 @@ impl<T> RegisteredEditorInspector<T>
 }
 
 impl<T> RegisteredEditorInspectorT for RegisteredEditorInspector<T>
-    where
-        T: InspectRenderStruct<T> + legion::storage::Component,
+where
+    T: InspectRenderStruct<T> + legion::storage::Component,
 {
     fn render(
         &self,
         world: &World,
         ui: &Ui,
-        args: &InspectArgsStruct
+        args: &InspectArgsStruct,
     ) {
         let values = world.get_all_components::<T>();
         let slice = values.as_slice();
@@ -64,7 +63,7 @@ impl<T> RegisteredEditorInspectorT for RegisteredEditorInspector<T>
         &self,
         world: &World,
         ui: &Ui,
-        args: &InspectArgsStruct
+        args: &InspectArgsStruct,
     ) -> bool {
         let mut values = world.get_all_components_mut::<T>();
         let mut slice = values.as_mut_slice();
@@ -94,7 +93,7 @@ impl EditorInspectRegistry {
         &self,
         world: &World,
         ui: &Ui,
-        args: &InspectArgsStruct
+        args: &InspectArgsStruct,
     ) {
         for r in &self.registered {
             r.render(world, ui, args);
@@ -105,7 +104,7 @@ impl EditorInspectRegistry {
         &self,
         world: &World,
         ui: &Ui,
-        args: &InspectArgsStruct
+        args: &InspectArgsStruct,
     ) -> bool {
         let mut changed = false;
         for r in &self.registered {

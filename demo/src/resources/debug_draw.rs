@@ -4,7 +4,10 @@ pub struct LineList {
 }
 
 impl LineList {
-    pub fn new(points: Vec<glm::Vec2>, color: glm::Vec4) -> Self {
+    pub fn new(
+        points: Vec<glm::Vec2>,
+        color: glm::Vec4,
+    ) -> Self {
         LineList { points, color }
     }
 }
@@ -19,7 +22,11 @@ impl DebugDrawResource {
     }
 
     // Adds a single polygon
-    pub fn add_polygon(&mut self, mut points: Vec<glm::Vec2>, color: glm::Vec4) {
+    pub fn add_polygon(
+        &mut self,
+        mut points: Vec<glm::Vec2>,
+        color: glm::Vec4,
+    ) {
         // Nothing will draw if we don't have at least 2 points
         if points.len() > 1 {
             points.push(points[0].clone());
@@ -27,7 +34,11 @@ impl DebugDrawResource {
         }
     }
 
-    pub fn add_tristrip(&mut self, points: &Vec<glm::Vec2>, color: glm::Vec4) {
+    pub fn add_tristrip(
+        &mut self,
+        points: &Vec<glm::Vec2>,
+        color: glm::Vec4,
+    ) {
         // Nothing will draw if we don't have at least 2 points
         for index in 0..(points.len() - 2) {
             let v = vec![points[index], points[index + 1], points[index + 2]];
@@ -35,7 +46,12 @@ impl DebugDrawResource {
         }
     }
 
-    pub fn add_circle(&mut self, center: glm::Vec2, radius: f32, color: glm::Vec4) {
+    pub fn add_circle(
+        &mut self,
+        center: glm::Vec2,
+        radius: f32,
+        color: glm::Vec4,
+    ) {
         let point_count = 12;
 
         let mut points = Vec::with_capacity(point_count);
@@ -48,13 +64,23 @@ impl DebugDrawResource {
         self.add_polygon(points, color);
     }
 
-    pub fn add_rect(&mut self, p0: glm::Vec2, p1: glm::Vec2, color: glm::Vec4) {
+    pub fn add_rect(
+        &mut self,
+        p0: glm::Vec2,
+        p1: glm::Vec2,
+        color: glm::Vec4,
+    ) {
         let points = vec![p0, glm::vec2(p0.x, p1.y), p1, glm::vec2(p1.x, p0.y), p0];
 
         self.add_polygon(points, color);
     }
 
-    pub fn add_line(&mut self, p0: glm::Vec2, p1: glm::Vec2, color: glm::Vec4) {
+    pub fn add_line(
+        &mut self,
+        p0: glm::Vec2,
+        p1: glm::Vec2,
+        color: glm::Vec4,
+    ) {
         let points = vec![p0, p1];
 
         self.add_polygon(points, color);
