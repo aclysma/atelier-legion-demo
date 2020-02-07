@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::resources::time::TimeState;
 use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
 use crate::pipeline::PrefabAsset;
-use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffSingleSerializerAcceptor, apply_diffs_to_prefab};
+use crate::component_diffs::{ComponentDiff, apply_diffs_to_prefab};
 use prefab_format::{
     ComponentTypeUuid, EntityUuid
 };
@@ -19,18 +19,38 @@ use crate::clone_merge::CopyCloneImpl;
 use crate::transactions::{TransactionBuilder, TransactionDiffs};
 use crate::transactions::Transaction;
 
+/// Operations that can be performed in the editor. These get queued up to be executed later at a
+/// single place in the frame in FIFO order
 enum EditorOp {
-    Play,
-    Pause,
-    Reset,
+    /// Clear the world and load the given prefab into it
     OpenPrefab(AssetUuid),
+
+    /// Save the current pre-play state to the currently open prefab file
+    SavePrefab,
+
+    /// Unpauses the simulation, allowing in-editor testing
+    Play,
+
+    /// Pause the simulation
+    Pause,
+
+    /// Play/pause the simulation (see Play and Pause ops)
     TogglePause,
-    SetActiveEditorTool(EditorTool),
+
+    /// Pause the simulation and revert everything back to pre-play state
+    Reset,
+
+    /// Undo the previous change
     Undo,
+
+    /// Redo a change that was previously undone
     Redo,
-    Save
+
+    /// Sets the current editor tool (translate, scale, etc.)
+    SetActiveEditorTool(EditorTool),
 }
 
+/// Tracks which windows are open
 pub struct WindowOptions {
     pub show_imgui_metrics: bool,
     pub show_imgui_style_editor: bool,
@@ -79,13 +99,31 @@ pub enum EditorMode {
     Active,
 }
 
+/// The data we track that's associated with a prefab being opened
 pub struct OpenedPrefabState {
+    /// UUID of the asset we are editing
     uuid: AssetUuid,
+
+    /// The version that was loaded. This is compared against the version located in AssetStorage.
+    /// If the versions don't match, we reload the data
     version: u32,
+
+    /// Handle to the opened prefab, used to reload data if a new version arrives (possibly by file
+    /// on disk changing)
     prefab_handle: atelier_loader::handle::Handle<PrefabAsset>,
+
+    /// The opened prefab in uncooked form. Any diffs that are applied to the world also get applied
+    /// to the prefab and cooked prefab so that when we save data, we can just persist this field.
+    /// Long-term, the responsibility for this would be on the asset daemon
     uncooked_prefab: Arc<Prefab>,
+
+    /// The opened prefab in cooked form. This is used for reloads and applying edits against
     cooked_prefab: Arc<CookedPrefab>,
+
+    /// Assists in finding the world entity that corresponds with a prefab entity
     prefab_to_world_mappings: HashMap<Entity, Entity>,
+
+    /// Assists in finding the prefab entity that corresponds with a world entity
     world_to_prefab_mappings: HashMap<Entity, Entity>,
 }
 
@@ -107,32 +145,64 @@ impl OpenedPrefabState {
     }
 }
 
-struct EditorDiffStep {
+/// Diffs that are pending being applied
+struct TransactionDiffsPendingApply {
+    /// The diffs required to apply/revert the transaction
     diffs: TransactionDiffs,
+
+    /// If true, an undo step will be recorded
     commit_changes: bool
 }
 
+/// Contains the data required to identify the current transaction by ID and commit or cancel the
+/// transaction
 struct CurrentTransactionInfo {
+    /// The ID of the transaction that is currently in progress
     id: EditorTransactionId,
+
+    /// The diffs required to commit or cancel the transaction (apply vs. revert)
     diffs: TransactionDiffs
 }
 
 pub struct EditorStateResource {
+    // Indicates the overall state of the editor (i.e. editing vs. playing)
     editor_mode: EditorMode,
+
+    // Runtime state for editing UI
     window_options_running: WindowOptions,
     window_options_editing: WindowOptions,
     active_editor_tool: EditorTool,
+
+    // If a prefab is opened, this holds the state associated with editing it
     opened_prefab: Option<Arc<OpenedPrefabState>>,
+
+    // We queue important operations to happen as many of them require taking fairly invasive
+    // mut references to the world and resources. Each frame we drain this and execute each
+    // operation
     pending_editor_ops: Vec<EditorOp>,
-    diffs_pending_apply: Vec<EditorDiffStep>,
-    undo_chain: VecDeque<Arc<EditorDiffStep>>,
+
+    // Editor transaction will enqueue diffs here to be applied to the world. These are drained
+    // each frame, applied to the world state, and possibly inserted into the undo queue
+    diffs_pending_apply: Vec<TransactionDiffsPendingApply>,
+
+    // Undo/redo steps. Each slot in the chain contains diffs to go forward/backward in the
+    // chain.
+    undo_chain: VecDeque<Arc<TransactionDiffs>>,
     undo_chain_position: usize,
 
-    pub gizmo_transaction: Option<EditorTransaction>,
+    // The current transaction for any sort of gizmo interaction (draging to change
+    // position, rotation, scaling)
+    gizmo_transaction: Option<EditorTransaction>,
 
+    // Component registries, required for calling into some upstream systems
     component_registry: Arc<HashMap<ComponentTypeId, ComponentRegistration>>,
     component_registry_by_uuid: Arc<HashMap<ComponentTypeUuid, ComponentRegistration>>,
 
+    // If a transaction is in progress, the data required to identify it and commit it is
+    // stored here. The ID is used to determine if a transaction provided by downstream code
+    // is the same as the one that's currently in progress. If it isn't the same, we commit
+    // the old transaction and accept the new one. This inserts a new entry in the undo
+    // chain
     current_transaction_info: Option<CurrentTransactionInfo>
 }
 
@@ -145,7 +215,9 @@ impl EditorStateResource {
             active_editor_tool: EditorTool::Translate,
             opened_prefab: None,
             pending_editor_ops: Default::default(),
+
             diffs_pending_apply: Default::default(),
+
             undo_chain: Default::default(),
             undo_chain_position: 0,
 
@@ -184,6 +256,14 @@ impl EditorStateResource {
         } else {
             &mut self.window_options_running
         }
+    }
+
+    pub fn gizmo_transaction(&self) -> &Option<EditorTransaction> {
+        &self.gizmo_transaction
+    }
+
+    pub fn gizmo_transaction_mut(&mut self) -> &mut Option<EditorTransaction> {
+        &mut self.gizmo_transaction
     }
 
     fn play(
@@ -333,8 +413,8 @@ impl EditorStateResource {
         self.active_editor_tool
     }
 
-    pub fn enqueue_save(&mut self) {
-        self.pending_editor_ops.push(EditorOp::Save);
+    pub fn enqueue_save_prefab(&mut self) {
+        self.pending_editor_ops.push(EditorOp::SavePrefab);
     }
 
     pub fn enqueue_play(&mut self) {
@@ -390,6 +470,22 @@ impl EditorStateResource {
         let editor_ops : Vec<_> = resources.get_mut::<EditorStateResource>().unwrap().pending_editor_ops.drain(..).collect();
         for editor_op in editor_ops {
             match editor_op {
+                EditorOp::OpenPrefab(asset_uuid) => {
+                    let new_world = {
+                        let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+                        editor_state.clear_undo_history();
+
+                        let universe = resources.get::<UniverseResource>().unwrap();
+                        let world = universe.universe.create_world();
+                        world
+                    };
+                    *world = new_world;
+                    Self::open_prefab(world, resources, asset_uuid)
+                },
+                EditorOp::SavePrefab => {
+                    let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+                    editor_state.save();
+                },
                 EditorOp::Play => {
                     let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
                     let mut time_state = resources.get_mut::<TimeResource>().unwrap();
@@ -403,9 +499,6 @@ impl EditorStateResource {
                 EditorOp::Reset => {
                     Self::reset(world, resources)
                 },
-                EditorOp::OpenPrefab(asset_uuid) => {
-                    Self::open_prefab(world, resources, asset_uuid)
-                },
                 EditorOp::TogglePause => {
                     let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
                     let mut time_state = resources.get_mut::<TimeResource>().unwrap();
@@ -416,15 +509,11 @@ impl EditorStateResource {
                     editor_state.set_active_editor_tool(editor_tool)
                 },
                 EditorOp::Undo => {
-                    EditorStateResource::undo(world, resources);
+                    Self::undo(world, resources);
                 },
                 EditorOp::Redo => {
-                    EditorStateResource::redo(world, resources);
+                    Self::redo(world, resources);
                 },
-                EditorOp::Save => {
-                    let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-                    editor_state.save();
-                }
             }
         }
     }
@@ -513,7 +602,7 @@ impl EditorStateResource {
 
     pub fn enqueue_diffs(&mut self, diffs: TransactionDiffs, commit_changes: bool) {
         if diffs.apply_diffs.len() > 0 {
-            self.diffs_pending_apply.push(EditorDiffStep {
+            self.diffs_pending_apply.push(TransactionDiffsPendingApply {
                 diffs,
                 commit_changes
             });
@@ -550,17 +639,22 @@ impl EditorStateResource {
             // If commit is flagged, add an undo step will be added
             if queued_diff.commit_changes {
                 let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-                editor_state.push_to_undo_queue(queued_diff);
+                editor_state.push_to_undo_queue(queued_diff.diffs);
             }
         }
     }
 
-    fn push_to_undo_queue(&mut self, diff_step: EditorDiffStep) {
+    fn clear_undo_history(&mut self) {
+        self.undo_chain.clear();
+        self.undo_chain_position = 0;
+    }
+
+    fn push_to_undo_queue(&mut self, diffs: TransactionDiffs) {
         // Drop everything that follows the current undo chain index
         self.undo_chain.truncate(self.undo_chain_position);
 
         // Push the given data onto the chain
-        self.undo_chain.push_back(Arc::new(diff_step));
+        self.undo_chain.push_back(Arc::new(diffs));
 
         // We assume the caller has done whatever was needed
         self.undo_chain_position += 1;
@@ -589,7 +683,7 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diffs(world, resources, &diffs.diffs.revert_diffs);
+            Self::apply_diffs(world, resources, &diffs.revert_diffs);
         }
     }
 
@@ -616,7 +710,7 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diffs(world, resources, &diffs.diffs.apply_diffs);
+            Self::apply_diffs(world, resources, &diffs.apply_diffs);
         }
     }
 

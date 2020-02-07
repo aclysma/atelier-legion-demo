@@ -20,9 +20,10 @@ use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
 use legion_prefab::CookedPrefab;
-use crate::component_diffs::{ComponentDiff, ApplyDiffDeserializerAcceptor, DiffSingleSerializerAcceptor};
+use crate::component_diffs::ComponentDiff;
 use std::sync::Arc;
 use crate::components::Position2DComponent;
+use atelier_core::asset_uuid;
 
 pub fn editor_refresh_selection_world(world: &mut World, resources: &mut Resources) {
     let mut selection_world = resources
@@ -105,8 +106,22 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
                     );
 
                     ui.menu(imgui::im_str!("File"), true, || {
-                        if imgui::MenuItem::new(imgui::im_str!("New")).build(ui) {
-                            log::info!("clicked");
+                        if imgui::MenuItem::new(imgui::im_str!("Open")).build(ui) {
+                            editor_state.enqueue_open_prefab(asset_uuid!("3991506e-ed7e-4bcb-8cfd-3366b31a6439"));
+                        }
+
+                        if imgui::MenuItem::new(im_str!("Save")).build(ui) {
+                            editor_state.enqueue_save_prefab();
+                        }
+                    });
+
+                    ui.menu(imgui::im_str!("Edit"), true, || {
+                        if imgui::MenuItem::new(im_str!("Undo")).build(ui) {
+                            editor_state.enqueue_undo();
+                        }
+
+                        if imgui::MenuItem::new(im_str!("Redo")).build(ui) {
+                            editor_state.enqueue_redo();
                         }
                     });
 
@@ -146,18 +161,6 @@ pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
                         if imgui::MenuItem::new(im_str!("\u{f3e4} Pause")).build(ui) {
                             editor_state.enqueue_pause();
                         }
-                    }
-
-                    if imgui::MenuItem::new(im_str!("Save")).build(ui) {
-                        editor_state.enqueue_save();
-                    }
-
-                    if imgui::MenuItem::new(im_str!("Undo")).build(ui) {
-                        editor_state.enqueue_undo();
-                    }
-
-                    if imgui::MenuItem::new(im_str!("Redo")).build(ui) {
-                        editor_state.enqueue_redo();
                     }
 
                     ui.text(im_str!(
@@ -339,7 +342,7 @@ pub fn editor_input() -> Box<dyn Schedulable> {
             editor_draw.update(&*input_state, &*viewport);
 
             let mut gizmo_tx = None;
-            std::mem::swap(&mut gizmo_tx, &mut editor_state.gizmo_transaction);
+            std::mem::swap(&mut gizmo_tx, editor_state.gizmo_transaction_mut());
 
             if gizmo_tx.is_none() {
                 gizmo_tx = editor_state.create_transaction_from_selected(&*editor_selection, &*universe_resource);
@@ -355,7 +358,7 @@ pub fn editor_input() -> Box<dyn Schedulable> {
                     },
                     GizmoResult::Update => {
                         gizmo_tx.update(editor_state);
-                        editor_state.gizmo_transaction = Some(gizmo_tx);
+                        *editor_state.gizmo_transaction_mut() = Some(gizmo_tx);
                     },
                     GizmoResult::Commit => {
                         gizmo_tx.commit(editor_state);
