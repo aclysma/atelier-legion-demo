@@ -14,9 +14,7 @@ use legion_prefab::ComponentRegistration;
 use prefab_format::ComponentTypeUuid;
 use atelier_core::asset_uuid;
 
-mod temp_test;
-pub use temp_test::temp_force_load_asset;
-pub use temp_test::temp_force_prefab_cook;
+pub mod temp_test;
 
 mod asset_storage;
 
@@ -68,7 +66,6 @@ pub mod util {
 /// Create the asset manager that has all the required types registered
 pub fn create_asset_manager() -> AssetResource {
     let mut asset_manager = AssetResource::default();
-    asset_manager.add_storage::<Position2DComponentDef>();
     asset_manager.add_storage::<PrefabAsset>();
     asset_manager
 }

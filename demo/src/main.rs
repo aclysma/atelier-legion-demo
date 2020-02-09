@@ -21,8 +21,9 @@ fn main() {
 
     {
         let mut asset_manager = atelier_legion_demo::create_asset_manager();
-        atelier_legion_demo::temp_force_load_asset(&mut asset_manager);
-        atelier_legion_demo::temp_force_prefab_cook(&mut asset_manager);
+        asset_manager.add_storage::<atelier_legion_demo::temp_test::Position2DComponentDef>();
+        atelier_legion_demo::temp_test::temp_force_load_asset(&mut asset_manager);
+        atelier_legion_demo::temp_test::temp_force_prefab_cook(&mut asset_manager);
     }
 
     // Build the app and run it
