@@ -111,8 +111,9 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
         >(src_component_storage, src_component_storage_indexes);
 
         for (src_position, from, into) in izip!(position_components, from, into) {
+            //TODO: Warn if radius is 0
             let shape_handle =
-                ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(from.radius));
+                ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(from.radius.max(0.01)));
             transform_shape_to_rigid_body(
                 &mut physics,
                 into,

@@ -135,6 +135,7 @@ impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+            //TODO: Warn if radius is 0
             let shape_handle = ShapeHandle::new(Ball::new(self.radius.max(0.01)));
             collision_world.add(
                 ncollide2d::math::Isometry::new(position.position.into(), 0.0),
