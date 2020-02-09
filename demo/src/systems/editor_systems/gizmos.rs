@@ -28,6 +28,14 @@ use std::sync::Arc;
 use crate::components::Position2DComponent;
 use atelier_core::asset_uuid;
 
+use legion::filter::EntityFilterTuple;
+use legion::filter::ComponentFilter;
+use legion::filter::Passthrough;
+use legion::systems::SystemQuery;
+use legion::systems::SubWorld;
+
+//TODO: Adapt the size of "hot" area around the editor drawn shapes based on zoom level
+
 pub fn editor_gizmos() -> Box<dyn Schedulable> {
     SystemBuilder::new("editor_input")
         .write_resource::<EditorStateResource>()
@@ -95,12 +103,6 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
             },
         )
 }
-
-use legion::filter::EntityFilterTuple;
-use legion::filter::ComponentFilter;
-use legion::filter::Passthrough;
-use legion::systems::SystemQuery;
-use legion::systems::SubWorld;
 
 #[derive(Ord, PartialOrd, PartialEq, Eq)]
 enum GizmoResult {

@@ -82,11 +82,12 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
                                             if is_control_held {
                                                 if !is_selected {
                                                     // Add this entity
-                                                    editor_selection.enqueue_add_to_selection(e);
+                                                    editor_selection
+                                                        .enqueue_add_to_selection(vec![e]);
                                                 } else {
                                                     //Remove this entity
                                                     editor_selection
-                                                        .enqueue_remove_from_selection(e);
+                                                        .enqueue_remove_from_selection(vec![e]);
                                                 }
                                             } else {
                                                 // Select just this entity

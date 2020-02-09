@@ -35,22 +35,41 @@ fn handle_selection(
     editor_selection: &mut EditorSelectionResource,
     debug_draw: &mut DebugDrawResource,
 ) {
+    let mut intersecting_entities = None;
+
     if editor_draw.is_interacting_with_anything() {
-        // no selection
+        println!("is interacting");
+    //
+    // If the user is doing something with the editor draw API, disable the selection logic
+    //
     } else if let Some(position) = input_state.mouse_button_just_clicked_position(MouseButton::Left)
     {
+        println!("just clicked");
+        //
+        // Handle a single click. Do a raycast to find find anything under the mouse position
+        //
+
+        // Determine where in world space to do the raycast
         let position = to_glm(position);
         let world_space = ncollide2d::math::Point::from(viewport.ui_space_to_world_space(position));
 
+        // Do the raycast
         let collision_groups = CollisionGroups::default();
         let results = editor_selection
             .editor_selection_world()
             .interferences_with_point(&world_space, &collision_groups);
 
+        // Find all the entities that were hit and set the selected entity set to those entities
         let results: Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-        editor_selection.enqueue_set_selection(results);
+        intersecting_entities = Some(results);
     } else if let Some(drag_complete) = input_state.mouse_drag_just_finished(MouseButton::Left) {
-        // Drag complete, check AABB
+        print!("DRAG COMPLETE");
+        //
+        // Handle user finishing dragging a box around entities. Create a shape that matches the
+        // drag location in the world and project it into space to find intersecting entities
+        //
+
+        // Determine where in world space to do the intersection test
         let target_position0: glm::Vec2 = viewport
             .ui_space_to_world_space(to_glm(drag_complete.begin_position))
             .into();
@@ -58,34 +77,82 @@ fn handle_selection(
             .ui_space_to_world_space(to_glm(drag_complete.end_position))
             .into();
 
+        // Find the top-left corner
         let mins = glm::vec2(
             f32::min(target_position0.x, target_position1.x),
             f32::min(target_position0.y, target_position1.y),
         );
 
+        // Find the bottom-right corner
         let maxs = glm::vec2(
             f32::max(target_position0.x, target_position1.x),
             f32::max(target_position0.y, target_position1.y),
         );
 
+        // Build an AABB to use in the collision intersection test
         let aabb = ncollide2d::bounding_volume::AABB::new(
             nalgebra::Point::from(mins),
             nalgebra::Point::from(maxs),
         );
 
+        // Do the intersection test
         let collision_groups = CollisionGroups::default();
         let results = editor_selection
             .editor_selection_world()
             .interferences_with_aabb(&aabb, &collision_groups);
 
         let results: Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-        editor_selection.enqueue_set_selection(results);
+        let intersecting_entities = Some(results);
     } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
+        //
+        // User is dragging a box around entities. Just draw the box.
+        //
         debug_draw.add_rect(
             viewport.ui_space_to_world_space(to_glm(drag_in_progress.begin_position)),
             viewport.ui_space_to_world_space(to_glm(drag_in_progress.end_position)),
             glm::vec4(1.0, 1.0, 0.0, 1.0),
         );
+    }
+
+    if let Some(intersecting_entities) = intersecting_entities {
+        let add_to_selection = input_state.is_key_down(VirtualKeyCode::LShift)
+            || input_state.is_key_down(VirtualKeyCode::RShift);
+        let subtract_from_selection = input_state.is_key_down(VirtualKeyCode::LAlt)
+            || input_state.is_key_down(VirtualKeyCode::RAlt);
+        let toggle_selection = input_state.is_key_down(VirtualKeyCode::LControl)
+            || input_state.is_key_down(VirtualKeyCode::RControl);
+
+        let mut any_not_selected = false;
+        for e in &intersecting_entities {
+            if !editor_selection.selected_entities().contains(e) {
+                any_not_selected = true;
+                break;
+            }
+        }
+
+        let is_drag = input_state
+            .mouse_drag_just_finished(MouseButton::Left)
+            .is_some();
+
+        println!(
+            "DRAG STATE {} {} {}",
+            add_to_selection, subtract_from_selection, toggle_selection
+        );
+
+        if toggle_selection {
+            // Only do toggling behavior for clicks. Box-dragging should only be additive
+            if any_not_selected || is_drag {
+                editor_selection.enqueue_add_to_selection(intersecting_entities);
+            } else {
+                editor_selection.enqueue_remove_from_selection(intersecting_entities);
+            }
+        } else if add_to_selection {
+            editor_selection.enqueue_add_to_selection(intersecting_entities);
+        } else if subtract_from_selection {
+            editor_selection.enqueue_remove_from_selection(intersecting_entities);
+        } else {
+            editor_selection.enqueue_set_selection(intersecting_entities);
+        }
     }
 }
 
