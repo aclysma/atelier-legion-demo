@@ -4,19 +4,20 @@ use legion::prelude::*;
 use std::marker::PhantomData;
 use std::collections::HashSet;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::resources::{EditorStateResource, UniverseResource};
 use crate::selection::EditorSelectableRegistry;
 
 enum SelectionOp {
-    Add(Entity),
-    Remove(Entity),
+    Add(Vec<Entity>),
+    Remove(Vec<Entity>),
     Set(Vec<Entity>),
     Clear,
 }
 
 pub struct EditorSelectionResource {
-    registry: EditorSelectableRegistry,
+    registry: Arc<EditorSelectableRegistry>,
     editor_selection_world: CollisionWorld<f32, Entity>,
 
     // These are entities in the world
@@ -28,12 +29,13 @@ pub struct EditorSelectionResource {
 impl EditorSelectionResource {
     pub fn new(
         registry: EditorSelectableRegistry,
+        resources: &Resources,
         world: &World,
     ) -> Self {
-        let editor_selection_world = registry.create_editor_selection_world(world);
+        let editor_selection_world = registry.create_editor_selection_world(resources, world);
 
         EditorSelectionResource {
-            registry,
+            registry: Arc::new(registry),
             editor_selection_world,
             selected_entities: Default::default(),
             pending_selection_ops: Default::default(),
@@ -41,10 +43,12 @@ impl EditorSelectionResource {
     }
 
     pub fn create_editor_selection_world(
-        &self,
+        resources: &Resources,
         world: &World,
     ) -> CollisionWorld<f32, Entity> {
-        self.registry.create_editor_selection_world(world)
+        let registry = { resources.get::<Self>().unwrap().registry.clone() };
+
+        registry.create_editor_selection_world(resources, world)
     }
 
     pub fn set_editor_selection_world(
@@ -68,18 +72,19 @@ impl EditorSelectionResource {
 
     pub fn enqueue_add_to_selection(
         &mut self,
-        entity: Entity,
+        entities: Vec<Entity>,
     ) {
-        log::info!("Remove entity {:?} from selection", entity);
-        self.pending_selection_ops.push(SelectionOp::Add(entity));
+        log::info!("Remove entities {:?} from selection", entities);
+        self.pending_selection_ops.push(SelectionOp::Add(entities));
     }
 
     pub fn enqueue_remove_from_selection(
         &mut self,
-        entity: Entity,
+        entities: Vec<Entity>,
     ) {
-        log::info!("Add entity {:?} to selection", entity);
-        self.pending_selection_ops.push(SelectionOp::Remove(entity));
+        log::info!("Add entities {:?} to selection", entities);
+        self.pending_selection_ops
+            .push(SelectionOp::Remove(entities));
     }
 
     pub fn enqueue_clear_selection(&mut self) {
@@ -114,8 +119,22 @@ impl EditorSelectionResource {
         let mut changed = false;
         for op in ops {
             changed |= match op {
-                SelectionOp::Add(e) => self.selected_entities.insert(e),
-                SelectionOp::Remove(e) => self.selected_entities.remove(&e),
+                SelectionOp::Add(entities) => {
+                    let mut changed = false;
+                    for e in entities {
+                        changed |= self.selected_entities.insert(e);
+                    }
+
+                    changed
+                }
+                SelectionOp::Remove(entities) => {
+                    let mut changed = false;
+                    for e in entities {
+                        changed |= self.selected_entities.remove(&e);
+                    }
+
+                    changed
+                }
                 SelectionOp::Clear => {
                     if self.selected_entities.len() > 0 {
                         self.selected_entities.clear();

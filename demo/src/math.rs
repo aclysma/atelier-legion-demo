@@ -83,6 +83,89 @@ impl InspectRenderDefault<Vec2> for Vec2 {
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 #[repr(transparent)]
 #[serde(transparent)]
+pub struct Vec3 {
+    value: glm::Vec3,
+}
+
+impl Vec3 {
+    pub fn zero() -> Self {
+        Vec3 { value: glm::zero() }
+    }
+}
+
+impl From<glm::Vec3> for Vec3 {
+    fn from(value: glm::Vec3) -> Self {
+        Vec3 { value }
+    }
+}
+
+impl Deref for Vec3 {
+    type Target = glm::Vec3;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl DerefMut for Vec3 {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
+    }
+}
+
+impl InspectRenderDefault<Vec3> for Vec3 {
+    fn render(
+        data: &[&Vec3],
+        label: &'static str,
+        ui: &imgui::Ui,
+        _args: &InspectArgsDefault,
+    ) {
+        if data.len() == 0 {
+            return;
+        }
+
+        ui.text(&imgui::im_str!(
+            "{}: {} {} {}",
+            label,
+            data[0].x,
+            data[0].y,
+            data[0].z
+        ));
+    }
+
+    fn render_mut(
+        data: &mut [&mut Vec3],
+        label: &'static str,
+        ui: &imgui::Ui,
+        _args: &InspectArgsDefault,
+    ) -> bool {
+        if data.len() == 0 {
+            return false;
+        }
+
+        let mut changed = false;
+        let mut val = [data[0].x, data[0].y, data[0].z];
+        if ui
+            .input_float3(&imgui::im_str!("{}", label), &mut val)
+            .build()
+        {
+            changed = true;
+            for d in data {
+                d.x = val[0];
+                d.y = val[1];
+                d.z = val[2];
+            }
+        }
+
+        changed
+    }
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[repr(transparent)]
+#[serde(transparent)]
 pub struct Vec4 {
     value: glm::Vec4,
 }

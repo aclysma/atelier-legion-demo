@@ -8,21 +8,6 @@ use skulpin::imgui;
 use crate::math::Vec2;
 
 //
-// Temporary component for testing.. a separate definition component for this is unnecessary
-// but it's being used in temporary code to demonstrate clone_merge changing a component type
-//
-#[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
-)]
-#[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
-pub struct Position2DComponentDef {
-    #[serde_diff(opaque)]
-    pub position: Vec2,
-}
-
-legion_prefab::register_component_type!(Position2DComponentDef);
-
-//
 // 2D Position
 //
 #[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Inspect)]
@@ -32,39 +17,38 @@ pub struct Position2DComponent {
     pub position: Vec2,
 }
 
-impl From<Position2DComponentDef> for Position2DComponent {
-    fn from(from: Position2DComponentDef) -> Self {
-        Position2DComponent {
-            position: { from.position },
-        }
-    }
-}
-
 legion_prefab::register_component_type!(Position2DComponent);
 
 //
-// 2D Scale - Does not work yet
+// Uniform 2D Scale
 //
-/*
 #[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
-#[uuid = "8bf67228-f96c-4649-b306-ecd107194cf0"]
-pub struct Scale2DComponent {
+#[uuid = "ea1118ac-ebbe-433b-8532-e8938cd3a2dc"]
+pub struct UniformScale2DComponent {
+    pub uniform_scale: f32,
+}
+
+legion_prefab::register_component_type!(UniformScale2DComponent);
+
+//
+// Non-uniform 2D Scale
+//
+#[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
+#[uuid = "3318484f-d816-4f8e-b6d2-accd66e49276"]
+pub struct NonUniformScale2DComponent {
     #[serde_diff(opaque)]
     pub scale: glm::Vec2,
-    pub uniform_scale: f32
 }
 
-legion_prefab::register_component_type!(Scale2DComponent);
-*/
+legion_prefab::register_component_type!(NonUniformScale2DComponent);
 
 //
-// Temporary component for testing
+// 2D Rotation
 //
 #[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
-#[uuid = "fe5d26b5-582d-4464-8dec-ba234e31aa41"]
-pub struct PositionReference {
-    #[serde_diff(opaque)]
-    pub handle: Handle<Position2DComponentDef>,
+#[uuid = "6841f13d-fe38-4320-a8f8-1a6133f45e33"]
+pub struct Rotation2DComponent {
+    pub rotation: f32,
 }
 
-legion_prefab::register_component_type!(PositionReference);
+legion_prefab::register_component_type!(Rotation2DComponent);

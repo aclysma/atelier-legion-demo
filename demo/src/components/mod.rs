@@ -10,8 +10,6 @@ pub use physics::RigidBodyBallComponentDef;
 
 mod transform;
 pub use transform::Position2DComponent;
-pub use transform::Position2DComponentDef;
-pub use transform::PositionReference;
 
 mod draw;
 pub use draw::DrawSkiaCircleComponent;

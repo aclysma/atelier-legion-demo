@@ -78,13 +78,6 @@ impl Importer for PrefabImporter {
         prefab_format::deserialize(&mut de, &prefab_deser)?;
         let prefab = prefab_deser.prefab();
 
-        log::trace!("IMPORTER: iterate positions");
-        let query = <legion::prelude::Read<crate::components::Position2DComponentDef>>::query();
-        for pos in query.iter(&prefab.world) {
-            log::trace!("position: {:?}", pos);
-        }
-        log::trace!("IMPORTER: done iterating positions");
-
         let prefab_asset = PrefabAsset { prefab };
 
         ///////////////////////////////////////////////////////////////

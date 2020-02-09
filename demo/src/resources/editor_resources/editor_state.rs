@@ -894,7 +894,7 @@ impl EditorStateResource {
         log::trace!("Exporting prefab:");
         log::trace!("{}", output);
 
-        std::fs::write("assets/demo_level.prefab", output);
+        std::fs::write("assets/demo_level.prefab", output).unwrap();
     }
 
     pub fn create_transaction_from_selected(
