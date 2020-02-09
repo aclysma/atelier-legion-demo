@@ -28,6 +28,15 @@ use std::sync::Arc;
 use crate::components::Position2DComponent;
 use atelier_core::asset_uuid;
 
+mod main_menu;
+pub use main_menu::editor_imgui_menu;
+
+mod entity_list_window;
+pub use entity_list_window::editor_entity_list_window;
+
+mod inspector_window;
+pub use inspector_window::editor_inspector_window;
+
 pub fn editor_refresh_selection_world(
     world: &mut World,
     resources: &mut Resources,
@@ -43,270 +52,36 @@ pub fn editor_refresh_selection_world(
         .set_editor_selection_world(selection_world);
 }
 
-fn imgui_menu_tool_button(
-    ui: &imgui::Ui,
-    editor_state: &mut EditorStateResource,
-    editor_tool: EditorTool,
-    string: &'static str,
-) {
-    let color_stack_token = if editor_state.active_editor_tool() == editor_tool {
-        Some(ui.push_style_color(imgui::StyleColor::Text, [0.8, 0.0, 0.0, 1.0]))
-    } else {
-        None
-    };
-
-    if imgui::MenuItem::new(&im_str!("{}", string)).build(ui) {
-        editor_state.enqueue_set_active_editor_tool(editor_tool);
-    }
-
-    if let Some(color_stack_token) = color_stack_token {
-        color_stack_token.pop(ui);
-    }
-}
-
-pub fn editor_imgui_menu() -> Box<dyn Schedulable> {
-    SystemBuilder::new("editor_imgui_menu")
-        .write_resource::<ImguiResource>()
-        .write_resource::<EditorStateResource>()
-        .read_resource::<TimeResource>()
-        .build(|command_buffer, _, (imgui, editor_state, time_state), _| {
-            imgui.with_ui(|ui| {
-                {
-                    let window_settings = editor_state.window_options_mut();
-                    if window_settings.show_imgui_metrics {
-                        ui.show_metrics_window(&mut window_settings.show_imgui_metrics);
-                    }
-
-                    if window_settings.show_imgui_style_editor {
-                        imgui::Window::new(im_str!("Editor")).build(ui, || {
-                            ui.show_default_style_editor();
-                        });
-                    }
-
-                    if window_settings.show_imgui_demo {
-                        ui.show_demo_window(&mut window_settings.show_imgui_demo);
-                    }
-                }
-
-                ui.main_menu_bar(|| {
-                    //axis-arrow
-                    imgui_menu_tool_button(
-                        ui,
-                        &mut *editor_state,
-                        EditorTool::Translate,
-                        "\u{fd25}",
-                    );
-                    //resize
-                    imgui_menu_tool_button(ui, &mut *editor_state, EditorTool::Scale, "\u{fa67}");
-                    //rotate-orbit
-                    imgui_menu_tool_button(ui, &mut *editor_state, EditorTool::Rotate, "\u{fd74}");
-
-                    ui.menu(imgui::im_str!("File"), true, || {
-                        if imgui::MenuItem::new(imgui::im_str!("Open")).build(ui) {
-                            editor_state.enqueue_open_prefab(asset_uuid!(
-                                "3991506e-ed7e-4bcb-8cfd-3366b31a6439"
-                            ));
-                        }
-
-                        if imgui::MenuItem::new(im_str!("Save")).build(ui) {
-                            editor_state.enqueue_save_prefab();
-                        }
-                    });
-
-                    ui.menu(imgui::im_str!("Edit"), true, || {
-                        if imgui::MenuItem::new(im_str!("Undo")).build(ui) {
-                            editor_state.enqueue_undo();
-                        }
-
-                        if imgui::MenuItem::new(im_str!("Redo")).build(ui) {
-                            editor_state.enqueue_redo();
-                        }
-                    });
-
-                    let window_settings = editor_state.window_options_mut();
-                    ui.menu(im_str!("Windows"), true, || {
-                        ui.checkbox(
-                            im_str!("ImGui Metrics"),
-                            &mut window_settings.show_imgui_metrics,
-                        );
-                        ui.checkbox(
-                            im_str!("ImGui Style Editor"),
-                            &mut window_settings.show_imgui_style_editor,
-                        );
-                        ui.checkbox(im_str!("ImGui Demo"), &mut window_settings.show_imgui_demo);
-                        ui.checkbox(
-                            im_str!("Entity List"),
-                            &mut window_settings.show_entity_list,
-                        );
-                        ui.checkbox(im_str!("Inspector"), &mut window_settings.show_inspector);
-                    });
-
-                    ui.separator();
-
-                    if editor_state.is_editor_active() {
-                        if imgui::MenuItem::new(im_str!("\u{e8c4} Reset")).build(ui) {
-                            editor_state.enqueue_reset();
-                        }
-
-                        if imgui::MenuItem::new(im_str!("\u{f40a} Play")).build(ui) {
-                            editor_state.enqueue_play();
-                        }
-                    } else {
-                        if imgui::MenuItem::new(im_str!("\u{e8c4} Reset")).build(ui) {
-                            editor_state.enqueue_reset();
-                        }
-
-                        if imgui::MenuItem::new(im_str!("\u{f3e4} Pause")).build(ui) {
-                            editor_state.enqueue_pause();
-                        }
-                    }
-
-                    ui.text(im_str!(
-                        "FPS: {:.1}",
-                        time_state.system_time().updates_per_second_smoothed()
-                    ));
-
-                    if time_state.is_simulation_paused() {
-                        ui.text(im_str!("SIMULATION PAUSED"));
-                    }
-                });
-            });
-        })
-}
-
-pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
-    SystemBuilder::new("editor_entity_list_window")
-        .write_resource::<ImguiResource>()
-        .read_resource::<EditorStateResource>()
-        .write_resource::<EditorSelectionResource>()
-        .read_resource::<InputResource>()
-        .with_query(<(TryRead<()>)>::query())
-        .build(
-            |_, world, (imgui_manager, editor_ui_state, editor_selection, input), all_query| {
-                imgui_manager.with_ui(|ui: &mut imgui::Ui| {
-                    use imgui::im_str;
-
-                    let window_options = editor_ui_state.window_options();
-
-                    if window_options.show_entity_list {
-                        imgui::Window::new(im_str!("Entity List"))
-                            .position([0.0, 50.0], imgui::Condition::Once)
-                            .size([350.0, 250.0], imgui::Condition::Once)
-                            .build(ui, || {
-                                let add_entity = ui.button(im_str!("\u{e8b1} Add"), [80.0, 0.0]);
-                                ui.same_line_with_spacing(80.0, 10.0);
-                                let remove_entity =
-                                    ui.button(im_str!("\u{e897} Delete"), [80.0, 0.0]);
-
-                                if add_entity {
-                                    //editor_action_queue.enqueue_add_new_entity();
-                                }
-
-                                if remove_entity {
-                                    //editor_action_queue.enqueue_delete_selected_entities();
-                                }
-
-                                let name = im_str!("");
-                                if unsafe {
-                                    imgui::sys::igListBoxHeaderVec2(
-                                        name.as_ptr(),
-                                        imgui::sys::ImVec2 { x: -1.0, y: -1.0 },
-                                    )
-                                } {
-                                    for (e, _) in all_query.iter_entities(world) {
-                                        let is_selected = editor_selection.is_entity_selected(e);
-
-                                        let s = im_str!("{:?}", e);
-                                        let clicked = imgui::Selectable::new(&s)
-                                            .selected(is_selected)
-                                            .build(ui);
-
-                                        if clicked {
-                                            let is_control_held = input
-                                                .is_key_down(VirtualKeyCode::LControl)
-                                                || input.is_key_down(VirtualKeyCode::RControl);
-                                            if is_control_held {
-                                                if !is_selected {
-                                                    // Add this entity
-                                                    editor_selection.enqueue_add_to_selection(e);
-                                                } else {
-                                                    //Remove this entity
-                                                    editor_selection
-                                                        .enqueue_remove_from_selection(e);
-                                                }
-                                            } else {
-                                                // Select just this entity
-                                                editor_selection.enqueue_set_selection(vec![e]);
-                                            }
-                                        }
-                                    }
-
-                                    unsafe {
-                                        imgui::sys::igListBoxFooter();
-                                    }
-                                }
-                            });
-                    }
-                })
-            },
-        )
-}
-
-pub fn editor_inspector_window(
+pub fn editor_process_selection_ops(
     world: &mut World,
     resources: &mut Resources,
 ) {
-    {
-        let mut selection_world = resources.get::<EditorSelectionResource>().unwrap();
+    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
+    let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+    let universe = resources.get_mut::<UniverseResource>().unwrap();
 
-        let mut imgui_manager = resources.get::<ImguiResource>().unwrap();
+    editor_selection.process_selection_ops(&mut *editor_state, &*universe, world);
+}
 
-        let mut editor_ui_state = resources.get_mut::<EditorStateResource>().unwrap();
+pub fn reload_editor_state_if_file_changed(
+    world: &mut World,
+    resources: &mut Resources,
+) {
+    EditorStateResource::hot_reload_if_asset_changed(world, resources);
+}
 
-        let mut universe_resource = resources.get::<UniverseResource>().unwrap();
+pub fn editor_process_edit_diffs(
+    world: &mut World,
+    resources: &mut Resources,
+) {
+    EditorStateResource::process_diffs(world, resources);
+}
 
-        let opened_prefab = editor_ui_state.opened_prefab();
-        if opened_prefab.is_none() {
-            return;
-        }
-
-        let opened_prefab = opened_prefab.unwrap();
-
-        // Create a lookup from prefab entity to the entity UUID
-        use std::iter::FromIterator;
-        let prefab_entity_to_uuid: HashMap<Entity, EntityUuid> = HashMap::from_iter(
-            opened_prefab
-                .cooked_prefab()
-                .entities
-                .iter()
-                .map(|(k, v)| (*v, *k)),
-        );
-
-        //let mut transaction_to_commit = None;
-        imgui_manager.with_ui(|ui: &mut imgui::Ui| {
-            use imgui::im_str;
-
-            let window_options = editor_ui_state.window_options();
-
-            if window_options.show_entity_list {
-                imgui::Window::new(im_str!("Inspector"))
-                    .position([0.0, 300.0], imgui::Condition::Once)
-                    .size([350.0, 300.0], imgui::Condition::Once)
-                    .build(ui, || {
-                        let mut tx = editor_ui_state.create_transaction_from_selected(
-                            &*selection_world,
-                            &*universe_resource,
-                        );
-                        if let Some(mut tx) = tx {
-                            let registry = crate::create_editor_inspector_registry();
-                            if registry.render_mut(tx.world_mut(), ui, &Default::default()) {
-                                tx.commit(&mut editor_ui_state);
-                            }
-                        }
-                    });
-            }
-        });
-    }
+pub fn editor_process_editor_ops(
+    world: &mut World,
+    resources: &mut Resources,
+) {
+    EditorStateResource::process_editor_ops(world, resources);
 }
 
 pub fn editor_input() -> Box<dyn Schedulable> {
@@ -656,36 +431,4 @@ fn draw_translate_gizmo(
             xy_color,
         );
     }
-}
-
-pub fn editor_process_selection_ops(
-    world: &mut World,
-    resources: &mut Resources,
-) {
-    let mut editor_selection = resources.get_mut::<EditorSelectionResource>().unwrap();
-    let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-    let universe = resources.get_mut::<UniverseResource>().unwrap();
-
-    editor_selection.process_selection_ops(&mut *editor_state, &*universe, world);
-}
-
-pub fn reload_editor_state_if_file_changed(
-    world: &mut World,
-    resources: &mut Resources,
-) {
-    EditorStateResource::hot_reload_if_asset_changed(world, resources);
-}
-
-pub fn editor_process_edit_diffs(
-    world: &mut World,
-    resources: &mut Resources,
-) {
-    EditorStateResource::process_diffs(world, resources);
-}
-
-pub fn editor_process_editor_ops(
-    world: &mut World,
-    resources: &mut Resources,
-) {
-    EditorStateResource::process_editor_ops(world, resources);
 }
