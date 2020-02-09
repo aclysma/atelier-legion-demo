@@ -1,6 +1,8 @@
 use ncollide2d::world::CollisionWorld;
 use legion::prelude::*;
 use std::marker::PhantomData;
+use std::sync::Arc;
+use crate::resources::{OpenedPrefabState, EditorStateResource};
 
 const EDITOR_SELECTION_WORLD_MARGIN: f32 = 0.02;
 
@@ -10,6 +12,8 @@ pub trait EditorSelectable: legion::storage::Component {
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
         world: &World,
         entity: Entity,
     );
@@ -20,6 +24,8 @@ trait RegisteredEditorSelectableT: Send + Sync {
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
         world: &World,
     );
 }
@@ -49,11 +55,19 @@ where
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
         world: &World,
     ) {
         let query = <Read<T>>::query();
         for (entity, t) in query.iter_entities(world) {
-            t.create_editor_selection_world(collision_world, world, entity);
+            t.create_editor_selection_world(
+                collision_world,
+                resources,
+                opened_prefab,
+                world,
+                entity,
+            );
         }
     }
 }
@@ -74,11 +88,25 @@ impl EditorSelectableRegistry {
     /// Produces a collision world that includes shapes associated with entities
     pub fn create_editor_selection_world(
         &self,
+        resources: &Resources,
         world: &World,
     ) -> CollisionWorld<f32, Entity> {
         let mut collision_world = CollisionWorld::<f32, Entity>::new(EDITOR_SELECTION_WORLD_MARGIN);
-        for r in &self.registered {
-            r.create_editor_selection_world(&mut collision_world, &world);
+
+        if let Some(opened_prefab) = resources
+            .get::<EditorStateResource>()
+            .unwrap()
+            .opened_prefab()
+            .clone()
+        {
+            for r in &self.registered {
+                r.create_editor_selection_world(
+                    &mut collision_world,
+                    resources,
+                    &*opened_prefab,
+                    &world,
+                );
+            }
         }
 
         collision_world

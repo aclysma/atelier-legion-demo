@@ -15,6 +15,8 @@ use skulpin::imgui;
 use crate::math::Vec2;
 use crate::math::Vec4;
 use imgui_inspect_derive::Inspect;
+use legion::prelude::*;
+use crate::resources::OpenedPrefabState;
 
 // A utility struct to describe color for a skia shape
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect)]
@@ -75,6 +77,8 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
         world: &World,
         entity: Entity,
     ) {
@@ -125,6 +129,8 @@ impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
         world: &World,
         entity: Entity,
     ) {

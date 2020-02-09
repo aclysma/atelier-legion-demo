@@ -199,10 +199,11 @@ impl app::AppHandler for DemoApp {
         resources.insert(viewport);
         resources.insert(DebugDrawResource::new());
         resources.insert(EditorDrawResource::new());
-        resources.insert(EditorSelectionResource::new(
-            create_editor_selection_registry(),
-            world,
-        ));
+
+        let selection_resource =
+            EditorSelectionResource::new(create_editor_selection_registry(), resources, world);
+
+        resources.insert(selection_resource);
 
         // Start the application
         EditorStateResource::open_prefab(

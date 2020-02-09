@@ -4,6 +4,7 @@ use legion::prelude::*;
 use std::marker::PhantomData;
 use std::collections::HashSet;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::resources::{EditorStateResource, UniverseResource};
 use crate::selection::EditorSelectableRegistry;
@@ -16,7 +17,7 @@ enum SelectionOp {
 }
 
 pub struct EditorSelectionResource {
-    registry: EditorSelectableRegistry,
+    registry: Arc<EditorSelectableRegistry>,
     editor_selection_world: CollisionWorld<f32, Entity>,
 
     // These are entities in the world
@@ -28,12 +29,13 @@ pub struct EditorSelectionResource {
 impl EditorSelectionResource {
     pub fn new(
         registry: EditorSelectableRegistry,
+        resources: &Resources,
         world: &World,
     ) -> Self {
-        let editor_selection_world = registry.create_editor_selection_world(world);
+        let editor_selection_world = registry.create_editor_selection_world(resources, world);
 
         EditorSelectionResource {
-            registry,
+            registry: Arc::new(registry),
             editor_selection_world,
             selected_entities: Default::default(),
             pending_selection_ops: Default::default(),
@@ -41,10 +43,12 @@ impl EditorSelectionResource {
     }
 
     pub fn create_editor_selection_world(
-        &self,
+        resources: &Resources,
         world: &World,
     ) -> CollisionWorld<f32, Entity> {
-        self.registry.create_editor_selection_world(world)
+        let registry = { resources.get::<Self>().unwrap().registry.clone() };
+
+        registry.create_editor_selection_world(resources, world)
     }
 
     pub fn set_editor_selection_world(
