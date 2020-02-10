@@ -70,7 +70,13 @@ impl DebugDrawResource {
         p1: glam::Vec2,
         color: glam::Vec4,
     ) {
-        let points = vec![p0, glam::vec2(p0.x(), p1.y()), p1, glam::vec2(p1.x(), p0.y()), p0];
+        let points = vec![
+            p0,
+            glam::vec2(p0.x(), p1.y()),
+            p1,
+            glam::vec2(p1.x(), p0.y()),
+            p0,
+        ];
 
         self.add_polygon(points, color);
     }

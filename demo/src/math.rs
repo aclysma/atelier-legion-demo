@@ -37,7 +37,9 @@ pub struct Vec2 {
 
 impl Vec2 {
     pub fn zero() -> Self {
-        Vec2 { value: glam::Vec2::zero() }
+        Vec2 {
+            value: glam::Vec2::zero(),
+        }
     }
 }
 
@@ -55,7 +57,9 @@ impl Into<glam::Vec2> for Vec2 {
 
 impl From<glm::Vec2> for Vec2 {
     fn from(value: glm::Vec2) -> Self {
-        Vec2 { value: vec2_glm_to_glam(value) }
+        Vec2 {
+            value: vec2_glm_to_glam(value),
+        }
     }
 }
 
@@ -92,7 +96,12 @@ impl InspectRenderDefault<Vec2> for Vec2 {
             return;
         }
 
-        ui.text(&imgui::im_str!("{}: {} {}", label, data[0].x(), data[0].y()));
+        ui.text(&imgui::im_str!(
+            "{}: {} {}",
+            label,
+            data[0].x(),
+            data[0].y()
+        ));
     }
 
     fn render_mut(
@@ -131,7 +140,9 @@ pub struct Vec3 {
 
 impl Vec3 {
     pub fn zero() -> Self {
-        Vec3 { value: glam::Vec3::zero() }
+        Vec3 {
+            value: glam::Vec3::zero(),
+        }
     }
 }
 
@@ -149,7 +160,9 @@ impl Into<glam::Vec3> for Vec3 {
 
 impl From<glm::Vec3> for Vec3 {
     fn from(value: glm::Vec3) -> Self {
-        Vec3 { value: vec3_glm_to_glam(value) }
+        Vec3 {
+            value: vec3_glm_to_glam(value),
+        }
     }
 }
 
@@ -232,7 +245,9 @@ pub struct Vec4 {
 
 impl Vec4 {
     pub fn zero() -> Self {
-        Vec4 { value: glam::Vec4::zero() }
+        Vec4 {
+            value: glam::Vec4::zero(),
+        }
     }
 }
 
@@ -248,10 +263,11 @@ impl Into<glam::Vec4> for Vec4 {
     }
 }
 
-
 impl From<glm::Vec4> for Vec4 {
     fn from(value: glm::Vec4) -> Self {
-        Vec4 { value: vec4_glm_to_glam(value) }
+        Vec4 {
+            value: vec4_glm_to_glam(value),
+        }
     }
 }
 

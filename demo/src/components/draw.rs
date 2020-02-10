@@ -32,7 +32,12 @@ unsafe impl Sync for Paint {}
 
 impl From<PaintDef> for Paint {
     fn from(from: PaintDef) -> Self {
-        let color = skia_safe::Color4f::new(from.color.x(), from.color.y(), from.color.z(), from.color.w());
+        let color = skia_safe::Color4f::new(
+            from.color.x(),
+            from.color.y(),
+            from.color.z(),
+            from.color.w(),
+        );
 
         let mut paint = skia_safe::Paint::new(color, None);
         paint.set_anti_alias(true);

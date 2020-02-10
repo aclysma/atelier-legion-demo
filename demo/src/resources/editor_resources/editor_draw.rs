@@ -224,7 +224,8 @@ impl EditorDrawResource {
                     let scaled_center = viewport.world_space_to_ui_space(circle.center);
                     let scaled_position_on_outline =
                         viewport.world_space_to_ui_space(position_on_outline);
-                    let scaled_radius = f32::abs(scaled_position_on_outline.x() - scaled_center.x());
+                    let scaled_radius =
+                        f32::abs(scaled_position_on_outline.x() - scaled_center.x());
 
                     distance_to_circle_outline_sq(test_position, scaled_center, scaled_radius)
                 }

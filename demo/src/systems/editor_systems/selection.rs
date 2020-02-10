@@ -51,7 +51,9 @@ fn handle_selection(
 
         // Determine where in world space to do the raycast
         let position = to_glm(position);
-        let world_space = ncollide2d::math::Point::from(crate::math::vec2_glam_to_glm(viewport.ui_space_to_world_space(position)));
+        let world_space = ncollide2d::math::Point::from(crate::math::vec2_glam_to_glm(
+            viewport.ui_space_to_world_space(position),
+        ));
 
         // Do the raycast
         let collision_groups = CollisionGroups::default();

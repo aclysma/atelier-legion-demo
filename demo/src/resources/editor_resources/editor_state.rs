@@ -235,7 +235,7 @@ impl EditorStateResource {
         &self.component_registry
     }
 
-    pub fn component_registry_by_uuid(&self) -> &HashMap<ComponentTypeUuid, ComponentRegistration>{
+    pub fn component_registry_by_uuid(&self) -> &HashMap<ComponentTypeUuid, ComponentRegistration> {
         &self.component_registry_by_uuid
     }
 

@@ -49,7 +49,11 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
         .write_resource::<EditorDrawResource>()
         .read_resource::<UniverseResource>()
         .with_query(<(Read<Position2DComponent>)>::query())
-        .with_query(<(Read<Position2DComponent>, Read<UniformScale2DComponent>, Read<NonUniformScale2DComponent>)>::query())
+        .with_query(<(
+            Read<Position2DComponent>,
+            Read<UniformScale2DComponent>,
+            Read<NonUniformScale2DComponent>,
+        )>::query())
         .build(
             |command_buffer,
              subworld,
@@ -78,10 +82,7 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                         &mut *editor_draw,
                         &mut gizmo_tx,
                     ));
-                    result = result.max(handle_scale_gizmo_input(
-                        &mut *editor_draw,
-                        &mut gizmo_tx,
-                    ));
+                    result = result.max(handle_scale_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
 
                     match result {
                         GizmoResult::NoChange => {}
@@ -304,7 +305,9 @@ fn handle_scale_gizmo_input(
     editor_draw: &mut EditorDrawResource,
     tx: &mut EditorTransaction,
 ) -> GizmoResult {
-    if let Some(drag_in_progress) = editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left) {
+    if let Some(drag_in_progress) =
+        editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left)
+    {
         // See what if any axis we will operate on
         let mut scale_x = false;
         let mut scale_y = false;
@@ -339,7 +342,8 @@ fn handle_scale_gizmo_input(
         }
 
         if scale_uniform {
-            ui_space_previous_frame_delta.set_x(sign_aware_magnitude(ui_space_previous_frame_delta));
+            ui_space_previous_frame_delta
+                .set_x(sign_aware_magnitude(ui_space_previous_frame_delta));
             ui_space_previous_frame_delta.set_y(ui_space_previous_frame_delta.x());
             ui_space_accumulated_delta.set_x(sign_aware_magnitude(ui_space_accumulated_delta));
             ui_space_accumulated_delta.set_y(ui_space_accumulated_delta.x());
@@ -375,15 +379,25 @@ fn draw_scale_gizmo(
     selection_world: &mut EditorSelectionResource,
     subworld: &SubWorld,
     scale_query: &mut legion::systems::SystemQuery<
-        (Read<Position2DComponent>,Read<UniformScale2DComponent>, Read<NonUniformScale2DComponent>),
+        (
+            Read<Position2DComponent>,
+            Read<UniformScale2DComponent>,
+            Read<NonUniformScale2DComponent>,
+        ),
         EntityFilterTuple<
-            And<(ComponentFilter<Position2DComponent>, ComponentFilter<UniformScale2DComponent>, ComponentFilter<NonUniformScale2DComponent>)>,
+            And<(
+                ComponentFilter<Position2DComponent>,
+                ComponentFilter<UniformScale2DComponent>,
+                ComponentFilter<NonUniformScale2DComponent>,
+            )>,
             And<(Passthrough, Passthrough, Passthrough)>,
             And<(Passthrough, Passthrough, Passthrough)>,
-        >
+        >,
     >,
 ) {
-    for (entity, (position, uniform_scale, non_uniform_scale)) in scale_query.iter_entities(subworld) {
+    for (entity, (position, uniform_scale, non_uniform_scale)) in
+        scale_query.iter_entities(subworld)
+    {
         if !selection_world.is_entity_selected(entity) {
             continue;
         }
@@ -402,7 +416,7 @@ fn draw_scale_gizmo(
             debug_draw,
             position,
             position + glam::vec2(100.0, 0.0),
-            x_color
+            x_color,
         );
 
         // x axis line end
@@ -411,7 +425,7 @@ fn draw_scale_gizmo(
             debug_draw,
             position + glam::vec2(100.0, -20.0),
             position + glam::vec2(100.0, 20.0),
-            x_color
+            x_color,
         );
 
         // y axis line
@@ -420,7 +434,7 @@ fn draw_scale_gizmo(
             debug_draw,
             position,
             position + glam::vec2(0.0, 100.0),
-            y_color
+            y_color,
         );
 
         // y axis line end
@@ -429,7 +443,7 @@ fn draw_scale_gizmo(
             debug_draw,
             position + glam::Vec2::new(-20.0, 100.0),
             position + glam::Vec2::new(20.0, 100.0),
-            y_color
+            y_color,
         );
 
         // xy line
@@ -438,7 +452,7 @@ fn draw_scale_gizmo(
             debug_draw,
             position + glam::Vec2::new(0.0, 0.0),
             position + glam::Vec2::new(50.0, 50.0),
-            xy_color
+            xy_color,
         );
 
         // xy line
@@ -447,7 +461,7 @@ fn draw_scale_gizmo(
             debug_draw,
             position + glam::Vec2::new(40.0, 60.0),
             position + glam::Vec2::new(60.0, 40.0),
-            xy_color
+            xy_color,
         );
     }
 }

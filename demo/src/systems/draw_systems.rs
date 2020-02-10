@@ -41,7 +41,8 @@ pub fn draw() -> Box<dyn Schedulable> {
 
                     let window_size = input_resource.window_size();
                     let camera_position = camera_state.position;
-                    camera_state.view_half_extents = glam::Vec2::new(x_half_extents, y_half_extents);
+                    camera_state.view_half_extents =
+                        glam::Vec2::new(x_half_extents, y_half_extents);
                     viewport_state.update(
                         window_size,
                         camera_position,
