@@ -153,22 +153,22 @@ pub fn editor_inspector_window(
 
                             let mut commit_required = false;
 
+                            // Make a list of all entities, this is necessary because we can't take an &-borrow for uuid_to_entities at the
+                            // same time as an &mut-borrow for world_mut()
+                            let all_entities: Vec<_> = tx
+                                .uuid_to_entities()
+                                .iter()
+                                .map(|(_, e)| e.after_entity())
+                                .collect();
+
                             //
                             // If a component needs to be added, do that now
                             //
                             if let Some(component_type_to_add) = component_type_to_add {
-                                // Make a list of all entities, this is necessary because we can't take an &-borrow for uuid_to_entities at the
-                                // same time as an &mut-borrow for world_mut()
-                                let all_entities: Vec<_> = tx
-                                    .uuid_to_entities()
-                                    .iter()
-                                    .map(|(_, e)| e.after_entity())
-                                    .collect();
-
                                 //TODO: Add this component to all selected entities
-                                for e in all_entities {
+                                for e in &all_entities {
                                     component_type_to_add
-                                        .add_default_to_entity(tx.world_mut(), e)
+                                        .add_default_to_entity(tx.world_mut(), *e)
                                         .unwrap();
                                 }
 
@@ -180,7 +180,7 @@ pub fn editor_inspector_window(
                             //
                             let registry = crate::create_editor_inspector_registry();
                             commit_required |=
-                                registry.render_mut(tx.world_mut(), ui, &Default::default());
+                                registry.render_mut(tx.world_mut(), &all_entities, ui, &Default::default());
 
                             if commit_required {
                                 tx.commit(&mut editor_ui_state);
