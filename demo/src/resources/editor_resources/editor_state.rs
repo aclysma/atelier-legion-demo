@@ -16,6 +16,7 @@ use std::collections::vec_deque;
 use crate::clone_merge::CopyCloneImpl;
 use crate::transactions::{TransactionBuilder, TransactionDiffs};
 use crate::transactions::Transaction;
+use skulpin::imgui::ImString;
 
 /// Operations that can be performed in the editor. These get queued up to be executed later at a
 /// single place in the frame in FIFO order
@@ -170,6 +171,7 @@ pub struct EditorStateResource {
     window_options_running: WindowOptions,
     window_options_editing: WindowOptions,
     active_editor_tool: EditorTool,
+    pub add_component_search_text: ImString,
 
     // If a prefab is opened, this holds the state associated with editing it
     opened_prefab: Option<Arc<OpenedPrefabState>>,
@@ -211,6 +213,7 @@ impl EditorStateResource {
             window_options_running: WindowOptions::new_runtime(),
             window_options_editing: WindowOptions::new_editing(),
             active_editor_tool: EditorTool::Translate,
+            add_component_search_text: ImString::with_capacity(255),
             opened_prefab: None,
             pending_editor_ops: Default::default(),
 
@@ -226,6 +229,14 @@ impl EditorStateResource {
 
             current_transaction_info: None,
         }
+    }
+
+    pub fn component_registry(&self) -> &HashMap<ComponentTypeId, ComponentRegistration> {
+        &self.component_registry
+    }
+
+    pub fn component_registry_by_uuid(&self) -> &HashMap<ComponentTypeUuid, ComponentRegistration>{
+        &self.component_registry_by_uuid
     }
 
     pub fn opened_prefab(&self) -> Option<Arc<OpenedPrefabState>> {
