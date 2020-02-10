@@ -7,7 +7,7 @@ struct TransactionBuilderEntityInfo {
 }
 
 use std::collections::HashMap;
-use legion_prefab::ComponentRegistration;
+use legion_prefab::{ComponentRegistration, DiffSingleResult};
 use crate::component_diffs::{DiffSingleSerializerAcceptor, ComponentDiff};
 
 #[derive(Default)]
@@ -66,9 +66,19 @@ impl TransactionBuilder {
     }
 }
 
-struct TransactionEntityInfo {
+pub struct TransactionEntityInfo {
     before_entity: Entity,
     after_entity: Entity,
+}
+
+impl TransactionEntityInfo {
+    pub fn before_entity(&self) -> Entity {
+        self.before_entity
+    }
+
+    pub fn after_entity(&self) -> Entity {
+        self.after_entity
+    }
 }
 
 pub struct Transaction {
@@ -92,6 +102,10 @@ impl Transaction {
         &mut self.after_world
     }
 
+    pub fn uuid_to_entities(&self) -> &HashMap<EntityUuid, TransactionEntityInfo> {
+        &self.uuid_to_entities
+    }
+
     pub fn create_transaction_diffs(
         &self,
         registered_components: &HashMap<ComponentTypeUuid, ComponentRegistration>,
@@ -110,41 +124,50 @@ impl Transaction {
             );
             // Do diffs for each component type
             for (component_type, registration) in registered_components {
-                let mut has_changes = false;
+                let mut apply_result = DiffSingleResult::NoChange;
                 let apply_acceptor = DiffSingleSerializerAcceptor {
                     component_registration: &registration,
                     src_world: &self.before_world,
                     src_entity: entity_info.before_entity,
                     dst_world: &self.after_world,
                     dst_entity: entity_info.after_entity,
-                    has_changes: &mut has_changes,
+                    result: &mut apply_result,
                 };
                 let mut apply_data = vec![];
                 bincode::with_serializer(&mut apply_data, apply_acceptor);
 
-                if has_changes {
+                if apply_result != DiffSingleResult::NoChange {
+                    let mut revert_result = DiffSingleResult::NoChange;
                     let revert_acceptor = DiffSingleSerializerAcceptor {
                         component_registration: &registration,
                         src_world: &self.after_world,
                         src_entity: entity_info.after_entity,
                         dst_world: &self.before_world,
                         dst_entity: entity_info.before_entity,
-                        has_changes: &mut has_changes,
+                        result: &mut revert_result,
                     };
                     let mut revert_data = vec![];
                     bincode::with_serializer(&mut revert_data, revert_acceptor);
 
-                    apply_diffs.push(ComponentDiff::new(
-                        *entity_uuid,
-                        *component_type,
-                        apply_data,
-                    ));
+                    apply_diffs.push(
+                        ComponentDiff::new_from_diff_single_result(
+                            *entity_uuid,
+                            *component_type,
+                            apply_result,
+                            apply_data,
+                        )
+                        .unwrap(),
+                    );
 
-                    revert_diffs.push(ComponentDiff::new(
-                        *entity_uuid,
-                        *component_type,
-                        revert_data,
-                    ));
+                    revert_diffs.push(
+                        ComponentDiff::new_from_diff_single_result(
+                            *entity_uuid,
+                            *component_type,
+                            revert_result,
+                            revert_data,
+                        )
+                        .unwrap(),
+                    );
                 }
             }
         }

@@ -19,7 +19,7 @@ use legion::prelude::*;
 use crate::resources::OpenedPrefabState;
 
 // A utility struct to describe color for a skia shape
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect, Default)]
 pub struct PaintDef {
     #[serde_diff(opaque)]
     pub color: Vec4,
@@ -53,7 +53,16 @@ impl From<PaintDef> for Paint {
 // exists
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "c05e5c27-58ca-4d68-b825-b20f67fdaf37"]
 pub struct DrawSkiaBoxComponentDef {
@@ -105,7 +114,16 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
 // component exists
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "e47f9943-d5bf-4e1b-9601-13e47d7b737c"]
 pub struct DrawSkiaCircleComponentDef {

@@ -14,8 +14,7 @@ use prefab_format::{ComponentTypeUuid, EntityUuid};
 use itertools::Itertools;
 use std::collections::vec_deque;
 use crate::clone_merge::CopyCloneImpl;
-use crate::transactions::{TransactionBuilder, TransactionDiffs};
-use crate::transactions::Transaction;
+use crate::transactions::{TransactionBuilder, TransactionDiffs, TransactionEntityInfo, Transaction};
 use skulpin::imgui::ImString;
 
 /// Operations that can be performed in the editor. These get queued up to be executed later at a
@@ -913,6 +912,10 @@ impl EditorStateResource {
         selection_resources: &EditorSelectionResource,
         universe_resource: &UniverseResource,
     ) -> Option<EditorTransaction> {
+        if selection_resources.selected_entities().is_empty() {
+            return None;
+        }
+
         if let Some(opened_prefab) = &self.opened_prefab {
             // Reverse the keys/values of the opened prefab map so we can efficiently look up the UUID of entities in the prefab
             use std::iter::FromIterator;
@@ -973,6 +976,10 @@ impl EditorTransaction {
 
     pub fn world_mut(&mut self) -> &mut World {
         self.transaction.world_mut()
+    }
+
+    pub fn uuid_to_entities(&self) -> &HashMap<EntityUuid, TransactionEntityInfo> {
+        self.transaction.uuid_to_entities()
     }
 
     pub fn update(

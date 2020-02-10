@@ -18,7 +18,16 @@ use crate::components::Position2DComponent;
 // Add a ball rigid body
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "fa518c0a-a65a-44c8-9d35-3f4f336b4de4"]
 pub struct RigidBodyBallComponentDef {
@@ -29,7 +38,16 @@ pub struct RigidBodyBallComponentDef {
 legion_prefab::register_component_type!(RigidBodyBallComponentDef);
 
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "36df3006-a5ad-4997-9ccc-0860f49195ad"]
 pub struct RigidBodyBoxComponentDef {

@@ -28,7 +28,7 @@ pub fn vec4_glm_to_glam(value: glm::Vec4) -> glam::Vec4 {
     glam::Vec4::new(value.x, value.y, value.z, value.w)
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec2 {
@@ -131,7 +131,7 @@ impl InspectRenderDefault<Vec2> for Vec2 {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec3 {
@@ -236,7 +236,7 @@ impl InspectRenderDefault<Vec3> for Vec3 {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec4 {

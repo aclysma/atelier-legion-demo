@@ -40,7 +40,7 @@ Prefab(
                      // Component AssetTypeId
                      type: "fe5d26b5-582d-4464-8dec-ba234e31aa41",
                      data: (
-                         handle: "position_component.ron"
+                         handle: Some("position_component.ron")
                      ),
                  ),
              ]
