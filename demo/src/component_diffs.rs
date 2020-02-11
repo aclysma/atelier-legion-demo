@@ -3,25 +3,58 @@ use legion_prefab::CookedPrefab;
 use legion_prefab::Prefab;
 use std::collections::HashMap;
 use legion::prelude::*;
+use legion_prefab::DiffSingleResult;
+
+// This is somewhat of a mirror of DiffSingleResult
+#[derive(Clone)]
+pub enum ComponentDiffOp {
+    Change(Vec<u8>),
+    Add(Vec<u8>),
+    Remove,
+}
+
+impl ComponentDiffOp {
+    pub fn from_diff_single_result(
+        diff_single_result: DiffSingleResult,
+        data: Vec<u8>,
+    ) -> Option<ComponentDiffOp> {
+        match diff_single_result {
+            DiffSingleResult::Add => Some(ComponentDiffOp::Add(data)),
+            DiffSingleResult::Change => Some(ComponentDiffOp::Change(data)),
+            DiffSingleResult::Remove => Some(ComponentDiffOp::Remove),
+            DiffSingleResult::NoChange => None,
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct ComponentDiff {
     entity_uuid: EntityUuid,
     component_type: ComponentTypeUuid,
-    data: Vec<u8>,
+    op: ComponentDiffOp,
 }
 
 impl ComponentDiff {
     pub fn new(
         entity_uuid: EntityUuid,
         component_type: ComponentTypeUuid,
-        data: Vec<u8>,
+        op: ComponentDiffOp,
     ) -> Self {
         ComponentDiff {
             entity_uuid,
             component_type,
-            data,
+            op,
         }
+    }
+
+    pub fn new_from_diff_single_result(
+        entity_uuid: EntityUuid,
+        component_type: ComponentTypeUuid,
+        diff_single_result: DiffSingleResult,
+        data: Vec<u8>,
+    ) -> Option<Self> {
+        let op = ComponentDiffOp::from_diff_single_result(diff_single_result, data);
+        op.map(|op| Self::new(entity_uuid, component_type, op))
     }
 
     pub fn entity_uuid(&self) -> &EntityUuid {
@@ -32,8 +65,8 @@ impl ComponentDiff {
         &self.component_type
     }
 
-    pub fn data(&self) -> &Vec<u8> {
-        &self.data
+    pub fn op(&self) -> &ComponentDiffOp {
+        &self.op
     }
 }
 
@@ -43,7 +76,7 @@ pub struct DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e> {
     pub src_entity: Entity,
     pub dst_world: &'d World,
     pub dst_entity: Entity,
-    pub has_changes: &'e mut bool,
+    pub result: &'e mut legion_prefab::DiffSingleResult,
 }
 
 impl<'b, 'c, 'd, 'e> bincode::SerializerAcceptor for DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e> {
@@ -58,7 +91,8 @@ impl<'b, 'c, 'd, 'e> bincode::SerializerAcceptor for DiffSingleSerializerAccepto
         T::Ok: 'static,
     {
         let mut ser_erased = erased_serde::Serializer::erase(ser);
-        *self.has_changes = self.component_registration.diff_single(
+
+        *self.result = self.component_registration.diff_single(
             &mut ser_erased,
             self.src_world,
             self.src_entity,
@@ -85,6 +119,28 @@ impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a> for ApplyDiffDeserializerAcce
         let mut de_erased = erased_serde::Deserializer::erase(de);
         self.component_registration
             .apply_diff(&mut de_erased, self.world, self.entity);
+    }
+}
+
+pub struct DeserializeSingleDeserializerAcceptor<'b, 'c> {
+    pub component_registration: &'b legion_prefab::ComponentRegistration,
+    pub world: &'c mut World,
+    pub entity: Entity,
+}
+
+impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a>
+    for DeserializeSingleDeserializerAcceptor<'b, 'c>
+{
+    type Output = ();
+
+    //TODO: Error handling needs to be passed back out
+    fn accept<T: serde::Deserializer<'a>>(
+        mut self,
+        de: T,
+    ) -> Self::Output {
+        let mut de_erased = erased_serde::Deserializer::erase(de);
+        self.component_registration
+            .deserialize_single(&mut de_erased, self.world, self.entity);
     }
 }
 
@@ -155,13 +211,32 @@ pub fn apply_diffs(
     for diff in diffs {
         if let Some(new_prefab_entity) = uuid_to_new_entities.get(diff.entity_uuid()) {
             if let Some(component_registration) = registered_components.get(diff.component_type()) {
-                let acceptor = ApplyDiffDeserializerAcceptor {
-                    component_registration: &component_registration,
-                    world: &mut new_world,
-                    entity: *new_prefab_entity,
-                };
-                let reader = bincode::SliceReader::new(diff.data());
-                bincode::with_deserializer(reader, acceptor);
+                match diff.op() {
+                    ComponentDiffOp::Change(data) => {
+                        let acceptor = ApplyDiffDeserializerAcceptor {
+                            component_registration: &component_registration,
+                            world: &mut new_world,
+                            entity: *new_prefab_entity,
+                        };
+
+                        let reader = bincode::SliceReader::new(data);
+                        bincode::with_deserializer(reader, acceptor);
+                    }
+                    ComponentDiffOp::Add(data) => {
+                        let acceptor = DeserializeSingleDeserializerAcceptor {
+                            component_registration: &component_registration,
+                            world: &mut new_world,
+                            entity: *new_prefab_entity,
+                        };
+
+                        let reader = bincode::SliceReader::new(data);
+                        bincode::with_deserializer(reader, acceptor);
+                    }
+                    ComponentDiffOp::Remove => {
+                        component_registration
+                            .remove_from_entity(&mut new_world, *new_prefab_entity);
+                    }
+                }
             }
         }
     }

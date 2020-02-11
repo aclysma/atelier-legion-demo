@@ -12,7 +12,7 @@ Prefab(
                      // Component AssetTypeId
                      type: "f5780013-bae4-49f0-ac0e-a108ff52fec0",
                      data: (
-                         position: [0.0, 10.0]
+                         position: Vec2(0.0, 10.0)
                      ),
                  ),
              ]
@@ -26,7 +26,7 @@ Prefab(
                      // Component AssetTypeId
                      type: "f5780013-bae4-49f0-ac0e-a108ff52fec0",
                      data: (
-                         position: [0.0, 20.0]
+                         position: Vec2(0.0, 20.0)
                      ),
                  ),
              ]
@@ -40,7 +40,7 @@ Prefab(
                      // Component AssetTypeId
                      type: "fe5d26b5-582d-4464-8dec-ba234e31aa41",
                      data: (
-                         handle: "position_component.ron"
+                         handle: Some("position_component.ron")
                      ),
                  ),
              ]

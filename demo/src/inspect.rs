@@ -2,9 +2,18 @@ use legion::prelude::*;
 
 use std::marker::PhantomData;
 
+use skulpin::imgui;
+use skulpin::imgui::sys as imgui_sys;
 use skulpin::imgui::Ui;
 use imgui_inspect::InspectRenderStruct;
 use imgui_inspect::InspectArgsStruct;
+
+#[derive(PartialEq)]
+enum InspectResult {
+    Unchanged,
+    Edited,
+    Deleted,
+}
 
 /// A trait object which allows dynamic dispatch into the selection implementation
 trait RegisteredEditorInspectorT: Send + Sync {
@@ -17,10 +26,11 @@ trait RegisteredEditorInspectorT: Send + Sync {
 
     fn render_mut(
         &self,
-        world: &World,
+        world: &mut World,
+        entities: &[Entity],
         ui: &Ui,
         args: &InspectArgsStruct,
-    ) -> bool;
+    ) -> InspectResult;
 }
 
 /// Implements the RegisteredEditorSelectableT trait object with code that can call
@@ -61,18 +71,74 @@ where
 
     fn render_mut(
         &self,
-        world: &World,
+        world: &mut World,
+        entities: &[Entity],
         ui: &Ui,
         args: &InspectArgsStruct,
-    ) -> bool {
-        let mut values = world.get_all_components_mut::<T>();
-        let mut slice = values.as_mut_slice();
+    ) -> InspectResult {
+        let result = {
+            let mut values = world.get_all_components_mut::<T>();
+            let mut slice = values.as_mut_slice();
 
-        if !slice.is_empty() {
-            <T as InspectRenderStruct<T>>::render_mut(slice, core::any::type_name::<T>(), ui, args)
-        } else {
-            false
+            if !slice.is_empty() {
+                let header_text = &imgui::im_str!("{}", core::any::type_name::<T>());
+                let content_region = ui.window_content_region_max();
+
+                let id_token = ui.push_id(core::any::type_name::<T>());
+                let draw_children = unsafe {
+                    imgui_sys::igCollapsingHeader(
+                        header_text.as_ptr(),
+                        imgui_sys::ImGuiTreeNodeFlags_DefaultOpen as i32
+                            | imgui_sys::ImGuiTreeNodeFlags_AllowItemOverlap as i32,
+                    )
+                };
+
+                ui.same_line(content_region[0] - 50.0);
+
+                let result = if ui.small_button(imgui::im_str!("Delete")) {
+                    InspectResult::Deleted
+                } else if draw_children {
+                    ui.indent();
+
+                    let mut args = InspectArgsStruct::default();
+                    args.header = Some(false);
+                    args.indent_children = Some(false);
+
+                    let changed = <T as InspectRenderStruct<T>>::render_mut(
+                        slice,
+                        core::any::type_name::<T>(),
+                        ui,
+                        &args,
+                    );
+
+                    ui.unindent();
+
+                    // This component is expanded, return if any fields were changed
+                    if changed {
+                        InspectResult::Edited
+                    } else {
+                        InspectResult::Unchanged
+                    }
+                } else {
+                    // This component is collapsed, it cannot be edited
+                    InspectResult::Unchanged
+                };
+
+                id_token.pop(ui);
+                result
+            } else {
+                // This component type is not on the selected entities
+                InspectResult::Unchanged
+            }
+        };
+
+        if result == InspectResult::Deleted {
+            for e in entities {
+                world.remove_component::<T>(*e);
+            }
         }
+
+        result
     }
 }
 
@@ -102,13 +168,19 @@ impl EditorInspectRegistry {
 
     pub fn render_mut(
         &self,
-        world: &World,
+        world: &mut World,
+        entities: &[Entity],
         ui: &Ui,
         args: &InspectArgsStruct,
     ) -> bool {
         let mut changed = false;
         for r in &self.registered {
-            changed |= r.render_mut(world, ui, args);
+            let result = r.render_mut(world, entities, ui, args);
+
+            changed |= match result {
+                InspectResult::Unchanged => false,
+                _ => true
+            }
         }
 
         changed

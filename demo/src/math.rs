@@ -4,27 +4,73 @@ use imgui_inspect::InspectArgsDefault;
 use imgui_inspect::InspectRenderDefault;
 use skulpin::imgui;
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub fn vec2_glam_to_glm(value: glam::Vec2) -> glm::Vec2 {
+    glm::Vec2::new(value.x(), value.y())
+}
+
+pub fn vec3_glam_to_glm(value: glam::Vec3) -> glm::Vec3 {
+    glm::Vec3::new(value.x(), value.y(), value.z())
+}
+
+pub fn vec4_glam_to_glm(value: glam::Vec4) -> glm::Vec4 {
+    glm::Vec4::new(value.x(), value.y(), value.z(), value.w())
+}
+
+pub fn vec2_glm_to_glam(value: glm::Vec2) -> glam::Vec2 {
+    glam::Vec2::new(value.x, value.y)
+}
+
+pub fn vec3_glm_to_glam(value: glm::Vec3) -> glam::Vec3 {
+    glam::Vec3::new(value.x, value.y, value.z)
+}
+
+pub fn vec4_glm_to_glam(value: glm::Vec4) -> glam::Vec4 {
+    glam::Vec4::new(value.x, value.y, value.z, value.w)
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec2 {
-    value: glm::Vec2,
+    value: glam::Vec2,
 }
 
 impl Vec2 {
     pub fn zero() -> Self {
-        Vec2 { value: glm::zero() }
+        Vec2 {
+            value: glam::Vec2::zero(),
+        }
+    }
+}
+
+impl From<glam::Vec2> for Vec2 {
+    fn from(value: glam::Vec2) -> Self {
+        Vec2 { value }
+    }
+}
+
+impl Into<glam::Vec2> for Vec2 {
+    fn into(self) -> glam::Vec2 {
+        *self
     }
 }
 
 impl From<glm::Vec2> for Vec2 {
     fn from(value: glm::Vec2) -> Self {
-        Vec2 { value }
+        Vec2 {
+            value: vec2_glm_to_glam(value),
+        }
+    }
+}
+
+impl Into<glm::Vec2> for Vec2 {
+    fn into(self) -> glm::Vec2 {
+        vec2_glam_to_glm(self.value)
     }
 }
 
 impl Deref for Vec2 {
-    type Target = glm::Vec2;
+    type Target = glam::Vec2;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -50,7 +96,12 @@ impl InspectRenderDefault<Vec2> for Vec2 {
             return;
         }
 
-        ui.text(&imgui::im_str!("{}: {} {}", label, data[0].x, data[0].y));
+        ui.text(&imgui::im_str!(
+            "{}: {} {}",
+            label,
+            data[0].x(),
+            data[0].y()
+        ));
     }
 
     fn render_mut(
@@ -64,15 +115,15 @@ impl InspectRenderDefault<Vec2> for Vec2 {
         }
 
         let mut changed = false;
-        let mut val = [data[0].x, data[0].y];
+        let mut val = [data[0].x(), data[0].y()];
         if ui
             .input_float2(&imgui::im_str!("{}", label), &mut val)
             .build()
         {
             changed = true;
             for d in data {
-                d.x = val[0];
-                d.y = val[1];
+                d.set_x(val[0]);
+                d.set_y(val[1]);
             }
         }
 
@@ -80,27 +131,49 @@ impl InspectRenderDefault<Vec2> for Vec2 {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec3 {
-    value: glm::Vec3,
+    value: glam::Vec3,
 }
 
 impl Vec3 {
     pub fn zero() -> Self {
-        Vec3 { value: glm::zero() }
+        Vec3 {
+            value: glam::Vec3::zero(),
+        }
+    }
+}
+
+impl From<glam::Vec3> for Vec3 {
+    fn from(value: glam::Vec3) -> Self {
+        Vec3 { value }
+    }
+}
+
+impl Into<glam::Vec3> for Vec3 {
+    fn into(self) -> glam::Vec3 {
+        *self
     }
 }
 
 impl From<glm::Vec3> for Vec3 {
     fn from(value: glm::Vec3) -> Self {
-        Vec3 { value }
+        Vec3 {
+            value: vec3_glm_to_glam(value),
+        }
+    }
+}
+
+impl Into<glm::Vec3> for Vec3 {
+    fn into(self) -> glm::Vec3 {
+        vec3_glam_to_glm(self.value)
     }
 }
 
 impl Deref for Vec3 {
-    type Target = glm::Vec3;
+    type Target = glam::Vec3;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -129,9 +202,9 @@ impl InspectRenderDefault<Vec3> for Vec3 {
         ui.text(&imgui::im_str!(
             "{}: {} {} {}",
             label,
-            data[0].x,
-            data[0].y,
-            data[0].z
+            data[0].x(),
+            data[0].y(),
+            data[0].z()
         ));
     }
 
@@ -146,16 +219,16 @@ impl InspectRenderDefault<Vec3> for Vec3 {
         }
 
         let mut changed = false;
-        let mut val = [data[0].x, data[0].y, data[0].z];
+        let mut val = [data[0].x(), data[0].y(), data[0].z()];
         if ui
             .input_float3(&imgui::im_str!("{}", label), &mut val)
             .build()
         {
             changed = true;
             for d in data {
-                d.x = val[0];
-                d.y = val[1];
-                d.z = val[2];
+                d.set_x(val[0]);
+                d.set_y(val[1]);
+                d.set_z(val[2]);
             }
         }
 
@@ -163,27 +236,49 @@ impl InspectRenderDefault<Vec3> for Vec3 {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
 pub struct Vec4 {
-    value: glm::Vec4,
+    value: glam::Vec4,
 }
 
 impl Vec4 {
     pub fn zero() -> Self {
-        Vec4 { value: glm::zero() }
+        Vec4 {
+            value: glam::Vec4::zero(),
+        }
+    }
+}
+
+impl From<glam::Vec4> for Vec4 {
+    fn from(value: glam::Vec4) -> Self {
+        Vec4 { value }
+    }
+}
+
+impl Into<glam::Vec4> for Vec4 {
+    fn into(self) -> glam::Vec4 {
+        *self
     }
 }
 
 impl From<glm::Vec4> for Vec4 {
     fn from(value: glm::Vec4) -> Self {
-        Vec4 { value }
+        Vec4 {
+            value: vec4_glm_to_glam(value),
+        }
+    }
+}
+
+impl Into<glm::Vec4> for Vec4 {
+    fn into(self) -> glm::Vec4 {
+        vec4_glam_to_glm(self.value)
     }
 }
 
 impl Deref for Vec4 {
-    type Target = glm::Vec4;
+    type Target = glam::Vec4;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -212,10 +307,10 @@ impl InspectRenderDefault<Vec4> for Vec4 {
         ui.text(&imgui::im_str!(
             "{}: {} {} {} {}",
             label,
-            data[0].x,
-            data[0].y,
-            data[0].z,
-            data[0].w
+            data[0].x(),
+            data[0].y(),
+            data[0].z(),
+            data[0].w()
         ));
     }
 
@@ -230,17 +325,17 @@ impl InspectRenderDefault<Vec4> for Vec4 {
         }
 
         let mut changed = false;
-        let mut val = [data[0].x, data[0].y, data[0].z, data[0].w];
+        let mut val = [data[0].x(), data[0].y(), data[0].z(), data[0].w()];
         if ui
             .input_float4(&imgui::im_str!("{}", label), &mut val)
             .build()
         {
             changed = true;
             for d in data {
-                d.x = val[0];
-                d.y = val[1];
-                d.z = val[2];
-                d.w = val[3];
+                d.set_x(val[0]);
+                d.set_y(val[1]);
+                d.set_z(val[2]);
+                d.set_w(val[3]);
             }
         }
 

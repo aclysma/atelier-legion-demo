@@ -18,7 +18,16 @@ use crate::components::Position2DComponent;
 // Add a ball rigid body
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "fa518c0a-a65a-44c8-9d35-3f4f336b4de4"]
 pub struct RigidBodyBallComponentDef {
@@ -29,7 +38,16 @@ pub struct RigidBodyBallComponentDef {
 legion_prefab::register_component_type!(RigidBodyBallComponentDef);
 
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "36df3006-a5ad-4997-9ccc-0860f49195ad"]
 pub struct RigidBodyBoxComponentDef {
@@ -73,7 +91,7 @@ fn transform_shape_to_rigid_body(
     } else {
         physics.bodies.insert(
             nphysics2d::object::RigidBodyDesc::new()
-                .translation(*position)
+                .translation(position.into())
                 .build(),
         )
     };
@@ -81,7 +99,7 @@ fn transform_shape_to_rigid_body(
     // Build the collider.
     let collider = nphysics2d::object::ColliderDesc::new(shape_handle.clone())
         .density(1.0)
-        .translation(*collider_offset)
+        .translation(collider_offset.into())
         .build(nphysics2d::object::BodyPartHandle(rigid_body_handle, 0));
 
     // Insert the collider to the body set.
@@ -111,8 +129,10 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
         >(src_component_storage, src_component_storage_indexes);
 
         for (src_position, from, into) in izip!(position_components, from, into) {
-            let shape_handle =
-                ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(from.radius));
+            //TODO: Warn if radius is 0
+            let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Ball::new(
+                from.radius.max(0.01),
+            ));
             transform_shape_to_rigid_body(
                 &mut physics,
                 into,
@@ -143,7 +163,7 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
 
         for (src_position, from, into) in izip!(position_components, from, into) {
             let shape_handle = ncollide2d::shape::ShapeHandle::new(ncollide2d::shape::Cuboid::new(
-                *from.half_extents,
+                from.half_extents.into(),
             ));
             transform_shape_to_rigid_body(
                 &mut physics,

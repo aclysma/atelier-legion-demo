@@ -19,7 +19,7 @@ use legion::prelude::*;
 use crate::resources::OpenedPrefabState;
 
 // A utility struct to describe color for a skia shape
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, SerdeDiff, PartialEq, Inspect, Default)]
 pub struct PaintDef {
     #[serde_diff(opaque)]
     pub color: Vec4,
@@ -32,7 +32,12 @@ unsafe impl Sync for Paint {}
 
 impl From<PaintDef> for Paint {
     fn from(from: PaintDef) -> Self {
-        let color = skia_safe::Color4f::new(from.color.x, from.color.y, from.color.z, from.color.w);
+        let color = skia_safe::Color4f::new(
+            from.color.x(),
+            from.color.y(),
+            from.color.z(),
+            from.color.w(),
+        );
 
         let mut paint = skia_safe::Paint::new(color, None);
         paint.set_anti_alias(true);
@@ -48,7 +53,16 @@ impl From<PaintDef> for Paint {
 // exists
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "c05e5c27-58ca-4d68-b825-b20f67fdaf37"]
 pub struct DrawSkiaBoxComponentDef {
@@ -83,9 +97,9 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
-            let shape_handle = ShapeHandle::new(Cuboid::new(*self.half_extents));
+            let shape_handle = ShapeHandle::new(Cuboid::new(self.half_extents.into()));
             collision_world.add(
-                ncollide2d::math::Isometry::new(*position.position, 0.0),
+                ncollide2d::math::Isometry::new(position.position.into(), 0.0),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),
@@ -100,7 +114,16 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
 // component exists
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "e47f9943-d5bf-4e1b-9601-13e47d7b737c"]
 pub struct DrawSkiaCircleComponentDef {
@@ -135,9 +158,10 @@ impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+            //TODO: Warn if radius is 0
             let shape_handle = ShapeHandle::new(Ball::new(self.radius.max(0.01)));
             collision_world.add(
-                ncollide2d::math::Isometry::new(*position.position, 0.0),
+                ncollide2d::math::Isometry::new(position.position.into(), 0.0),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),

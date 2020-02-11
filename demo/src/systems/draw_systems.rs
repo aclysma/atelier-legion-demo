@@ -41,7 +41,8 @@ pub fn draw() -> Box<dyn Schedulable> {
 
                     let window_size = input_resource.window_size();
                     let camera_position = camera_state.position;
-                    camera_state.view_half_extents = glm::Vec2::new(x_half_extents, y_half_extents);
+                    camera_state.view_half_extents =
+                        glam::Vec2::new(x_half_extents, y_half_extents);
                     viewport_state.update(
                         window_size,
                         camera_position,
@@ -52,10 +53,10 @@ pub fn draw() -> Box<dyn Schedulable> {
                         .use_visible_range(
                             canvas,
                             skia_safe::Rect {
-                                left: -x_half_extents + camera_position.x,
-                                right: x_half_extents + camera_position.x,
-                                top: y_half_extents + camera_position.y,
-                                bottom: -y_half_extents + camera_position.y,
+                                left: -x_half_extents + camera_position.x(),
+                                right: x_half_extents + camera_position.x(),
+                                top: y_half_extents + camera_position.y(),
+                                bottom: -y_half_extents + camera_position.y(),
                             },
                             skia_safe::matrix::ScaleToFit::Center,
                         )
@@ -69,10 +70,10 @@ pub fn draw() -> Box<dyn Schedulable> {
                         let paint = skia_box.paint.0.lock().unwrap();
                         canvas.draw_rect(
                             skia_safe::Rect {
-                                left: pos.position.x - skia_box.half_extents.x,
-                                right: pos.position.x + skia_box.half_extents.x,
-                                top: pos.position.y - skia_box.half_extents.y,
-                                bottom: pos.position.y + skia_box.half_extents.y,
+                                left: pos.position.x() - skia_box.half_extents.x(),
+                                right: pos.position.x() + skia_box.half_extents.x(),
+                                top: pos.position.y() - skia_box.half_extents.y(),
+                                bottom: pos.position.y() + skia_box.half_extents.y(),
                             },
                             &paint,
                         );
@@ -82,7 +83,7 @@ pub fn draw() -> Box<dyn Schedulable> {
                     for (pos, skia_circle) in draw_circles_query.iter(world) {
                         let paint = skia_circle.paint.0.lock().unwrap();
                         canvas.draw_circle(
-                            skia_safe::Point::new(pos.position.x, pos.position.y),
+                            skia_safe::Point::new(pos.position.x(), pos.position.y()),
                             skia_circle.radius,
                             &paint,
                         );
@@ -96,19 +97,19 @@ pub fn draw() -> Box<dyn Schedulable> {
 
                         let paint = skia_safe::Paint::new(
                             skia_safe::Color4f::new(
-                                line_list.color.x,
-                                line_list.color.y,
-                                line_list.color.z,
-                                line_list.color.w,
+                                line_list.color.x(),
+                                line_list.color.y(),
+                                line_list.color.z(),
+                                line_list.color.w(),
                             ),
                             None,
                         );
 
                         let from = line_list.points[0];
-                        let mut from = skia_safe::Point::new(from.x, from.y);
+                        let mut from = skia_safe::Point::new(from.x(), from.y());
                         for i in 1..line_list.points.len() {
                             let to = line_list.points[i];
-                            let to = skia_safe::Point::new(to.x, to.y);
+                            let to = skia_safe::Point::new(to.x(), to.y());
                             canvas.draw_line(from, to, &paint);
                             from = to;
                         }

@@ -28,7 +28,16 @@ use crate::math::Vec2;
 // but it's being used in temporary code to demonstrate clone_merge changing a component type
 //
 #[derive(
-    TypeUuid, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, PartialEq, Clone, Inspect,
+    TypeUuid,
+    Serialize,
+    Deserialize,
+    SerdeImportable,
+    SerdeDiff,
+    Debug,
+    PartialEq,
+    Clone,
+    Inspect,
+    Default,
 )]
 #[uuid = "f5780013-bae4-49f0-ac0e-a108ff52fec0"]
 pub struct Position2DComponentDef {
@@ -49,11 +58,11 @@ legion_prefab::register_component_type!(Position2DComponentDef);
 //
 // Temporary component for testing
 //
-#[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug)]
+#[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Default)]
 #[uuid = "fe5d26b5-582d-4464-8dec-ba234e31aa41"]
 struct PositionReference {
     #[serde_diff(opaque)]
-    pub handle: Handle<Position2DComponentDef>,
+    pub handle: Option<Handle<Position2DComponentDef>>,
 }
 
 legion_prefab::register_component_type!(PositionReference);
@@ -224,12 +233,14 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         }
         let query = <legion::prelude::Read<PositionReference>>::query();
         for (e, pos_ref) in query.iter_entities(&world) {
-            let ref_component: &Position2DComponentDef =
-                pos_ref.handle.asset(asset_manager.storage()).unwrap();
-            println!(
-                "entity: {:?} position_ref: {:?} ({:?})",
-                e, pos_ref, ref_component
-            );
+            if let Some(handle) = &pos_ref.handle {
+                let ref_component: &Position2DComponentDef =
+                    handle.asset(asset_manager.storage()).unwrap();
+                println!(
+                    "entity: {:?} position_ref: {:?} ({:?})",
+                    e, pos_ref, ref_component
+                );
+            }
         }
         println!("MERGED: done iterating positions");
     }
