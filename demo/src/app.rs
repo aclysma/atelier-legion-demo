@@ -95,9 +95,9 @@ pub struct App {}
 impl App {
     /// Runs the app. This is called by `AppBuilder::run`. This does not return because winit does
     /// not return. For consistency, we use the fatal_error() callback on the passed in AppHandler.
-    pub fn run<T: 'static + AppHandler>(
+    pub fn run<T: 'static + AppHandler, S: Into<skulpin::winit::dpi::Size>>(
         mut app_handler: T,
-        logical_size: LogicalSize,
+        logical_size: S,
         renderer_builder: &RendererBuilder,
     ) -> ! {
         // Create the event loop
@@ -277,7 +277,7 @@ fn init_imgui(window: &winit::window::Window) -> imgui::Context {
 
     // In the examples we only use integer DPI factors, because the UI can get very blurry
     // otherwise. This might or might not be what you want in a real application.
-    let hidpi_factor = window.hidpi_factor().round();
+    let hidpi_factor = window.scale_factor().round();
     let font_size = (16.0 * hidpi_factor) as f32;
 
     let font_1p = imgui::FontSource::TtfData {

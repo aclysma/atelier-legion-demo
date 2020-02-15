@@ -176,7 +176,7 @@ dependencies = [
  "glam",
  "image2",
  "imgui-inspect",
- "imgui-inspect-derive 0.3.1 (git+https://github.com/aclysma/imgui-inspect.git)",
+ "imgui-inspect-derive 0.3.1 (git+https://github.com/aclysma/imgui-inspect.git?branch=imgui_support_winit_21)",
  "inventory",
  "itertools",
  "legion",
@@ -754,9 +754,9 @@ checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
 name = "dispatch"
-version = "0.1.4"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04e93ca78226c51902d7aa8c12c988338aadd9e85ed9c6be8aaac39192ff3605"
+checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
 name = "dlib"
@@ -1158,20 +1158,19 @@ dependencies = [
 
 [[package]]
 name = "imgui"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e70a1b421ac503e94009cc9bcd6ed256f6bf38ced98d841b095da6b94ea67702"
+version = "0.3.0-pre"
+source = "git+https://github.com/aclysma/imgui-rs.git?branch=allow_building_with_winit_0.21#7c4d4cf9d81e31cc26f482ef82c4582e7e03923c"
 dependencies = [
  "bitflags",
  "imgui-sys",
  "lazy_static",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
 ]
 
 [[package]]
 name = "imgui-inspect"
 version = "0.3.4"
-source = "git+https://github.com/aclysma/imgui-inspect.git#c6a3364d08e42bfe6ab760df48464a12e0a164a4"
+source = "git+https://github.com/aclysma/imgui-inspect.git?branch=imgui_support_winit_21#ac06d67b9452a3b2da668d927d253e8261d71c10"
 dependencies = [
  "imgui",
  "imgui-inspect-derive 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1180,7 +1179,7 @@ dependencies = [
 [[package]]
 name = "imgui-inspect-derive"
 version = "0.3.1"
-source = "git+https://github.com/aclysma/imgui-inspect.git#c6a3364d08e42bfe6ab760df48464a12e0a164a4"
+source = "git+https://github.com/aclysma/imgui-inspect.git?branch=imgui_support_winit_21#ac06d67b9452a3b2da668d927d253e8261d71c10"
 dependencies = [
  "darling",
  "proc-macro2 1.0.8",
@@ -1202,18 +1201,16 @@ dependencies = [
 
 [[package]]
 name = "imgui-sys"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0350b22f0a64eeb852ed3995ddb5d6d24bd3038024d2bd81720a6573baa602dc"
+version = "0.3.0-pre"
+source = "git+https://github.com/aclysma/imgui-rs.git?branch=allow_building_with_winit_0.21#7c4d4cf9d81e31cc26f482ef82c4582e7e03923c"
 dependencies = [
  "cc",
 ]
 
 [[package]]
 name = "imgui-winit-support"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c63c45c058634dbc045dde485a7baf0f4321b77c00cca90c5d2d9b3ab2f5eec"
+version = "0.3.0-pre"
+source = "git+https://github.com/aclysma/imgui-rs.git?branch=allow_building_with_winit_0.21#7c4d4cf9d81e31cc26f482ef82c4582e7e03923c"
 dependencies = [
  "imgui",
  "winit",
@@ -2626,8 +2623,8 @@ dependencies = [
 
 [[package]]
 name = "skulpin"
-version = "0.5.0"
-source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support#112f7f33f6669ee772df2b4405f47cbfb109be0f"
+version = "0.6.0"
+source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support_winit_21#828274a2d3d1e55b2fc27404f0a157d23966525b"
 dependencies = [
  "ash",
  "cocoa",
@@ -3249,13 +3246,12 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "winit"
-version = "0.20.0-alpha6"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfa4308ca09f50e2f4688c631c36879521bffc39b949238b288ffd932864acbc"
+checksum = "65a5c1a5ef76ac31cc97ad29489acdbed2178f3fc12ca00ee6cb11d60adb5a3a"
 dependencies = [
  "android_glue",
  "bitflags",
- "calloop",
  "cocoa",
  "core-foundation",
  "core-graphics",
@@ -3265,6 +3261,8 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "mio",
+ "mio-extras",
  "objc",
  "parking_lot 0.10.0",
  "percent-encoding",

@@ -1,9 +1,9 @@
-use skulpin::LogicalSize;
+use skulpin::PhysicalSize;
 
 // this is based on window size (i.e. pixels)
 // bottom-left: (0, 0)
 // top-right: (window_width_in_pixels, window_height_in_pixels)
-fn calculate_ui_space_matrix(logical_size: LogicalSize) -> glam::Mat4 {
+fn calculate_ui_space_matrix(logical_size: PhysicalSize<u32>) -> glam::Mat4 {
     let view = glam::Mat4::look_at_rh(
         glam::Vec3::from([0.0, 0.0, 5.0]),
         glam::Vec3::from([0.0, 0.0, 0.0]),
@@ -26,7 +26,7 @@ fn calculate_ui_space_matrix(logical_size: LogicalSize) -> glam::Mat4 {
 // top-left: (0, 0)
 // bottom-right: (600 * aspect_ratio, 600) where aspect_ratio is window_width / window_height
 fn calculate_screen_space_matrix(
-    logical_size: LogicalSize,
+    logical_size: PhysicalSize<u32>,
     view_half_extents: glam::Vec2,
 ) -> glam::Mat4 {
     let view = glam::Mat4::look_at_rh(
@@ -52,7 +52,7 @@ fn calculate_screen_space_matrix(
 // top-left: (-w/2, -h/2)
 // bottom-right: (w/2, h/2)
 fn calculate_world_space_matrix(
-    logical_size: LogicalSize,
+    logical_size: PhysicalSize<u32>,
     position: glam::Vec3,
     view_half_extents: glam::Vec2,
 ) -> glam::Mat4 {
@@ -98,7 +98,7 @@ impl ViewportResource {
     }
 
     pub fn new(
-        window_size: LogicalSize,
+        window_size: PhysicalSize<u32>,
         camera_position: glam::Vec2,
         view_half_extents: glam::Vec2,
     ) -> Self {
@@ -109,7 +109,7 @@ impl ViewportResource {
 
     pub fn update(
         &mut self,
-        window_size: LogicalSize,
+        window_size: PhysicalSize<u32>,
         camera_position: glam::Vec2,
         view_half_extents: glam::Vec2,
     ) {
