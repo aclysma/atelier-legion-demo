@@ -57,8 +57,8 @@ pub const GRAVITY: f32 = -9.81;
 
 pub mod util {
     //TODO: Rename winit_to_glam
-    pub fn to_glm(logical_position: skulpin::LogicalPosition) -> glam::Vec2 {
-        glam::Vec2::new(logical_position.x as f32, logical_position.y as f32)
+    pub fn to_glm(position: skulpin::PhysicalPosition<f64>) -> glam::Vec2 {
+        glam::Vec2::new(position.x as f32, position.y as f32)
     }
 }
 
