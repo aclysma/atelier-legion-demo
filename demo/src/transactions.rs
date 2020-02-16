@@ -7,6 +7,7 @@ struct TransactionBuilderEntityInfo {
 }
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use legion_prefab::{ComponentRegistration, DiffSingleResult};
 use crate::component_diffs::{DiffSingleSerializerAcceptor, ComponentDiff};
 
@@ -114,6 +115,35 @@ impl Transaction {
 
         let mut apply_diffs = vec![];
         let mut revert_diffs = vec![];
+
+        let mut preexisting_after_entities = HashSet::new();
+        let mut deleted_entities = vec![];
+        for (entity_uuid, entity_info) in &self.uuid_to_entities {
+            if self.after_world.get_entity_location(entity_info.after_entity).is_none() {
+                deleted_entities.push(entity_uuid);
+                preexisting_after_entities.insert(entity_info.after_entity);
+            }
+        }
+
+        let mut new_after_entities = vec![];
+        for after_entity in self.after_world.iter_entities() {
+            if !preexisting_after_entities.contains(&after_entity) {
+                new_after_entities.push(after_entity)
+            }
+        }
+
+        // We detect which entities are new and old:
+        // - Deleted entities we can skip in the below code since the component delete diffs are
+        // redundant
+        // - New entities we could feed in a dummy old entity value. This will add a bunch of create
+        // component diffs
+        // - Modified entities can feed into the below code to generate component add/remove/change diffs
+        //
+        // We could at this point add/remove entities to/from uuid_to_entities
+        //
+        // So create a list of entity delete/create ops, then generate the diffs
+        // When we apply a diff, execute the entity add/remove operations first. Then apply all
+        // diffs
 
         // Iterate the entities in the selection world and prefab world
         for (entity_uuid, entity_info) in &self.uuid_to_entities {
