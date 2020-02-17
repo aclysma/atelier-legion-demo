@@ -52,8 +52,8 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
         .with_query(<(Read<Position2DComponent>)>::query())
         .with_query(<(
             Read<Position2DComponent>,
-            Read<UniformScale2DComponent>,
-            Read<NonUniformScale2DComponent>,
+            TryRead<UniformScale2DComponent>,
+            TryRead<NonUniformScale2DComponent>,
         )>::query())
         .build(
             |command_buffer,
@@ -384,14 +384,14 @@ fn draw_scale_gizmo(
     scale_query: &mut legion::systems::SystemQuery<
         (
             Read<Position2DComponent>,
-            Read<UniformScale2DComponent>,
-            Read<NonUniformScale2DComponent>,
+            TryRead<UniformScale2DComponent>,
+            TryRead<NonUniformScale2DComponent>,
         ),
         EntityFilterTuple<
             And<(
                 ComponentFilter<Position2DComponent>,
-                ComponentFilter<UniformScale2DComponent>,
-                ComponentFilter<NonUniformScale2DComponent>,
+                Passthrough,
+                Passthrough,
             )>,
             And<(Passthrough, Passthrough, Passthrough)>,
             And<(Passthrough, Passthrough, Passthrough)>,
@@ -413,58 +413,66 @@ fn draw_scale_gizmo(
         let y_color = glam::Vec4::new(1.0, 0.6, 0.0, 1.0);
         let xy_color = glam::Vec4::new(1.0, 1.0, 0.0, 1.0);
 
-        // x axis line
-        editor_draw.add_line(
-            "x_axis_scale",
-            debug_draw,
-            position,
-            position + glam::vec2(100.0, 0.0),
-            x_color,
-        );
+        //TODO: Make this resolution independent. Need a UI multiplier?
 
-        // x axis line end
-        editor_draw.add_line(
-            "x_axis_scale",
-            debug_draw,
-            position + glam::vec2(100.0, -20.0),
-            position + glam::vec2(100.0, 20.0),
-            x_color,
-        );
+        let ui_multiplier = 0.01;
 
-        // y axis line
-        editor_draw.add_line(
-            "y_axis_scale",
-            debug_draw,
-            position,
-            position + glam::vec2(0.0, 100.0),
-            y_color,
-        );
+        if non_uniform_scale.is_some() {
+            // x axis line
+            editor_draw.add_line(
+                "x_axis_scale",
+                debug_draw,
+                position,
+                position + (glam::vec2(100.0, 0.0) * ui_multiplier),
+                x_color,
+            );
 
-        // y axis line end
-        editor_draw.add_line(
-            "y_axis_scale",
-            debug_draw,
-            position + glam::Vec2::new(-20.0, 100.0),
-            position + glam::Vec2::new(20.0, 100.0),
-            y_color,
-        );
+            // x axis line end
+            editor_draw.add_line(
+                "x_axis_scale",
+                debug_draw,
+                position + (glam::vec2(100.0, -20.0) * ui_multiplier),
+                position + (glam::vec2(100.0, 20.0) * ui_multiplier),
+                x_color,
+            );
 
-        // xy line
-        editor_draw.add_line(
-            "uniform_scale",
-            debug_draw,
-            position + glam::Vec2::new(0.0, 0.0),
-            position + glam::Vec2::new(50.0, 50.0),
-            xy_color,
-        );
+            // y axis line
+            editor_draw.add_line(
+                "y_axis_scale",
+                debug_draw,
+                position,
+                position + (glam::vec2(0.0, 100.0) * ui_multiplier),
+                y_color,
+            );
 
-        // xy line
-        editor_draw.add_line(
-            "uniform_scale",
-            debug_draw,
-            position + glam::Vec2::new(40.0, 60.0),
-            position + glam::Vec2::new(60.0, 40.0),
-            xy_color,
-        );
+            // y axis line end
+            editor_draw.add_line(
+                "y_axis_scale",
+                debug_draw,
+                position + (glam::Vec2::new(-20.0, 100.0) * ui_multiplier),
+                position + (glam::Vec2::new(20.0, 100.0) * ui_multiplier),
+                y_color,
+            );
+        }
+
+        if uniform_scale.is_some() {
+            // xy line
+            editor_draw.add_line(
+                "uniform_scale",
+                debug_draw,
+                position + (glam::Vec2::new(0.0, 0.0) * ui_multiplier),
+                position + (glam::Vec2::new(50.0, 50.0) * ui_multiplier),
+                xy_color,
+            );
+
+            // xy line
+            editor_draw.add_line(
+                "uniform_scale",
+                debug_draw,
+                position + (glam::Vec2::new(40.0, 60.0) * ui_multiplier),
+                position + (glam::Vec2::new(60.0, 40.0) * ui_multiplier),
+                xy_color,
+            );
+        }
     }
 }

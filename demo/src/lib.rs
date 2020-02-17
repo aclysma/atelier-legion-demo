@@ -117,6 +117,8 @@ pub fn create_editor_inspector_registry() -> EditorInspectRegistry {
     registry.register::<DrawSkiaCircleComponentDef>();
     registry.register::<DrawSkiaBoxComponentDef>();
     registry.register::<Position2DComponent>();
+    registry.register::<UniformScale2DComponent>();
+    registry.register::<NonUniformScale2DComponent>();
     registry.register::<RigidBodyBallComponentDef>();
     registry.register::<RigidBodyBoxComponentDef>();
     registry

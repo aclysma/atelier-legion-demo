@@ -9,7 +9,7 @@ use legion::world::World;
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::shape::ShapeHandle;
-use crate::components::Position2DComponent;
+use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent};
 use imgui_inspect_derive;
 use skulpin::imgui;
 use crate::math::Vec2;
@@ -97,7 +97,21 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
-            let shape_handle = ShapeHandle::new(Cuboid::new(self.half_extents.into()));
+            let mut half_extents = *self.half_extents;
+
+            if let Some(uniform_scale) = world.get_component::<UniformScale2DComponent>(entity) {
+                half_extents *= uniform_scale.uniform_scale;
+            }
+
+            if let Some(non_uniform_scale) =
+                world.get_component::<NonUniformScale2DComponent>(entity)
+            {
+                half_extents *= *non_uniform_scale.non_uniform_scale;
+            }
+
+            let shape_handle =
+                ShapeHandle::new(Cuboid::new(crate::math::vec2_glam_to_glm(half_extents)));
+
             collision_world.add(
                 ncollide2d::math::Isometry::new(position.position.into(), 0.0),
                 shape_handle,
@@ -158,8 +172,14 @@ impl crate::selection::EditorSelectable for DrawSkiaCircleComponent {
         entity: Entity,
     ) {
         if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+            let mut radius = self.radius;
+
+            if let Some(uniform_scale) = world.get_component::<UniformScale2DComponent>(entity) {
+                radius *= uniform_scale.uniform_scale;
+            }
+
             //TODO: Warn if radius is 0
-            let shape_handle = ShapeHandle::new(Ball::new(self.radius.max(0.01)));
+            let shape_handle = ShapeHandle::new(Ball::new(radius.max(0.01)));
             collision_world.add(
                 ncollide2d::math::Isometry::new(position.position.into(), 0.0),
                 shape_handle,

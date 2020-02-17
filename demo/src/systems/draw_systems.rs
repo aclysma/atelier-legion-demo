@@ -3,7 +3,7 @@ use legion::prelude::*;
 use skulpin::imgui;
 use skulpin::skia_safe;
 
-use crate::components::Position2DComponent;
+use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent};
 use crate::components::DrawSkiaBoxComponent;
 use crate::components::DrawSkiaCircleComponent;
 
@@ -25,8 +25,17 @@ pub fn draw() -> Box<dyn Schedulable> {
         .write_resource::<ViewportResource>()
         .read_resource::<InputResource>()
         .write_resource::<DebugDrawResource>()
-        .with_query(<(Read<Position2DComponent>, Read<DrawSkiaBoxComponent>)>::query())
-        .with_query(<(Read<Position2DComponent>, Read<DrawSkiaCircleComponent>)>::query())
+        .with_query(<(
+            Read<Position2DComponent>,
+            Read<DrawSkiaBoxComponent>,
+            TryRead<UniformScale2DComponent>,
+            TryRead<NonUniformScale2DComponent>,
+        )>::query())
+        .with_query(<(
+            Read<Position2DComponent>,
+            Read<DrawSkiaCircleComponent>,
+            TryRead<UniformScale2DComponent>,
+        )>::query())
         .build(
             |_,
              world,
@@ -66,25 +75,41 @@ pub fn draw() -> Box<dyn Schedulable> {
                     canvas.clear(skia_safe::Color::from_argb(0, 0, 0, 255));
 
                     // Draw all the boxes
-                    for (pos, skia_box) in draw_boxes_query.iter(world) {
+                    for (pos, skia_box, uniform_scale, non_uniform_scale) in
+                        draw_boxes_query.iter(world)
+                    {
+                        let mut half_extents = *skia_box.half_extents;
+                        if let Some(uniform_scale) = uniform_scale {
+                            half_extents *= uniform_scale.uniform_scale;
+                        }
+
+                        if let Some(non_uniform_scale) = non_uniform_scale {
+                            half_extents *= *non_uniform_scale.non_uniform_scale;
+                        }
+
                         let paint = skia_box.paint.0.lock().unwrap();
                         canvas.draw_rect(
                             skia_safe::Rect {
-                                left: pos.position.x() - skia_box.half_extents.x(),
-                                right: pos.position.x() + skia_box.half_extents.x(),
-                                top: pos.position.y() - skia_box.half_extents.y(),
-                                bottom: pos.position.y() + skia_box.half_extents.y(),
+                                left: pos.position.x() - half_extents.x(),
+                                right: pos.position.x() + half_extents.x(),
+                                top: pos.position.y() - half_extents.y(),
+                                bottom: pos.position.y() + half_extents.y(),
                             },
                             &paint,
                         );
                     }
 
                     // Draw all the circles
-                    for (pos, skia_circle) in draw_circles_query.iter(world) {
+                    for (pos, skia_circle, uniform_scale) in draw_circles_query.iter(world) {
+                        let mut scale = 1.0;
+                        if let Some(uniform_scale) = uniform_scale {
+                            scale *= uniform_scale.uniform_scale;
+                        }
+
                         let paint = skia_circle.paint.0.lock().unwrap();
                         canvas.draw_circle(
                             skia_safe::Point::new(pos.position.x(), pos.position.y()),
-                            skia_circle.radius,
+                            skia_circle.radius * scale,
                             &paint,
                         );
                     }

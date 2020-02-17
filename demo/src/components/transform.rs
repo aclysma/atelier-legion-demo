@@ -24,12 +24,16 @@ legion_prefab::register_component_type!(Position2DComponent);
 //
 // Uniform 2D Scale
 //
-#[derive(
-    TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Inspect, Default,
-)]
+#[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Inspect)]
 #[uuid = "ea1118ac-ebbe-433b-8532-e8938cd3a2dc"]
 pub struct UniformScale2DComponent {
     pub uniform_scale: f32,
+}
+
+impl Default for UniformScale2DComponent {
+    fn default() -> Self {
+        UniformScale2DComponent { uniform_scale: 1.0 }
+    }
 }
 
 legion_prefab::register_component_type!(UniformScale2DComponent);
@@ -37,13 +41,19 @@ legion_prefab::register_component_type!(UniformScale2DComponent);
 //
 // Non-uniform 2D Scale
 //
-#[derive(
-    TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Inspect, Default,
-)]
+#[derive(TypeUuid, Clone, Serialize, Deserialize, SerdeImportable, SerdeDiff, Debug, Inspect)]
 #[uuid = "3318484f-d816-4f8e-b6d2-accd66e49276"]
 pub struct NonUniformScale2DComponent {
     #[serde_diff(opaque)]
     pub non_uniform_scale: Vec2,
+}
+
+impl Default for NonUniformScale2DComponent {
+    fn default() -> Self {
+        NonUniformScale2DComponent {
+            non_uniform_scale: glam::Vec2::new(1.0, 1.0).into(),
+        }
+    }
 }
 
 legion_prefab::register_component_type!(NonUniformScale2DComponent);
