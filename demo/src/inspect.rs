@@ -179,7 +179,7 @@ impl EditorInspectRegistry {
 
             changed |= match result {
                 InspectResult::Unchanged => false,
-                _ => true
+                _ => true,
             }
         }
 

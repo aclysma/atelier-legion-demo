@@ -75,12 +75,6 @@ pub fn editor_inspector_window(
                         );
 
                         if let Some(mut tx) = tx {
-                            let all_entities: Vec<_> = tx
-                                .uuid_to_entities()
-                                .iter()
-                                .map(|(_, e)| e.after_entity())
-                                .collect();
-
                             // Draw a button to bring up the add component menu
                             if ui.button(im_str!("\u{e8b1} Add"), [80.0, 0.0]) {
                                 ui.open_popup(im_str!("Add Component"));
@@ -127,9 +121,9 @@ pub fn editor_inspector_window(
                                 for (index, (_, component_type)) in
                                     component_types.iter().enumerate()
                                 {
-                                    for (_, e) in tx.uuid_to_entities() {
+                                    for entity in tx.world().iter_entities() {
                                         if !tx.world().has_component_by_id(
-                                            e.after_entity(),
+                                            entity,
                                             component_type.component_type_id(),
                                         ) {
                                             can_add_to_some_entity[index] = true;
@@ -155,11 +149,7 @@ pub fn editor_inspector_window(
 
                             // Make a list of all entities, this is necessary because we can't take an &-borrow for uuid_to_entities at the
                             // same time as an &mut-borrow for world_mut()
-                            let all_entities: Vec<_> = tx
-                                .uuid_to_entities()
-                                .iter()
-                                .map(|(_, e)| e.after_entity())
-                                .collect();
+                            let all_entities: Vec<Entity> = tx.world().iter_entities().collect();
 
                             //
                             // If a component needs to be added, do that now
@@ -167,6 +157,7 @@ pub fn editor_inspector_window(
                             if let Some(component_type_to_add) = component_type_to_add {
                                 //TODO: Add this component to all selected entities
                                 for e in &all_entities {
+                                    // e guaranteed to be Some, this is a new transaction and we aren't deleting entities
                                     component_type_to_add
                                         .add_default_to_entity(tx.world_mut(), *e)
                                         .unwrap();
@@ -179,8 +170,12 @@ pub fn editor_inspector_window(
                             // Draw inspect widgets
                             //
                             let registry = crate::create_editor_inspector_registry();
-                            commit_required |=
-                                registry.render_mut(tx.world_mut(), &all_entities, ui, &Default::default());
+                            commit_required |= registry.render_mut(
+                                tx.world_mut(),
+                                &all_entities,
+                                ui,
+                                &Default::default(),
+                            );
 
                             if commit_required {
                                 tx.commit(&mut editor_ui_state);

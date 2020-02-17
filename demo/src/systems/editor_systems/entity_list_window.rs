@@ -31,12 +31,16 @@ use atelier_core::asset_uuid;
 pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
     SystemBuilder::new("editor_entity_list_window")
         .write_resource::<ImguiResource>()
-        .read_resource::<EditorStateResource>()
+        .write_resource::<EditorStateResource>()
         .write_resource::<EditorSelectionResource>()
         .read_resource::<InputResource>()
+        .read_resource::<UniverseResource>()
         .with_query(<(TryRead<()>)>::query())
         .build(
-            |_, world, (imgui_manager, editor_ui_state, editor_selection, input), all_query| {
+            |_,
+             world,
+             (imgui_manager, editor_ui_state, editor_selection, input, universe_resource),
+             all_query| {
                 imgui_manager.with_ui(|ui: &mut imgui::Ui| {
                     use imgui::im_str;
 
@@ -53,11 +57,25 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
                                     ui.button(im_str!("\u{e897} Delete"), [80.0, 0.0]);
 
                                 if add_entity {
-                                    //editor_action_queue.enqueue_add_new_entity();
+                                    //TODO: Update selection
+                                    if let Some(mut tx) = editor_ui_state
+                                        .create_empty_transaction(&*universe_resource)
+                                    {
+                                        tx.world_mut().insert((), vec![()]);
+                                        tx.commit(&mut *editor_ui_state);
+                                    }
                                 }
 
                                 if remove_entity {
-                                    //editor_action_queue.enqueue_delete_selected_entities();
+                                    if let Some(mut tx) = editor_ui_state
+                                        .create_transaction_from_selected(
+                                            &*editor_selection,
+                                            &*universe_resource,
+                                        )
+                                    {
+                                        tx.world_mut().delete_all();
+                                        tx.commit(&mut *editor_ui_state);
+                                    }
                                 }
 
                                 let name = im_str!("");

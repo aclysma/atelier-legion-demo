@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::resources::time::TimeState;
 use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
 use crate::pipeline::PrefabAsset;
-use crate::component_diffs::{ComponentDiff, apply_diffs_to_prefab};
+use crate::component_diffs::{ComponentDiff, apply_diff_to_prefab, WorldDiff};
 use prefab_format::{ComponentTypeUuid, EntityUuid};
 use itertools::Itertools;
 use std::collections::vec_deque;
@@ -343,11 +343,12 @@ impl EditorStateResource {
             ));
 
             // Duplicate the prefab data so we can apply diffs to it. This is temporary and will eventually be
-            // done within the daemon
-            let uncooked_prefab = Arc::new(crate::component_diffs::apply_diffs_to_prefab(
+            // done within the daemon. (This is kind of like a clone() on the uncooked prefab asset)
+            let noop_diff = WorldDiff::new(vec![], vec![]);
+            let uncooked_prefab = Arc::new(crate::component_diffs::apply_diff_to_prefab(
                 &handle.asset(asset_resource.storage()).unwrap().prefab,
                 &universe.universe,
-                &[],
+                &noop_diff,
             ));
 
             // Store the cooked prefab and relevant metadata in an Arc on the EditorStateResource.
@@ -409,7 +410,7 @@ impl EditorStateResource {
             for (cooked_prefab_entity_uuid, cooked_prefab_entity) in
                 &opened_prefab.cooked_prefab.entities
             {
-                let world_entity = prefab_to_world_mappings.get(cooked_prefab_entity).unwrap(); //TODO: Don't unwrap this
+                let world_entity = prefab_to_world_mappings.get(cooked_prefab_entity);
                 log::info!(
                     "Prefab entity {} {:?} spawned as world entity {:?}",
                     uuid::Uuid::from_bytes(*cooked_prefab_entity_uuid).to_string(),
@@ -665,7 +666,7 @@ impl EditorStateResource {
         diffs: TransactionDiffs,
         commit_changes: bool,
     ) {
-        if diffs.apply_diffs.len() > 0 {
+        if diffs.apply_diff().has_changes() {
             self.diffs_pending_apply.push(TransactionDiffsPendingApply {
                 diffs,
                 commit_changes,
@@ -701,7 +702,7 @@ impl EditorStateResource {
         // Apply the diffs to the world state
         for queued_diff in diffs_pending_apply {
             // Apply the diff to world state
-            Self::apply_diffs(world, resources, &queued_diff.diffs.apply_diffs);
+            Self::apply_diff(world, resources, &queued_diff.diffs.apply_diff());
 
             // If commit is flagged, add an undo step will be added
             if queued_diff.commit_changes {
@@ -761,7 +762,7 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diffs(world, resources, &diffs.revert_diffs);
+            Self::apply_diff(world, resources, &diffs.revert_diff());
         }
     }
 
@@ -792,25 +793,18 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diffs(world, resources, &diffs.apply_diffs);
+            Self::apply_diff(world, resources, &diffs.apply_diff());
         }
     }
 
-    fn apply_diffs(
+    fn apply_diff(
         world: &mut World,
         resources: &Resources,
-        diffs: &[ComponentDiff],
+        diffs: &WorldDiff,
     ) {
         let selected_uuids = {
             let mut selection_resource = resources.get_mut::<EditorSelectionResource>().unwrap();
             let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-
-            for diff in diffs {
-                log::info!(
-                    "Apply diff to entity {:?}",
-                    uuid::Uuid::from_bytes(*diff.entity_uuid()).to_string()
-                );
-            }
 
             // Clone the currently opened prefab Arc so we can refer back to it
             let mut opened_prefab = {
@@ -833,13 +827,13 @@ impl EditorStateResource {
                 // Apply the diffs to the cooked data
                 let mut universe = resources.get_mut::<UniverseResource>().unwrap();
                 let new_cooked_prefab =
-                    Arc::new(crate::component_diffs::apply_diffs_to_cooked_prefab(
+                    Arc::new(crate::component_diffs::apply_diff_to_cooked_prefab(
                         &opened_prefab.cooked_prefab,
                         &universe.universe,
                         &diffs,
                     ));
 
-                let new_uncooked_prefab = Arc::new(crate::component_diffs::apply_diffs_to_prefab(
+                let new_uncooked_prefab = Arc::new(crate::component_diffs::apply_diff_to_prefab(
                     &opened_prefab.uncooked_prefab,
                     &universe.universe,
                     &diffs,
@@ -905,6 +899,23 @@ impl EditorStateResource {
         log::trace!("{}", output);
 
         std::fs::write("assets/demo_level.prefab", output).unwrap();
+    }
+
+    pub fn create_empty_transaction(
+        &self,
+        universe_resource: &UniverseResource,
+    ) -> Option<EditorTransaction> {
+        if let Some(opened_prefab) = &self.opened_prefab {
+            let mut tx_builder = TransactionBuilder::new();
+
+            Some(EditorTransaction::new(
+                tx_builder,
+                &universe_resource.universe,
+                &opened_prefab.cooked_prefab().world,
+            ))
+        } else {
+            None
+        }
     }
 
     pub fn create_transaction_from_selected(
@@ -976,10 +987,6 @@ impl EditorTransaction {
 
     pub fn world_mut(&mut self) -> &mut World {
         self.transaction.world_mut()
-    }
-
-    pub fn uuid_to_entities(&self) -> &HashMap<EntityUuid, TransactionEntityInfo> {
-        self.transaction.uuid_to_entities()
     }
 
     pub fn update(

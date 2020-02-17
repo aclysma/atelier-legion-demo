@@ -5,8 +5,37 @@ use std::collections::HashMap;
 use legion::prelude::*;
 use legion_prefab::DiffSingleResult;
 
+#[derive(Clone, Debug)]
+pub enum EntityDiffOp {
+    Add,
+    Remove,
+}
+
+#[derive(Clone, Debug)]
+pub struct EntityDiff {
+    entity_uuid: EntityUuid,
+    op: EntityDiffOp,
+}
+
+impl EntityDiff {
+    pub fn new(
+        entity_uuid: EntityUuid,
+        op: EntityDiffOp,
+    ) -> Self {
+        EntityDiff { entity_uuid, op }
+    }
+
+    pub fn entity_uuid(&self) -> &EntityUuid {
+        &self.entity_uuid
+    }
+
+    pub fn op(&self) -> &EntityDiffOp {
+        &self.op
+    }
+}
+
 // This is somewhat of a mirror of DiffSingleResult
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ComponentDiffOp {
     Change(Vec<u8>),
     Add(Vec<u8>),
@@ -27,7 +56,7 @@ impl ComponentDiffOp {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ComponentDiff {
     entity_uuid: EntityUuid,
     component_type: ComponentTypeUuid,
@@ -70,12 +99,42 @@ impl ComponentDiff {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct WorldDiff {
+    entity_diffs: Vec<EntityDiff>,
+    component_diffs: Vec<ComponentDiff>,
+}
+
+impl WorldDiff {
+    pub fn new(
+        entity_diffs: Vec<EntityDiff>,
+        component_diffs: Vec<ComponentDiff>,
+    ) -> WorldDiff {
+        WorldDiff {
+            entity_diffs,
+            component_diffs,
+        }
+    }
+
+    pub fn has_changes(&self) -> bool {
+        !self.entity_diffs.is_empty() || !self.component_diffs.is_empty()
+    }
+
+    pub fn entity_diffs(&self) -> &Vec<EntityDiff> {
+        &self.entity_diffs
+    }
+
+    pub fn component_diffs(&self) -> &Vec<ComponentDiff> {
+        &self.component_diffs
+    }
+}
+
 pub struct DiffSingleSerializerAcceptor<'b, 'c, 'd, 'e> {
     pub component_registration: &'b legion_prefab::ComponentRegistration,
     pub src_world: &'c World,
-    pub src_entity: Entity,
+    pub src_entity: Option<Entity>,
     pub dst_world: &'d World,
-    pub dst_entity: Entity,
+    pub dst_entity: Option<Entity>,
     pub result: &'e mut legion_prefab::DiffSingleResult,
 }
 
@@ -102,6 +161,7 @@ impl<'b, 'c, 'd, 'e> bincode::SerializerAcceptor for DiffSingleSerializerAccepto
     }
 }
 
+// Used when we process a ComponentDiffOp::Change
 pub struct ApplyDiffDeserializerAcceptor<'b, 'c> {
     pub component_registration: &'b legion_prefab::ComponentRegistration,
     pub world: &'c mut World,
@@ -122,6 +182,7 @@ impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a> for ApplyDiffDeserializerAcce
     }
 }
 
+// Used when we process a ComponentDiffOp::Add
 pub struct DeserializeSingleDeserializerAcceptor<'b, 'c> {
     pub component_registration: &'b legion_prefab::ComponentRegistration,
     pub world: &'c mut World,
@@ -144,13 +205,13 @@ impl<'a, 'b, 'c> bincode::DeserializerAcceptor<'a>
     }
 }
 
-pub fn apply_diffs_to_prefab(
+pub fn apply_diff_to_prefab(
     prefab: &Prefab,
     universe: &Universe,
-    diffs: &[ComponentDiff],
+    diff: &WorldDiff,
 ) -> Prefab {
     let (new_world, uuid_to_new_entities) =
-        apply_diffs(&prefab.world, &prefab.prefab_meta.entities, universe, diffs);
+        apply_diff(&prefab.world, &prefab.prefab_meta.entities, universe, diff);
 
     let prefab_meta = legion_prefab::PrefabMeta {
         id: prefab.prefab_meta.id,
@@ -164,16 +225,16 @@ pub fn apply_diffs_to_prefab(
     }
 }
 
-pub fn apply_diffs_to_cooked_prefab(
+pub fn apply_diff_to_cooked_prefab(
     cooked_prefab: &CookedPrefab,
     universe: &Universe,
-    diffs: &[ComponentDiff],
+    diff: &WorldDiff,
 ) -> CookedPrefab {
-    let (new_world, uuid_to_new_entities) = apply_diffs(
+    let (new_world, uuid_to_new_entities) = apply_diff(
         &cooked_prefab.world,
         &cooked_prefab.entities,
         universe,
-        diffs,
+        diff,
     );
 
     CookedPrefab {
@@ -182,11 +243,11 @@ pub fn apply_diffs_to_cooked_prefab(
     }
 }
 
-pub fn apply_diffs(
+pub fn apply_diff(
     world: &World,
     uuid_to_entity: &HashMap<EntityUuid, Entity>,
     universe: &Universe,
-    diffs: &[ComponentDiff],
+    diff: &WorldDiff,
 ) -> (World, HashMap<EntityUuid, Entity>) {
     let registered_components = crate::create_component_registry_by_uuid();
 
@@ -208,10 +269,28 @@ pub fn apply_diffs(
         uuid_to_new_entities.insert(*uuid, *new_world_entity);
     }
 
-    for diff in diffs {
-        if let Some(new_prefab_entity) = uuid_to_new_entities.get(diff.entity_uuid()) {
-            if let Some(component_registration) = registered_components.get(diff.component_type()) {
-                match diff.op() {
+    for entity_diff in &diff.entity_diffs {
+        match entity_diff.op() {
+            EntityDiffOp::Add => {
+                let new_entity = new_world.insert((), vec![()]);
+                uuid_to_new_entities.insert(*entity_diff.entity_uuid(), new_entity[0]);
+            }
+            EntityDiffOp::Remove => {
+                if let Some(new_prefab_entity) = uuid_to_new_entities.get(entity_diff.entity_uuid())
+                {
+                    new_world.delete(*new_prefab_entity);
+                    uuid_to_new_entities.remove(entity_diff.entity_uuid());
+                }
+            }
+        }
+    }
+
+    for component_diff in &diff.component_diffs {
+        if let Some(new_prefab_entity) = uuid_to_new_entities.get(component_diff.entity_uuid()) {
+            if let Some(component_registration) =
+                registered_components.get(component_diff.component_type())
+            {
+                match component_diff.op() {
                     ComponentDiffOp::Change(data) => {
                         let acceptor = ApplyDiffDeserializerAcceptor {
                             component_registration: &component_registration,
