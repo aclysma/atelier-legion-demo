@@ -1,5 +1,6 @@
 use ncollide2d::world::CollisionWorld;
 use legion::prelude::*;
+use legion::storage::Component;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use crate::resources::{OpenedPrefabState, EditorStateResource};
@@ -16,6 +17,22 @@ pub trait EditorSelectable: legion::storage::Component {
         opened_prefab: &OpenedPrefabState,
         world: &World,
         entity: Entity,
+    );
+}
+
+/// Any selectable component must implement this trait
+pub trait EditorSelectableTransformed<T>: legion::storage::Component {
+    /// When called, the implementation is expected to place shapes into the collision world
+    fn create_editor_selection_world(
+        &self,
+        collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
+        prefab_world: &World,
+        prefab_entity: Entity,
+        transformed_world: &World,
+        transformed_entity: Entity,
+        transformed_component: &T
     );
 }
 
@@ -72,6 +89,58 @@ where
     }
 }
 
+
+/// Implements the RegisteredEditorSelectableT trait object with code that can call
+/// create_editor_selection_world on T
+#[derive(Default)]
+struct RegisteredEditorSelectableTransformed<T, U> {
+    phantom_data: PhantomData<(T, U)>,
+}
+
+impl<T, U> RegisteredEditorSelectableTransformed<T, U>
+    where
+        T: EditorSelectableTransformed<U>
+{
+    fn new() -> Self {
+        RegisteredEditorSelectableTransformed {
+            phantom_data: Default::default(),
+        }
+    }
+}
+
+impl<T, U> RegisteredEditorSelectableT for RegisteredEditorSelectableTransformed<T, U>
+    where
+        T: EditorSelectableTransformed<U>,
+        U: Component
+{
+    fn create_editor_selection_world(
+        &self,
+        collision_world: &mut CollisionWorld<f32, Entity>,
+        resources: &Resources,
+        opened_prefab: &OpenedPrefabState,
+        world: &World,
+    ) {
+        let query = <Read<U>>::query();
+        for (world_entity, world_component) in query.iter_entities(world) {
+
+            if let Some(prefab_entity) = opened_prefab.world_to_prefab_mappings().get(&world_entity) {
+                if let Some(prefab_component) = opened_prefab.cooked_prefab().world.get_component::<T>(*prefab_entity) {
+                    prefab_component.create_editor_selection_world(
+                        collision_world,
+                        resources,
+                        opened_prefab,
+                        &opened_prefab.cooked_prefab().world,
+                        *prefab_entity,
+                        world,
+                        world_entity,
+                        &*world_component,
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct EditorSelectableRegistry {
     registered: Vec<Box<dyn RegisteredEditorSelectableT>>,
@@ -83,6 +152,11 @@ impl EditorSelectableRegistry {
     pub fn register<T: EditorSelectable>(&mut self) {
         self.registered
             .push(Box::new(RegisteredEditorSelectable::<T>::new()));
+    }
+
+    pub fn register_transformed<T: EditorSelectableTransformed<U>, U: Component>(&mut self) {
+        self.registered
+            .push(Box::new(RegisteredEditorSelectableTransformed::<T, U>::new()));
     }
 
     /// Produces a collision world that includes shapes associated with entities

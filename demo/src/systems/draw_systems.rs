@@ -3,7 +3,7 @@ use legion::prelude::*;
 use skulpin::imgui;
 use skulpin::skia_safe;
 
-use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent};
+use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent};
 use crate::components::DrawSkiaBoxComponent;
 use crate::components::DrawSkiaCircleComponent;
 
@@ -30,11 +30,13 @@ pub fn draw() -> Box<dyn Schedulable> {
             Read<DrawSkiaBoxComponent>,
             TryRead<UniformScale2DComponent>,
             TryRead<NonUniformScale2DComponent>,
+            TryRead<Rotation2DComponent>
         )>::query())
         .with_query(<(
             Read<Position2DComponent>,
             Read<DrawSkiaCircleComponent>,
             TryRead<UniformScale2DComponent>,
+            TryRead<Rotation2DComponent>
         )>::query())
         .build(
             |_,
@@ -75,7 +77,7 @@ pub fn draw() -> Box<dyn Schedulable> {
                     canvas.clear(skia_safe::Color::from_argb(0, 0, 0, 255));
 
                     // Draw all the boxes
-                    for (pos, skia_box, uniform_scale, non_uniform_scale) in
+                    for (pos, skia_box, uniform_scale, non_uniform_scale, rotation) in
                         draw_boxes_query.iter(world)
                     {
                         let mut half_extents = *skia_box.half_extents;
@@ -88,6 +90,17 @@ pub fn draw() -> Box<dyn Schedulable> {
                         }
 
                         let paint = skia_box.paint.0.lock().unwrap();
+
+                        let rotation_in_degrees = if let Some(rotation) = rotation {
+                            rotation.rotation * 180.0 / std::f32::consts::PI
+                        } else {
+                            0.0
+                        };
+
+                        canvas.save();
+                        canvas.rotate(rotation_in_degrees, Some(skia_safe::Point::new(pos.position.x(), pos.position.y())));
+
+
                         canvas.draw_rect(
                             skia_safe::Rect {
                                 left: pos.position.x() - half_extents.x(),
@@ -97,10 +110,12 @@ pub fn draw() -> Box<dyn Schedulable> {
                             },
                             &paint,
                         );
+
+                        canvas.restore();
                     }
 
                     // Draw all the circles
-                    for (pos, skia_circle, uniform_scale) in draw_circles_query.iter(world) {
+                    for (pos, skia_circle, uniform_scale, rotation) in draw_circles_query.iter(world) {
                         let mut scale = 1.0;
                         if let Some(uniform_scale) = uniform_scale {
                             scale *= uniform_scale.uniform_scale;

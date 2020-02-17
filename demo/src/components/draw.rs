@@ -9,7 +9,7 @@ use legion::world::World;
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::shape::ShapeHandle;
-use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent};
+use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent};
 use imgui_inspect_derive;
 use skulpin::imgui;
 use crate::math::Vec2;
@@ -109,11 +109,17 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
                 half_extents *= *non_uniform_scale.non_uniform_scale;
             }
 
+            let mut rotation = 0.0;
+            if let Some(rotation_component) = world.get_component::<Rotation2DComponent>(entity)
+            {
+                rotation = rotation_component.rotation;
+            }
+
             let shape_handle =
                 ShapeHandle::new(Cuboid::new(crate::math::vec2_glam_to_glm(half_extents)));
 
             collision_world.add(
-                ncollide2d::math::Isometry::new(position.position.into(), 0.0),
+                ncollide2d::math::Isometry::new(position.position.into(), rotation),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),

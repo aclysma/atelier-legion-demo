@@ -15,7 +15,7 @@ use ncollide2d::shape::ShapeHandle;
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 
-use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent};
+use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent};
 use ncollide2d::world::CollisionWorld;
 
 //
@@ -77,6 +77,7 @@ fn transform_shape_to_rigid_body(
     physics: &mut PhysicsResource,
     into: &mut std::mem::MaybeUninit<RigidBodyComponent>,
     src_position: Option<&Position2DComponent>,
+    src_rotation: Option<&Rotation2DComponent>,
     shape_handle: ShapeHandle<f32>,
     is_static: bool,
 ) {
@@ -137,11 +138,17 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
         let uniform_scale_components = crate::components::try_iter_components_in_storage::<
             UniformScale2DComponent,
         >(
+            src_component_storage, src_component_storage_indexes.clone()
+        );
+
+        let rotation_components = crate::components::try_iter_components_in_storage::<
+            Rotation2DComponent,
+        >(
             src_component_storage, src_component_storage_indexes
         );
 
-        for (src_position, src_uniform_scale, from, into) in
-            izip!(position_components, uniform_scale_components, from, into)
+        for (src_position, src_uniform_scale, src_rotation, from, into) in
+            izip!(position_components, uniform_scale_components, rotation_components, from, into)
         {
             let mut radius = from.radius;
             if let Some(src_uniform_scale) = src_uniform_scale {
@@ -155,6 +162,7 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
                 &mut physics,
                 into,
                 src_position,
+                src_rotation,
                 shape_handle,
                 from.is_static,
             );
@@ -162,19 +170,23 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
     }
 }
 
-impl crate::selection::EditorSelectable for RigidBodyBallComponentDef {
+
+impl crate::selection::EditorSelectableTransformed<RigidBodyComponent> for RigidBodyBallComponentDef {
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
         resources: &Resources,
         opened_prefab: &OpenedPrefabState,
-        world: &World,
-        entity: Entity,
+        prefab_world: &World,
+        prefab_entity: Entity,
+        transformed_world: &World,
+        transformed_entity: Entity,
+        transformed_component: &RigidBodyComponent,
     ) {
-        if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+        if let Some(position) = prefab_world.get_component::<Position2DComponent>(prefab_entity) {
             let mut radius = self.radius;
 
-            if let Some(uniform_scale) = world.get_component::<UniformScale2DComponent>(entity) {
+            if let Some(uniform_scale) = prefab_world.get_component::<UniformScale2DComponent>(prefab_entity) {
                 radius *= uniform_scale.uniform_scale;
             }
 
@@ -186,11 +198,12 @@ impl crate::selection::EditorSelectable for RigidBodyBallComponentDef {
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),
-                entity,
+                transformed_entity,
             );
         }
     }
 }
+
 
 impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
     fn spawn_from(
@@ -220,13 +233,20 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
         let non_uniform_scale_components = crate::components::try_iter_components_in_storage::<
             NonUniformScale2DComponent,
         >(
+            src_component_storage, src_component_storage_indexes.clone()
+        );
+
+        let rotation_components = crate::components::try_iter_components_in_storage::<
+            Rotation2DComponent,
+        >(
             src_component_storage, src_component_storage_indexes
         );
 
-        for (src_position, src_uniform_scale, src_non_uniform_scale, from, into) in izip!(
+        for (src_position, src_uniform_scale, src_non_uniform_scale, src_rotation, from, into) in izip!(
             position_components,
             uniform_scale_components,
             non_uniform_scale_components,
+            rotation_components,
             from,
             into
         ) {
@@ -247,6 +267,7 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
                 &mut physics,
                 into,
                 src_position,
+                src_rotation,
                 shape_handle,
                 from.is_static,
             );
@@ -255,37 +276,46 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
 }
 
 
-impl crate::selection::EditorSelectable for RigidBodyBoxComponentDef {
+impl crate::selection::EditorSelectableTransformed<RigidBodyComponent> for RigidBodyBoxComponentDef {
     fn create_editor_selection_world(
         &self,
         collision_world: &mut CollisionWorld<f32, Entity>,
         resources: &Resources,
         opened_prefab: &OpenedPrefabState,
-        world: &World,
-        entity: Entity,
+        prefab_world: &World,
+        prefab_entity: Entity,
+        transformed_world: &World,
+        transformed_entity: Entity,
+        transformed_component: &RigidBodyComponent,
     ) {
-        if let Some(position) = world.get_component::<Position2DComponent>(entity) {
+        if let Some(position) = prefab_world.get_component::<Position2DComponent>(prefab_entity) {
             let mut half_extents = *self.half_extents;
 
-            if let Some(uniform_scale) = world.get_component::<UniformScale2DComponent>(entity) {
+            if let Some(uniform_scale) = prefab_world.get_component::<UniformScale2DComponent>(prefab_entity) {
                 half_extents *= uniform_scale.uniform_scale;
             }
 
             if let Some(non_uniform_scale) =
-            world.get_component::<NonUniformScale2DComponent>(entity)
+            prefab_world.get_component::<NonUniformScale2DComponent>(prefab_entity)
             {
                 half_extents *= *non_uniform_scale.non_uniform_scale;
+            }
+
+            let mut rotation = 0.0;
+            if let Some(rotation_component) = prefab_world.get_component::<Rotation2DComponent>(prefab_entity)
+            {
+                rotation = rotation_component.rotation;
             }
 
             let shape_handle =
                 ShapeHandle::new(Cuboid::new(crate::math::vec2_glam_to_glm(half_extents)));
 
             collision_world.add(
-                ncollide2d::math::Isometry::new(position.position.into(), 0.0),
+                ncollide2d::math::Isometry::new(position.position.into(), rotation),
                 shape_handle,
                 CollisionGroups::new(),
                 GeometricQueryType::Proximity(0.001),
-                entity,
+                transformed_entity,
             );
         }
     }

@@ -26,7 +26,7 @@ use prefab_format::{EntityUuid, ComponentTypeUuid};
 use legion_prefab::CookedPrefab;
 use crate::component_diffs::ComponentDiff;
 use std::sync::Arc;
-use crate::components::Position2DComponent;
+use crate::components::{Position2DComponent, Rotation2DComponent};
 use crate::components::UniformScale2DComponent;
 use crate::components::NonUniformScale2DComponent;
 use atelier_core::asset_uuid;
@@ -55,6 +55,10 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
             TryRead<UniformScale2DComponent>,
             TryRead<NonUniformScale2DComponent>,
         )>::query())
+        .with_query(<(
+            Read<Position2DComponent>,
+            Read<Rotation2DComponent>,
+        )>::query())
         .build(
             |command_buffer,
              subworld,
@@ -67,7 +71,7 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                 editor_draw,
                 universe_resource,
             ),
-             (position_query, scale_query)| {
+             (translate_query, scale_query, rotate_query)| {
                 let mut gizmo_tx = None;
                 std::mem::swap(&mut gizmo_tx, editor_state.gizmo_transaction_mut());
 
@@ -76,7 +80,6 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                         .create_transaction_from_selected(&*editor_selection, &*universe_resource);
                 }
 
-                //handle_translate_gizmo_input(&mut *debug_draw, &mut *editor_draw, &mut *editor_state, &mut *editor_selection, subworld);
                 if let Some(mut gizmo_tx) = gizmo_tx {
                     let mut result = GizmoResult::NoChange;
                     result = result.max(handle_translate_gizmo_input(
@@ -84,6 +87,7 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                         &mut gizmo_tx,
                     ));
                     result = result.max(handle_scale_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
+                    result = result.max(handle_rotate_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
 
                     match result {
                         GizmoResult::NoChange => {}
@@ -100,13 +104,12 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                 }
 
                 match editor_state.active_editor_tool() {
-                    //EditorTool::Select => handle_select_tool_input(&*entity_set, &*input_state, &* camera_state, &* editor_collision_world, &mut* editor_selected_components, &mut*debug_draw, &editor_ui_state),
                     EditorTool::Translate => draw_translate_gizmo(
                         &mut *debug_draw,
                         &mut *editor_draw,
                         &mut *editor_selection,
                         subworld,
-                        position_query,
+                        translate_query,
                     ),
                     EditorTool::Scale => draw_scale_gizmo(
                         &mut *debug_draw,
@@ -115,7 +118,13 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                         subworld,
                         scale_query,
                     ),
-                    //EditorTool::Rotate => draw_rotate_gizmo(&*entity_set, &mut* editor_selected_components, &mut*debug_draw, &mut *editor_draw, &* transform_components)
+                    EditorTool::Rotate => draw_rotate_gizmo(
+                        &mut *debug_draw,
+                        &mut *editor_draw,
+                        &mut *editor_selection,
+                        subworld,
+                        rotate_query,
+                    ),
                     _ => {}
                 }
             },
@@ -150,7 +159,6 @@ fn handle_translate_gizmo_input(
 
         // Early out if we didn't touch either axis
         if !translate_x && !translate_y {
-            log::info!("early out");
             return GizmoResult::NoChange;
         }
 
@@ -193,12 +201,12 @@ fn draw_translate_gizmo(
     editor_draw: &mut EditorDrawResource,
     selection_world: &mut EditorSelectionResource,
     subworld: &SubWorld,
-    position_query: &mut legion::systems::SystemQuery<
+    translate_query: &mut legion::systems::SystemQuery<
         Read<Position2DComponent>,
         EntityFilterTuple<ComponentFilter<Position2DComponent>, Passthrough, Passthrough>,
     >,
 ) {
-    for (entity, position) in position_query.iter_entities(subworld) {
+    for (entity, position) in translate_query.iter_entities(subworld) {
         if !selection_world.is_entity_selected(entity) {
             continue;
         }
@@ -407,8 +415,6 @@ fn draw_scale_gizmo(
 
         let position = *position.position;
 
-        //TODO: Make this resolution independent. Need a UI multiplier?
-
         let x_color = glam::Vec4::new(0.0, 1.0, 0.0, 1.0);
         let y_color = glam::Vec4::new(1.0, 0.6, 0.0, 1.0);
         let xy_color = glam::Vec4::new(1.0, 1.0, 0.0, 1.0);
@@ -474,5 +480,98 @@ fn draw_scale_gizmo(
                 xy_color,
             );
         }
+    }
+}
+
+fn handle_rotate_gizmo_input(
+    editor_draw: &mut EditorDrawResource,
+    tx: &mut EditorTransaction,
+) -> GizmoResult {
+    if let Some(drag_in_progress) =
+    editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left)
+    {
+        // See what if any axis we will operate on
+        let mut rotate_z = false;
+        if drag_in_progress.shape_id == "z_axis_rotate" {
+            rotate_z = true;
+        }
+
+        // Early out if we didn't touch either axis
+        if !rotate_z {
+            return GizmoResult::NoChange;
+        }
+
+        //TODO: It might be possible to detect the dragged shape's center, compare it to mouse
+        // position, and track a 1:1 rotation with mouse movement
+
+        // Determine the drag distance in ui_space
+        //TODO: I was intending this to use ui space but the values during drag are not lining up
+        // with values on end drag. This is likely an fp precision issue.
+        let ui_space_previous_frame_delta = sign_aware_magnitude(drag_in_progress.world_space_previous_frame_delta);
+        let ui_space_accumulated_delta = sign_aware_magnitude(drag_in_progress.world_space_accumulated_frame_delta);
+
+        let query = <(Write<Rotation2DComponent>)>::query();
+        for (entity_handle, mut rotation) in query.iter_entities_mut(tx.world_mut()) {
+            rotation.rotation += ui_space_previous_frame_delta
+        }
+
+        if editor_draw.is_shape_drag_just_finished(MouseButton::Left) {
+            GizmoResult::Commit
+        } else {
+            GizmoResult::Update
+        }
+    } else {
+        GizmoResult::NoChange
+    }
+}
+
+fn draw_rotate_gizmo(
+    debug_draw: &mut DebugDrawResource,
+    editor_draw: &mut EditorDrawResource,
+    selection_world: &mut EditorSelectionResource,
+    subworld: &SubWorld,
+    scale_query: &mut legion::systems::SystemQuery<
+        (
+            Read<Position2DComponent>,
+            Read<Rotation2DComponent>,
+        ),
+        EntityFilterTuple<
+            And<(
+                ComponentFilter<Position2DComponent>,
+                ComponentFilter<Rotation2DComponent>,
+            )>,
+            And<(Passthrough, Passthrough)>,
+            And<(Passthrough, Passthrough)>,
+        >,
+    >,
+) {
+    for (entity, (position, rotation)) in
+    scale_query.iter_entities(subworld)
+    {
+        if !selection_world.is_entity_selected(entity) {
+            continue;
+        }
+
+        let position = *position.position;
+
+        let z_axis_color = glam::Vec4::new(0.0, 1.0, 0.0, 1.0);
+
+        //TODO: Make this resolution independent. Need a UI multiplier?
+        let ui_multiplier = 0.01;
+
+        editor_draw.add_circle_outline(
+            "z_axis_rotate",
+            debug_draw,
+            position,
+            50.0 * ui_multiplier,
+            z_axis_color
+        );
+        editor_draw.add_circle_outline(
+            "z_axis_rotate",
+            debug_draw,
+            position,
+            52.0 * ui_multiplier,
+            z_axis_color
+        );
     }
 }

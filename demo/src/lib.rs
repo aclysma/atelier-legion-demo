@@ -43,6 +43,7 @@ mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
 use std::borrow::BorrowMut;
+use nphysics2d::object::RigidBodyDesc;
 
 pub mod daemon;
 
@@ -106,9 +107,10 @@ pub fn create_spawn_clone_impl<'a>(resources: &'a Resources) -> SpawnCloneImpl<'
 
 pub fn create_editor_selection_registry() -> EditorSelectableRegistry {
     let mut registry = EditorSelectableRegistry::default();
-    //TODO: Is it possible for the select handler to get a ref to the Def as well as the instance at the same time?
     registry.register::<DrawSkiaBoxComponent>();
     registry.register::<DrawSkiaCircleComponent>();
+    registry.register_transformed::<RigidBodyBoxComponentDef, RigidBodyComponent>();
+    registry.register_transformed::<RigidBodyBallComponentDef, RigidBodyComponent>();
     registry
 }
 
@@ -119,6 +121,7 @@ pub fn create_editor_inspector_registry() -> EditorInspectRegistry {
     registry.register::<Position2DComponent>();
     registry.register::<UniformScale2DComponent>();
     registry.register::<NonUniformScale2DComponent>();
+    registry.register::<Rotation2DComponent>();
     registry.register::<RigidBodyBallComponentDef>();
     registry.register::<RigidBodyBoxComponentDef>();
     registry
