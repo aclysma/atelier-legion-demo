@@ -3,6 +3,7 @@ use legion::prelude::*;
 use crate::resources::{
     EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource,
     DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransaction,
+    PostCommitSelection,
 };
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
@@ -62,7 +63,10 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
                                         .create_empty_transaction(&*universe_resource)
                                     {
                                         tx.world_mut().insert((), vec![()]);
-                                        tx.commit(&mut *editor_ui_state);
+                                        tx.commit(
+                                            &mut *editor_ui_state,
+                                            PostCommitSelection::SelectAllInTransaction,
+                                        );
                                     }
                                 }
 
@@ -74,7 +78,10 @@ pub fn editor_entity_list_window() -> Box<dyn Schedulable> {
                                         )
                                     {
                                         tx.world_mut().delete_all();
-                                        tx.commit(&mut *editor_ui_state);
+                                        tx.commit(
+                                            &mut *editor_ui_state,
+                                            PostCommitSelection::KeepCurrentSelection,
+                                        );
                                     }
                                 }
 

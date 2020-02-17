@@ -130,6 +130,10 @@ impl TransactionDiffs {
     pub fn revert_diff(&self) -> &WorldDiff {
         &self.revert_diff
     }
+
+    pub fn reverse(&mut self) {
+        std::mem::swap(&mut self.apply_diff, &mut self.revert_diff);
+    }
 }
 
 impl Transaction {
@@ -151,7 +155,7 @@ impl Transaction {
         let mut apply_entity_diffs = vec![];
         let mut revert_entity_diffs = vec![];
 
-        // Entities that existed in the after world (they might no longer be there)
+        // Find the entities that have been deleted
         let mut preexisting_after_entities = HashSet::new();
         let mut removed_entity_uuids = HashSet::new();
         for (entity_uuid, entity_info) in &self.uuid_to_entities {
@@ -171,6 +175,7 @@ impl Transaction {
             }
         }
 
+        // Find the entities that have been added
         for after_entity in self.after_world.iter_entities() {
             if !preexisting_after_entities.contains(&after_entity) {
                 let new_entity_uuid = uuid::Uuid::new_v4();
@@ -185,6 +190,8 @@ impl Transaction {
                     EntityDiffOp::Remove,
                 ));
 
+                // Add new entities now so that the component diffing code will pick the new entity
+                // and capture component data for it
                 self.uuid_to_entities.insert(
                     *new_entity_uuid.as_bytes(),
                     TransactionEntityInfo::new(None, Some(after_entity)),
@@ -193,32 +200,21 @@ impl Transaction {
         }
 
         // We detect which entities are new and old:
-        // - Deleted entities we can skip in the below code since the component delete diffs are
-        // redundant
-        // - New entities we could feed in a dummy old entity value. This will add a bunch of create
-        // component diffs. However this is suboptimal since adding the diffs could require multiple
-        // entity moves between archetypes.
+        // - Deleted entities we could skip in the below code since the component delete diffs are
+        //   redundant, but we need to generate component adds in the undo world diff
+        // - New entities also go through the below code to create component diffs. However this is
+        //   suboptimal since adding the diffs could require multiple entity moves between
+        //   archetypes.
         // - Modified entities can feed into the below code to generate component add/remove/change
         //   diffs. This is still a little suboptimal if multiple components are added, but it's
         //   likely not the common case and something we can try to do something about later
-        //
-        // We could at this point add/remove entities to/from uuid_to_entities
-        //
-        // So create a list of entity delete/create ops, then generate the diffs
-        // When we apply a diff, execute the entity add/remove operations first. Then apply all
-        // diffs
 
         let mut apply_component_diffs = vec![];
         let mut revert_component_diffs = vec![];
 
-        // Iterate the entities in the selection world and prefab world
+        // Iterate the entities in the selection world and prefab world and genereate diffs for
+        // each component type.
         for (entity_uuid, entity_info) in &self.uuid_to_entities {
-            log::trace!(
-                "diffing {:?} {:?}",
-                entity_info.before_entity,
-                entity_info.after_entity
-            );
-
             // Do diffs for each component type
             for (component_type, registration) in registered_components {
                 let mut apply_result = DiffSingleResult::NoChange;
@@ -269,7 +265,7 @@ impl Transaction {
             }
         }
 
-        // We delay removing entities from uuid_to_entities because we still want to generate add
+        // We delayed removing entities from uuid_to_entities because we still want to generate add
         // entries for the undo step
         for removed_entity_uuid in &removed_entity_uuids {
             self.uuid_to_entities.remove(removed_entity_uuid);
@@ -277,9 +273,6 @@ impl Transaction {
 
         let apply_diff = WorldDiff::new(apply_entity_diffs, apply_component_diffs);
         let revert_diff = WorldDiff::new(revert_entity_diffs, revert_component_diffs);
-
-        dbg!(&apply_diff);
-        dbg!(&revert_diff);
 
         TransactionDiffs::new(apply_diff, revert_diff)
     }

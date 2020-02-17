@@ -3,6 +3,7 @@ use legion::prelude::*;
 use crate::resources::{
     EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource,
     DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransaction,
+    PostCommitSelection,
 };
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
@@ -87,11 +88,13 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                     match result {
                         GizmoResult::NoChange => {}
                         GizmoResult::Update => {
-                            gizmo_tx.update(editor_state);
+                            gizmo_tx
+                                .update(editor_state, PostCommitSelection::KeepCurrentSelection);
                             *editor_state.gizmo_transaction_mut() = Some(gizmo_tx);
                         }
                         GizmoResult::Commit => {
-                            gizmo_tx.commit(editor_state);
+                            gizmo_tx
+                                .commit(editor_state, PostCommitSelection::KeepCurrentSelection);
                         }
                     }
                 }

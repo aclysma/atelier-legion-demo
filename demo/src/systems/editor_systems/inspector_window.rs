@@ -3,6 +3,7 @@ use legion::prelude::*;
 use crate::resources::{
     EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource,
     DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransaction,
+    PostCommitSelection,
 };
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
@@ -58,7 +59,6 @@ pub fn editor_inspector_window(
                 .map(|(k, v)| (*v, *k)),
         );
 
-        //let mut transaction_to_commit = None;
         imgui_manager.with_ui(|ui: &mut imgui::Ui| {
             use imgui::im_str;
 
@@ -178,7 +178,10 @@ pub fn editor_inspector_window(
                             );
 
                             if commit_required {
-                                tx.commit(&mut editor_ui_state);
+                                tx.commit(
+                                    &mut editor_ui_state,
+                                    PostCommitSelection::KeepCurrentSelection,
+                                );
                             }
                         }
                     });

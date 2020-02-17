@@ -17,6 +17,15 @@ use crate::clone_merge::CopyCloneImpl;
 use crate::transactions::{TransactionBuilder, TransactionDiffs, TransactionEntityInfo, Transaction};
 use skulpin::imgui::ImString;
 
+#[derive(Clone, Copy)]
+pub enum PostCommitSelection {
+    /// At the end of the transaction, do not change what entities are selected
+    KeepCurrentSelection,
+
+    /// At the end of the transaction, select all the entities that were included in the transaction
+    SelectAllInTransaction,
+}
+
 /// Operations that can be performed in the editor. These get queued up to be executed later at a
 /// single place in the frame in FIFO order
 enum EditorOp {
@@ -150,6 +159,9 @@ struct TransactionDiffsPendingApply {
 
     /// If true, an undo step will be recorded
     commit_changes: bool,
+
+    /// How to handle selection after the transaction commits
+    post_commit_selection: PostCommitSelection,
 }
 
 /// Contains the data required to identify the current transaction by ID and commit or cancel the
@@ -665,11 +677,13 @@ impl EditorStateResource {
         &mut self,
         diffs: TransactionDiffs,
         commit_changes: bool,
+        post_commit_selection: PostCommitSelection,
     ) {
         if diffs.apply_diff().has_changes() {
             self.diffs_pending_apply.push(TransactionDiffsPendingApply {
                 diffs,
                 commit_changes,
+                post_commit_selection,
             });
         }
     }
@@ -702,7 +716,12 @@ impl EditorStateResource {
         // Apply the diffs to the world state
         for queued_diff in diffs_pending_apply {
             // Apply the diff to world state
-            Self::apply_diff(world, resources, &queued_diff.diffs.apply_diff());
+            Self::apply_diff(
+                world,
+                resources,
+                &queued_diff.diffs.apply_diff(),
+                queued_diff.post_commit_selection,
+            );
 
             // If commit is flagged, add an undo step will be added
             if queued_diff.commit_changes {
@@ -762,7 +781,12 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diff(world, resources, &diffs.revert_diff());
+            Self::apply_diff(
+                world,
+                resources,
+                &diffs.revert_diff(),
+                PostCommitSelection::SelectAllInTransaction,
+            );
         }
     }
 
@@ -793,7 +817,12 @@ impl EditorStateResource {
         };
 
         if let Some(diffs) = diffs {
-            Self::apply_diff(world, resources, &diffs.apply_diff());
+            Self::apply_diff(
+                world,
+                resources,
+                &diffs.apply_diff(),
+                PostCommitSelection::SelectAllInTransaction,
+            );
         }
     }
 
@@ -801,6 +830,7 @@ impl EditorStateResource {
         world: &mut World,
         resources: &Resources,
         diffs: &WorldDiff,
+        post_commit_selection: PostCommitSelection,
     ) {
         let selected_uuids = {
             let mut selection_resource = resources.get_mut::<EditorSelectionResource>().unwrap();
@@ -860,9 +890,33 @@ impl EditorStateResource {
         // Spawn everything
         Self::reset(world, resources);
 
-        let mut selection_resource = resources.get_mut::<EditorSelectionResource>().unwrap();
-        let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
-        editor_state.restore_selected_uuids(&mut *selection_resource, world, &selected_uuids);
+        match post_commit_selection {
+            PostCommitSelection::SelectAllInTransaction => {
+                let mut entity_uuids = HashSet::new();
+                for d in diffs.entity_diffs() {
+                    entity_uuids.insert(*d.entity_uuid());
+                }
+
+                for d in diffs.component_diffs() {
+                    entity_uuids.insert(*d.entity_uuid());
+                }
+
+                let mut selection_resource =
+                    resources.get_mut::<EditorSelectionResource>().unwrap();
+                let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+                editor_state.restore_selected_uuids(&mut *selection_resource, world, &entity_uuids);
+            }
+            PostCommitSelection::KeepCurrentSelection => {
+                let mut selection_resource =
+                    resources.get_mut::<EditorSelectionResource>().unwrap();
+                let mut editor_state = resources.get_mut::<EditorStateResource>().unwrap();
+                editor_state.restore_selected_uuids(
+                    &mut *selection_resource,
+                    world,
+                    &selected_uuids,
+                );
+            }
+        }
     }
 
     fn save(&mut self) {
@@ -964,6 +1018,9 @@ impl EditorStateResource {
 #[derive(Clone, Copy, PartialEq)]
 pub struct EditorTransactionId(uuid::Uuid);
 
+/// Wraps a transaction with an ID so that if downstream code interleaves multiple transactions,
+/// we can detect this and commit the currently in-progress transaction. This lets us generate
+/// undo/redo steps.
 pub struct EditorTransaction {
     id: EditorTransactionId,
     transaction: crate::transactions::Transaction,
@@ -989,27 +1046,57 @@ impl EditorTransaction {
         self.transaction.world_mut()
     }
 
+    /// Writes data to the world without an undo step. The transaction can be cancelled to return
+    /// the world to the state when the transaction began.
     pub fn update(
         &mut self,
         editor_state: &mut EditorStateResource,
+        post_commit_selection: PostCommitSelection,
     ) {
         log::info!("update transaction");
-        self.do_update(editor_state, false);
+        self.do_update(
+            editor_state,
+            false,
+            PostCommitSelection::KeepCurrentSelection,
+        );
     }
 
+    /// Commits the transaction, writing an undo step
     pub fn commit(
         mut self,
         editor_state: &mut EditorStateResource,
+        post_commit_selection: PostCommitSelection,
     ) {
         log::info!("commit transaction");
-        self.do_update(editor_state, true);
+        self.do_update(editor_state, true, post_commit_selection);
     }
 
-    pub fn do_update(
+    /// Reverts the changes that were made in this transaction without writing undo information
+    pub fn cancel(
+        &mut self,
+        editor_state: &mut EditorStateResource,
+    ) {
+        log::info!("cancel transaction");
+
+        // Create diffs for this transaction
+        let mut diffs = self
+            .transaction
+            .create_transaction_diffs(&*editor_state.component_registry_by_uuid);
+
+        // Reverse the apply/revert step, this ensures we do the revert instead of the apply
+        diffs.reverse();
+
+        // Apply the diffs, this is not a commit since we don't want this in the undo queue
+        editor_state.enqueue_diffs(diffs, false, PostCommitSelection::KeepCurrentSelection);
+    }
+
+    fn do_update(
         &mut self,
         editor_state: &mut EditorStateResource,
         commit_changes: bool,
+        post_commit_selection: PostCommitSelection,
     ) {
+        // If there is another transaction in progress, commit the old one.
         let commit_current_tx = match &editor_state.current_transaction_info {
             Some(info) => info.id != self.id,
             None => false,
@@ -1022,30 +1109,31 @@ impl EditorTransaction {
                 &mut current_transaction_info,
                 &mut editor_state.current_transaction_info,
             );
-            editor_state.enqueue_diffs(current_transaction_info.unwrap().diffs, true);
+            editor_state.enqueue_diffs(
+                current_transaction_info.unwrap().diffs,
+                true,
+                post_commit_selection,
+            );
         }
 
+        // Create diffs for this transaction
         let diffs = self
             .transaction
             .create_transaction_diffs(&*editor_state.component_registry_by_uuid);
-        if !commit_changes {
+
+        // Update the current transaction info on the editor state. This is necessary book-keeping
+        // to handle multiple transactions.
+        if commit_changes {
+            editor_state.current_transaction_info = None;
+        } else {
             log::info!("saving transaction for future commit");
             editor_state.current_transaction_info = Some(CurrentTransactionInfo {
                 id: self.id,
                 diffs: diffs.clone(),
             });
-        } else {
-            editor_state.current_transaction_info = None;
         }
 
-        editor_state.enqueue_diffs(diffs, commit_changes);
-    }
-
-    pub fn cancel(
-        &mut self,
-        editor_state: &mut EditorStateResource,
-    ) {
-        log::info!("cancel transaction");
-        unimplemented!();
+        // Apply the diffs, if commit_changes is true, an undo step will be added
+        editor_state.enqueue_diffs(diffs, commit_changes, post_commit_selection);
     }
 }
