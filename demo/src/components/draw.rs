@@ -9,7 +9,9 @@ use legion::world::World;
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::shape::ShapeHandle;
-use crate::components::{Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent};
+use crate::components::{
+    Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent,
+};
 use imgui_inspect_derive;
 use skulpin::imgui;
 use crate::math::Vec2;
@@ -110,8 +112,7 @@ impl crate::selection::EditorSelectable for DrawSkiaBoxComponent {
             }
 
             let mut rotation = 0.0;
-            if let Some(rotation_component) = world.get_component::<Rotation2DComponent>(entity)
-            {
+            if let Some(rotation_component) = world.get_component::<Rotation2DComponent>(entity) {
                 rotation = rotation_component.rotation;
             }
 

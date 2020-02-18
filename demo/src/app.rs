@@ -191,9 +191,11 @@ impl App {
             if !input_captured {
                 let mut input_state = resources.get_mut::<InputResource>().unwrap();
                 let mut app_control = resources.get_mut::<AppControlResource>().unwrap();
-                input_state
-                    .input_state
-                    .handle_winit_event(&mut app_control, &event, window_target);
+                input_state.input_state_mut().handle_winit_event(
+                    &mut app_control,
+                    &event,
+                    window_target,
+                );
             }
 
             // Handle general update/redraw events

@@ -2,7 +2,7 @@ use legion::prelude::*;
 
 use crate::resources::{
     EditorStateResource, InputResource, TimeResource, EditorSelectionResource, ViewportResource,
-    DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransaction,
+    DebugDrawResource, UniverseResource, EditorDrawResource, EditorTransaction, CameraResource,
 };
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
@@ -18,7 +18,7 @@ use ncollide2d::world::CollisionWorld;
 
 use imgui_inspect_derive::Inspect;
 
-use crate::math::winit_position_to_glm;
+use crate::math::winit_position_to_glam;
 use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
@@ -131,6 +131,23 @@ pub fn editor_keybinds() -> Box<dyn Schedulable> {
         )
 }
 
+pub fn editor_mouse_input() -> Box<dyn Schedulable> {
+    SystemBuilder::new("editor_input")
+        .read_resource::<InputResource>()
+        .write_resource::<CameraResource>()
+        .read_resource::<ViewportResource>()
+        .build(
+            |command_buffer, subworld, (input_state, camera_resource, viewport_resource), _| {
+                // Right click drag pans the viewport
+                if let Some(mouse_drag) = input_state.mouse_drag_in_progress(MouseButton::Right) {
+                    let mut delta = mouse_drag.world_scale_previous_frame_delta;
+                    delta *= glam::Vec2::new(-1.0, -1.0);
+                    camera_resource.position += delta;
+                }
+            },
+        )
+}
+
 pub fn editor_update_editor_draw() -> Box<dyn Schedulable> {
     SystemBuilder::new("editor_input")
         .write_resource::<EditorStateResource>()
@@ -154,7 +171,7 @@ pub fn editor_update_editor_draw() -> Box<dyn Schedulable> {
                 universe_resource,
             ),
              (position_query)| {
-                editor_draw.update(&*input_state, &*viewport);
+                editor_draw.update(input_state.input_state(), &*viewport);
             },
         )
 }

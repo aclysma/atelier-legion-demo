@@ -32,7 +32,7 @@ pub trait EditorSelectableTransformed<T>: legion::storage::Component {
         prefab_entity: Entity,
         transformed_world: &World,
         transformed_entity: Entity,
-        transformed_component: &T
+        transformed_component: &T,
     );
 }
 
@@ -89,7 +89,6 @@ where
     }
 }
 
-
 /// Implements the RegisteredEditorSelectableT trait object with code that can call
 /// create_editor_selection_world on T
 #[derive(Default)]
@@ -98,8 +97,8 @@ struct RegisteredEditorSelectableTransformed<T, U> {
 }
 
 impl<T, U> RegisteredEditorSelectableTransformed<T, U>
-    where
-        T: EditorSelectableTransformed<U>
+where
+    T: EditorSelectableTransformed<U>,
 {
     fn new() -> Self {
         RegisteredEditorSelectableTransformed {
@@ -109,9 +108,9 @@ impl<T, U> RegisteredEditorSelectableTransformed<T, U>
 }
 
 impl<T, U> RegisteredEditorSelectableT for RegisteredEditorSelectableTransformed<T, U>
-    where
-        T: EditorSelectableTransformed<U>,
-        U: Component
+where
+    T: EditorSelectableTransformed<U>,
+    U: Component,
 {
     fn create_editor_selection_world(
         &self,
@@ -122,9 +121,13 @@ impl<T, U> RegisteredEditorSelectableT for RegisteredEditorSelectableTransformed
     ) {
         let query = <Read<U>>::query();
         for (world_entity, world_component) in query.iter_entities(world) {
-
-            if let Some(prefab_entity) = opened_prefab.world_to_prefab_mappings().get(&world_entity) {
-                if let Some(prefab_component) = opened_prefab.cooked_prefab().world.get_component::<T>(*prefab_entity) {
+            if let Some(prefab_entity) = opened_prefab.world_to_prefab_mappings().get(&world_entity)
+            {
+                if let Some(prefab_component) = opened_prefab
+                    .cooked_prefab()
+                    .world
+                    .get_component::<T>(*prefab_entity)
+                {
                     prefab_component.create_editor_selection_world(
                         collision_world,
                         resources,
@@ -155,8 +158,9 @@ impl EditorSelectableRegistry {
     }
 
     pub fn register_transformed<T: EditorSelectableTransformed<U>, U: Component>(&mut self) {
-        self.registered
-            .push(Box::new(RegisteredEditorSelectableTransformed::<T, U>::new()));
+        self.registered.push(Box::new(
+            RegisteredEditorSelectableTransformed::<T, U>::new(),
+        ));
     }
 
     /// Produces a collision world that includes shapes associated with entities

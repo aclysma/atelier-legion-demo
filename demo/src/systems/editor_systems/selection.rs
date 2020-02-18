@@ -18,7 +18,7 @@ use ncollide2d::world::CollisionWorld;
 
 use imgui_inspect_derive::Inspect;
 
-use crate::math::winit_position_to_glm;
+use crate::math::winit_position_to_glam;
 use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
@@ -50,7 +50,6 @@ fn handle_selection(
         //
 
         // Determine where in world space to do the raycast
-        let position = winit_position_to_glm(position);
         let world_space = ncollide2d::math::Point::from(crate::math::vec2_glam_to_glm(
             viewport.ui_space_to_world_space(position),
         ));
@@ -73,10 +72,10 @@ fn handle_selection(
 
         // Determine where in world space to do the intersection test
         let target_position0: glam::Vec2 = viewport
-            .ui_space_to_world_space(winit_position_to_glm(drag_complete.begin_position))
+            .ui_space_to_world_space(drag_complete.begin_position)
             .into();
         let target_position1: glam::Vec2 = viewport
-            .ui_space_to_world_space(winit_position_to_glm(drag_complete.end_position))
+            .ui_space_to_world_space(drag_complete.end_position)
             .into();
 
         // Find the top-left corner
@@ -110,8 +109,8 @@ fn handle_selection(
         // User is dragging a box around entities. Just draw the box.
         //
         debug_draw.add_rect(
-            viewport.ui_space_to_world_space(winit_position_to_glm(drag_in_progress.begin_position)),
-            viewport.ui_space_to_world_space(winit_position_to_glm(drag_in_progress.end_position)),
+            viewport.ui_space_to_world_space(drag_in_progress.begin_position),
+            viewport.ui_space_to_world_space(drag_in_progress.end_position),
             glam::vec4(1.0, 1.0, 0.0, 1.0),
         );
     }

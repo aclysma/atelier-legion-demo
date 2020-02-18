@@ -19,7 +19,7 @@ use ncollide2d::world::CollisionWorld;
 
 use imgui_inspect_derive::Inspect;
 
-use crate::math::winit_position_to_glm;
+use crate::math::winit_position_to_glam;
 use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
@@ -55,10 +55,7 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
             TryRead<UniformScale2DComponent>,
             TryRead<NonUniformScale2DComponent>,
         )>::query())
-        .with_query(<(
-            Read<Position2DComponent>,
-            Read<Rotation2DComponent>,
-        )>::query())
+        .with_query(<(Read<Position2DComponent>, Read<Rotation2DComponent>)>::query())
         .build(
             |command_buffer,
              subworld,
@@ -87,7 +84,8 @@ pub fn editor_gizmos() -> Box<dyn Schedulable> {
                         &mut gizmo_tx,
                     ));
                     result = result.max(handle_scale_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
-                    result = result.max(handle_rotate_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
+                    result =
+                        result.max(handle_rotate_gizmo_input(&mut *editor_draw, &mut gizmo_tx));
 
                     match result {
                         GizmoResult::NoChange => {}
@@ -479,7 +477,7 @@ fn handle_rotate_gizmo_input(
     tx: &mut EditorTransaction,
 ) -> GizmoResult {
     if let Some(drag_in_progress) =
-    editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left)
+        editor_draw.shape_drag_in_progress_or_just_finished(MouseButton::Left)
     {
         // See what if any axis we will operate on
         let mut rotate_z = false;
@@ -498,7 +496,8 @@ fn handle_rotate_gizmo_input(
         // Determine the drag distance in ui_space
         //TODO: I was intending this to use ui space but the values during drag are not lining up
         // with values on end drag. This is likely an fp precision issue.
-        let ui_space_previous_frame_delta = sign_aware_magnitude(drag_in_progress.world_space_previous_frame_delta);
+        let ui_space_previous_frame_delta =
+            sign_aware_magnitude(drag_in_progress.world_space_previous_frame_delta);
 
         let query = <(Write<Rotation2DComponent>)>::query();
         for (entity_handle, mut rotation) in query.iter_entities_mut(tx.world_mut()) {
@@ -521,10 +520,7 @@ fn draw_rotate_gizmo(
     selection_world: &mut EditorSelectionResource,
     subworld: &SubWorld,
     scale_query: &mut legion::systems::SystemQuery<
-        (
-            Read<Position2DComponent>,
-            Read<Rotation2DComponent>,
-        ),
+        (Read<Position2DComponent>, Read<Rotation2DComponent>),
         EntityFilterTuple<
             And<(
                 ComponentFilter<Position2DComponent>,
@@ -535,9 +531,7 @@ fn draw_rotate_gizmo(
         >,
     >,
 ) {
-    for (entity, (position, rotation)) in
-    scale_query.iter_entities(subworld)
-    {
+    for (entity, (position, rotation)) in scale_query.iter_entities(subworld) {
         if !selection_world.is_entity_selected(entity) {
             continue;
         }
@@ -554,14 +548,14 @@ fn draw_rotate_gizmo(
             debug_draw,
             position,
             50.0 * ui_multiplier,
-            z_axis_color
+            z_axis_color,
         );
         editor_draw.add_circle_outline(
             "z_axis_rotate",
             debug_draw,
             position,
             52.0 * ui_multiplier,
-            z_axis_color
+            z_axis_color,
         );
     }
 }

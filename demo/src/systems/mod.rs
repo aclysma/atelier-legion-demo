@@ -18,11 +18,13 @@ mod time_systems;
 pub use time_systems::advance_time;
 
 mod input_systems;
+pub use input_systems::update_input_resource;
 pub use input_systems::input_reset_for_next_frame;
 
 mod editor_systems;
 pub use editor_systems::editor_imgui_menu;
 pub use editor_systems::editor_keybinds;
+pub use editor_systems::editor_mouse_input;
 pub use editor_systems::editor_update_editor_draw;
 pub use editor_systems::editor_gizmos;
 pub use editor_systems::editor_handle_selection;
@@ -130,6 +132,7 @@ impl<'a> ScheduleBuilder<'a> {
 
 pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
     ScheduleBuilder::new(criteria)
+        .always(update_input_resource)
         .always(advance_time)
         .always(quit_if_escape_pressed)
         .always(update_asset_manager)
@@ -142,6 +145,7 @@ pub fn create_update_schedule(criteria: &ScheduleCriteria) -> Schedule {
         // Editor input
         .always_thread_local(reload_editor_state_if_file_changed)
         .always(editor_keybinds)
+        .always(editor_mouse_input)
         .always(editor_update_editor_draw)
         .always(editor_gizmos)
         .always(editor_handle_selection)
