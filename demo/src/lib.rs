@@ -56,13 +56,6 @@ pub mod app;
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 pub const GRAVITY: f32 = -9.81;
 
-pub mod util {
-    //TODO: Rename winit_to_glam
-    pub fn to_glm(position: skulpin::PhysicalPosition<f64>) -> glam::Vec2 {
-        glam::Vec2::new(position.x as f32, position.y as f32)
-    }
-}
-
 /// Create the asset manager that has all the required types registered
 pub fn create_asset_manager() -> AssetResource {
     let mut asset_manager = AssetResource::default();

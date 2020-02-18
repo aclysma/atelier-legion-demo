@@ -18,7 +18,7 @@ use ncollide2d::world::CollisionWorld;
 
 use imgui_inspect_derive::Inspect;
 
-use crate::util::to_glm;
+use crate::math::winit_position_to_glm;
 use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};

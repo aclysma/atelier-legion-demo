@@ -2,7 +2,7 @@ use crate::resources::{DebugDrawResource, ViewportResource};
 use crate::resources::InputResource;
 use skulpin::{InputState, LogicalPosition};
 use skulpin::MouseButton;
-use crate::util::to_glm;
+use crate::math::winit_position_to_glm;
 
 fn distance_to_segment_sq(
     test_point: glam::Vec2,
@@ -254,7 +254,7 @@ impl EditorDrawResource {
 
         // Get mouse UI-space position
         let mouse_position = input_state.mouse_position();
-        let closest_shape = self.get_closest_shape(to_glm(mouse_position), viewport);
+        let closest_shape = self.get_closest_shape(winit_position_to_glm(mouse_position), viewport);
 
         if let Some(closest_shape) = closest_shape {
             self.closest_shape_to_mouse.id = self.shapes[closest_shape.index].id.clone();
@@ -273,7 +273,7 @@ impl EditorDrawResource {
             // See if mouse button went down and is over a shape. Check this first because we may need to know this in the next block
             // that handles click/drag detection.
             if let Some(down_position) = input_state.mouse_button_went_down_position(mouse_button) {
-                let down_position = to_glm(down_position);
+                let down_position = winit_position_to_glm(down_position);
                 if let Some(closest_shape) = self.get_closest_shape(down_position, viewport) {
                     if closest_shape.distance_sq < MAX_MOUSE_INTERACT_DISTANCE_FROM_SHAPE_SQ {
                         self.mouse_is_down_on_shape[mouse_button_index] =
@@ -300,18 +300,18 @@ impl EditorDrawResource {
                     self.shape_last_interacted = current_drag_in_progress.shape_id.clone();
 
                     let world_space_end_position = viewport
-                        .ui_space_to_world_space(to_glm(input_state_drag_in_progress.end_position));
+                        .ui_space_to_world_space(winit_position_to_glm(input_state_drag_in_progress.end_position));
                     let delta = world_space_end_position
                         - (current_drag_in_progress.world_space_begin_position
                             + current_drag_in_progress.world_space_accumulated_frame_delta);
 
                     self.shape_drag_in_progress[mouse_button_index] = Some(EditorShapeDragState {
-                        begin_position: to_glm(input_state_drag_in_progress.begin_position),
-                        end_position: to_glm(input_state_drag_in_progress.end_position),
-                        previous_frame_delta: to_glm(
+                        begin_position: winit_position_to_glm(input_state_drag_in_progress.begin_position),
+                        end_position: winit_position_to_glm(input_state_drag_in_progress.end_position),
+                        previous_frame_delta: winit_position_to_glm(
                             input_state_drag_in_progress.previous_frame_delta,
                         ),
-                        accumulated_frame_delta: to_glm(
+                        accumulated_frame_delta: winit_position_to_glm(
                             input_state_drag_in_progress.accumulated_frame_delta,
                         ),
                         world_space_begin_position: current_drag_in_progress
@@ -328,7 +328,7 @@ impl EditorDrawResource {
                 {
                     // update mouse drag
 
-                    let world_space_end_position = viewport.ui_space_to_world_space(to_glm(
+                    let world_space_end_position = viewport.ui_space_to_world_space(winit_position_to_glm(
                         input_state_drag_just_finished.end_position,
                     ));
                     let delta = world_space_end_position
@@ -338,12 +338,12 @@ impl EditorDrawResource {
                     self.shape_last_interacted = current_drag_in_progress.shape_id.clone();
                     self.shape_drag_just_finished[mouse_button_index] =
                         Some(EditorShapeDragState {
-                            begin_position: to_glm(input_state_drag_just_finished.begin_position),
-                            end_position: to_glm(input_state_drag_just_finished.end_position),
-                            previous_frame_delta: to_glm(
+                            begin_position: winit_position_to_glm(input_state_drag_just_finished.begin_position),
+                            end_position: winit_position_to_glm(input_state_drag_just_finished.end_position),
+                            previous_frame_delta: winit_position_to_glm(
                                 input_state_drag_just_finished.previous_frame_delta,
                             ),
-                            accumulated_frame_delta: to_glm(
+                            accumulated_frame_delta: winit_position_to_glm(
                                 input_state_drag_just_finished.accumulated_frame_delta,
                             ),
                             world_space_begin_position: current_drag_in_progress
@@ -378,7 +378,7 @@ impl EditorDrawResource {
                             &self.mouse_is_down_on_shape[mouse_button_index]
                         {
                             if let Some(closest_shape) = self.get_closest_shape(
-                                to_glm(mouse_drag_in_progress.begin_position),
+                                winit_position_to_glm(mouse_drag_in_progress.begin_position),
                                 viewport,
                             ) {
                                 let shape = &self.shapes[closest_shape.index];
@@ -387,11 +387,11 @@ impl EditorDrawResource {
                                     && down_on_shape.shape_id == shape.id
                                 {
                                     let world_space_begin_position = viewport
-                                        .ui_space_to_world_space(to_glm(
+                                        .ui_space_to_world_space(winit_position_to_glm(
                                             mouse_drag_in_progress.begin_position,
                                         ));
                                     let world_space_end_position = viewport
-                                        .ui_space_to_world_space(to_glm(
+                                        .ui_space_to_world_space(winit_position_to_glm(
                                             mouse_drag_in_progress.end_position,
                                         ));
                                     let world_space_previous_frame_delta =
@@ -401,16 +401,16 @@ impl EditorDrawResource {
                                         self.closest_shape_to_mouse.id.clone();
                                     self.shape_drag_in_progress[mouse_button_index] =
                                         Some(EditorShapeDragState {
-                                            begin_position: to_glm(
+                                            begin_position: winit_position_to_glm(
                                                 mouse_drag_in_progress.begin_position,
                                             ),
-                                            end_position: to_glm(
+                                            end_position: winit_position_to_glm(
                                                 mouse_drag_in_progress.end_position,
                                             ),
-                                            previous_frame_delta: to_glm(
+                                            previous_frame_delta: winit_position_to_glm(
                                                 mouse_drag_in_progress.previous_frame_delta,
                                             ),
-                                            accumulated_frame_delta: to_glm(
+                                            accumulated_frame_delta: winit_position_to_glm(
                                                 mouse_drag_in_progress.accumulated_frame_delta,
                                             ),
                                             world_space_begin_position,
@@ -426,7 +426,7 @@ impl EditorDrawResource {
                     } else if let Some(just_clicked_position) =
                         input_state.mouse_button_just_clicked_position(mouse_button)
                     {
-                        let just_clicked_position = to_glm(just_clicked_position);
+                        let just_clicked_position = winit_position_to_glm(just_clicked_position);
                         // check if we clicked a shape
                         if let Some(down_on_shape) =
                             &self.mouse_is_down_on_shape[mouse_button_index]

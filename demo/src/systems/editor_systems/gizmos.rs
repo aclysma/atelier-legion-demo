@@ -19,7 +19,7 @@ use ncollide2d::world::CollisionWorld;
 
 use imgui_inspect_derive::Inspect;
 
-use crate::util::to_glm;
+use crate::math::winit_position_to_glm;
 use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
@@ -165,17 +165,13 @@ fn handle_translate_gizmo_input(
         // Determine the drag distance in ui_space
         let mut world_space_previous_frame_delta =
             drag_in_progress.world_space_previous_frame_delta;
-        let mut world_space_accumulated_delta =
-            drag_in_progress.world_space_accumulated_frame_delta;
 
         if !translate_x {
             world_space_previous_frame_delta.set_x(0.0);
-            world_space_accumulated_delta.set_x(0.0);
         }
 
         if !translate_y {
             world_space_previous_frame_delta.set_y(0.0);
-            world_space_accumulated_delta.set_y(0.0);
         }
 
         let query = <(Write<Position2DComponent>)>::query();
@@ -340,24 +336,19 @@ fn handle_scale_gizmo_input(
         //TODO: I was intending this to use ui space but the values during drag are not lining up
         // with values on end drag. This is likely an fp precision issue.
         let mut ui_space_previous_frame_delta = drag_in_progress.world_space_previous_frame_delta;
-        let mut ui_space_accumulated_delta = drag_in_progress.world_space_accumulated_frame_delta;
 
         if !scale_x && !scale_uniform {
             ui_space_previous_frame_delta.set_x(0.0);
-            ui_space_accumulated_delta.set_x(0.0);
         }
 
         if !scale_y && !scale_uniform {
             ui_space_previous_frame_delta.set_y(0.0);
-            ui_space_accumulated_delta.set_y(0.0);
         }
 
         if scale_uniform {
             ui_space_previous_frame_delta
                 .set_x(sign_aware_magnitude(ui_space_previous_frame_delta));
             ui_space_previous_frame_delta.set_y(ui_space_previous_frame_delta.x());
-            ui_space_accumulated_delta.set_x(sign_aware_magnitude(ui_space_accumulated_delta));
-            ui_space_accumulated_delta.set_y(ui_space_accumulated_delta.x());
         }
 
         if scale_uniform {
@@ -508,7 +499,6 @@ fn handle_rotate_gizmo_input(
         //TODO: I was intending this to use ui space but the values during drag are not lining up
         // with values on end drag. This is likely an fp precision issue.
         let ui_space_previous_frame_delta = sign_aware_magnitude(drag_in_progress.world_space_previous_frame_delta);
-        let ui_space_accumulated_delta = sign_aware_magnitude(drag_in_progress.world_space_accumulated_frame_delta);
 
         let query = <(Write<Rotation2DComponent>)>::query();
         for (entity_handle, mut rotation) in query.iter_entities_mut(tx.world_mut()) {

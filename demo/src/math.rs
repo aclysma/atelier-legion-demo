@@ -28,6 +28,10 @@ pub fn vec4_glm_to_glam(value: glm::Vec4) -> glam::Vec4 {
     glam::Vec4::new(value.x, value.y, value.z, value.w)
 }
 
+pub fn winit_position_to_glm(position: skulpin::PhysicalPosition<f64>) -> glam::Vec2 {
+    glam::Vec2::new(position.x as f32, position.y as f32)
+}
+
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
 #[repr(transparent)]
 #[serde(transparent)]
