@@ -75,6 +75,7 @@ fn calculate_world_space_matrix(
 }
 
 pub struct ViewportResource {
+    view_half_extents: glam::Vec2,
     ui_space_matrix: glam::Mat4,
     screen_space_matrix: glam::Mat4,
     screen_space_dimensions: glam::Vec2,
@@ -89,6 +90,7 @@ pub struct ViewportResource {
 impl ViewportResource {
     fn empty() -> Self {
         ViewportResource {
+            view_half_extents: glam::Vec2::zero(),
             ui_space_matrix: glam::Mat4::zero(),
             screen_space_matrix: glam::Mat4::zero(),
             screen_space_dimensions: glam::Vec2::zero(),
@@ -100,10 +102,10 @@ impl ViewportResource {
     pub fn new(
         window_size: PhysicalSize<u32>,
         camera_position: glam::Vec2,
-        view_half_extents: glam::Vec2,
+        x_half_extents: f32,
     ) -> Self {
         let mut value = Self::empty();
-        value.update(window_size, camera_position, view_half_extents);
+        value.update(window_size, camera_position, x_half_extents);
         value
     }
 
@@ -111,20 +113,28 @@ impl ViewportResource {
         &mut self,
         window_size: PhysicalSize<u32>,
         camera_position: glam::Vec2,
-        view_half_extents: glam::Vec2,
+        x_half_extents: f32,
     ) {
+        let y_half_extents =
+            x_half_extents / (window_size.width as f32 / window_size.height as f32);
+
+        self.view_half_extents = glam::Vec2::new(x_half_extents, y_half_extents);
+
         let camera_position = glam::Vec3::new(camera_position.x(), camera_position.y(), 0.0);
         self.set_ui_space_view(calculate_ui_space_matrix(window_size));
         self.set_screen_space_view(
-            calculate_screen_space_matrix(window_size, view_half_extents),
-            view_half_extents,
+            calculate_screen_space_matrix(window_size, self.view_half_extents),
+            self.view_half_extents,
         );
         self.set_world_space_view(
             camera_position,
-            calculate_world_space_matrix(window_size, camera_position, view_half_extents),
+            calculate_world_space_matrix(window_size, camera_position, self.view_half_extents),
         );
     }
 
+    pub fn view_half_extents(&self) -> glam::Vec2 {
+        self.view_half_extents
+    }
     pub fn ui_space_matrix(&self) -> &glam::Mat4 {
         &self.ui_space_matrix
     }

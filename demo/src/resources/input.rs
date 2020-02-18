@@ -4,6 +4,7 @@ use crate::resources::ViewportResource;
 use crate::math::winit_position_to_glam;
 use skulpin::VirtualKeyCode;
 use skulpin::MouseButton;
+use skulpin::MouseScrollDelta;
 
 // Keep track of a drag state so that we can track world space movement on drag. There are some
 // floating point precision issues and it's better to deal with it once here than everywhere
@@ -76,6 +77,11 @@ impl InputResource {
     /// Get the current mouse position
     pub fn mouse_position(&self) -> glam::Vec2 {
         winit_position_to_glam(self.input_state.mouse_position())
+    }
+
+    /// Get the scroll delta from the current frame
+    pub fn mouse_wheel_delta(&self) -> MouseScrollDelta {
+        self.input_state.mouse_wheel_delta()
     }
 
     /// Returns true if the given button is down

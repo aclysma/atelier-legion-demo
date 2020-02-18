@@ -2623,7 +2623,7 @@ dependencies = [
 [[package]]
 name = "skulpin"
 version = "0.6.0"
-source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support_winit_21#828274a2d3d1e55b2fc27404f0a157d23966525b"
+source = "git+https://github.com/aclysma/skulpin.git?branch=imgui_support_winit_21#c1de29b4cece3f4a51d1ee68541ae6c1c7eed190"
 dependencies = [
  "ash",
  "cocoa",

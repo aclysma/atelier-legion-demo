@@ -8,7 +8,7 @@ use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 use crate::transactions::{TransactionBuilder, Transaction};
 
-use skulpin::{imgui, VirtualKeyCode, MouseButton, LogicalPosition};
+use skulpin::{imgui, VirtualKeyCode, MouseButton, LogicalPosition, MouseScrollDelta};
 use imgui::im_str;
 use ncollide2d::pipeline::{CollisionGroups, CollisionObjectRef};
 
@@ -144,6 +144,16 @@ pub fn editor_mouse_input() -> Box<dyn Schedulable> {
                     delta *= glam::Vec2::new(-1.0, -1.0);
                     camera_resource.position += delta;
                 }
+
+                // Right click drag pans the viewport
+                let mouse_scroll = input_state.mouse_wheel_delta();
+                let mut delta = match mouse_scroll {
+                    MouseScrollDelta::LineDelta(_, y) => y,
+                    MouseScrollDelta::PixelDelta(delta) => delta.y as f32,
+                };
+
+                let delta = 1.05_f32.powf(-delta);
+                camera_resource.x_half_extents *= delta;
             },
         )
 }

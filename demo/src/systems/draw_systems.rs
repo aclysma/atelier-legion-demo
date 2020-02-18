@@ -46,30 +46,24 @@ pub fn draw() -> Box<dyn Schedulable> {
              (draw_context, fps_text, camera_state, viewport_state, input_resource, debug_draw),
              (draw_boxes_query, draw_circles_query)| {
                 draw_context.with_canvas(|canvas, coordinate_system_helper| {
-                    // Set up the coordinate system such that Y position is in the upward direction
-                    let x_half_extents = crate::GROUND_HALF_EXTENTS_WIDTH * 1.5;
-                    let y_half_extents = x_half_extents
-                        / (coordinate_system_helper.surface_extents().width as f32
-                            / coordinate_system_helper.surface_extents().height as f32);
-
                     let window_size = input_resource.window_size();
                     let camera_position = camera_state.position;
-                    camera_state.view_half_extents =
-                        glam::Vec2::new(x_half_extents, y_half_extents);
                     viewport_state.update(
                         window_size,
                         camera_position,
-                        camera_state.view_half_extents,
+                        camera_state.x_half_extents,
                     );
+
+                    let half_extents = viewport_state.view_half_extents();
 
                     coordinate_system_helper
                         .use_visible_range(
                             canvas,
                             skia_safe::Rect {
-                                left: -x_half_extents + camera_position.x(),
-                                right: x_half_extents + camera_position.x(),
-                                top: y_half_extents + camera_position.y(),
-                                bottom: -y_half_extents + camera_position.y(),
+                                left: -half_extents.x() + camera_position.x(),
+                                right: half_extents.x() + camera_position.x(),
+                                top: half_extents.y() + camera_position.y(),
+                                bottom: -half_extents.y() + camera_position.y(),
                             },
                             skia_safe::matrix::ScaleToFit::Center,
                         )
