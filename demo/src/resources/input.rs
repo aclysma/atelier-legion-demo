@@ -230,7 +230,6 @@ impl InputResource {
             winit_position_to_glam(new_drag_state.accumulated_frame_delta);
 
         if let Some(old_drag_state) = old_drag_state {
-            println!("continue drag");
             //
             // Case for a drag in progress from a prior frame ending on this frame
             //
@@ -268,7 +267,6 @@ impl InputResource {
                     + world_scale_delta,
             }
         } else {
-            println!("start drag");
             //
             // Case for a drag starting and completing on a single frame
             //

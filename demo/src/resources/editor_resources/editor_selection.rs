@@ -74,7 +74,7 @@ impl EditorSelectionResource {
         &mut self,
         entities: Vec<Entity>,
     ) {
-        log::info!("Remove entities {:?} from selection", entities);
+        log::info!("add entities {:?} from selection", entities);
         self.pending_selection_ops.push(SelectionOp::Add(entities));
     }
 
@@ -82,7 +82,7 @@ impl EditorSelectionResource {
         &mut self,
         entities: Vec<Entity>,
     ) {
-        log::info!("Add entities {:?} to selection", entities);
+        log::info!("remove entities {:?} to selection", entities);
         self.pending_selection_ops
             .push(SelectionOp::Remove(entities));
     }

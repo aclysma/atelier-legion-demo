@@ -103,7 +103,7 @@ fn handle_selection(
             .interferences_with_aabb(&aabb, &collision_groups);
 
         let results: Vec<Entity> = results.map(|(_, x)| *x.data()).collect();
-        let intersecting_entities = Some(results);
+        intersecting_entities = Some(results);
     } else if let Some(drag_in_progress) = input_state.mouse_drag_in_progress(MouseButton::Left) {
         //
         // User is dragging a box around entities. Just draw the box.
