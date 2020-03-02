@@ -226,7 +226,6 @@ version = "0.1.0"
 dependencies = [
  "atelier-core",
  "capnp",
- "capnpc",
 ]
 
 [[package]]
@@ -1315,6 +1314,7 @@ checksum = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
 [[package]]
 name = "legion"
 version = "0.2.1"
+source = "git+https://github.com/kabergstrom/legion?branch=clone_move#bad052886fdeb7690baa27a73db9e9cbffab41d4"
 dependencies = [
  "legion-core",
  "legion-systems",
@@ -1323,6 +1323,7 @@ dependencies = [
 [[package]]
 name = "legion-core"
 version = "0.2.1"
+source = "git+https://github.com/kabergstrom/legion?branch=clone_move#bad052886fdeb7690baa27a73db9e9cbffab41d4"
 dependencies = [
  "crossbeam-channel 0.4.0",
  "crossbeam-queue",
@@ -1355,6 +1356,7 @@ dependencies = [
 [[package]]
 name = "legion-systems"
 version = "0.2.1"
+source = "git+https://github.com/kabergstrom/legion?branch=clone_move#bad052886fdeb7690baa27a73db9e9cbffab41d4"
 dependencies = [
  "bit-set",
  "crossbeam-channel 0.4.0",
