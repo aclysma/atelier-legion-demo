@@ -178,7 +178,7 @@ dependencies = [
  "image2",
  "imgui",
  "imgui-inspect",
- "imgui-inspect-derive 0.3.1 (git+https://github.com/aclysma/imgui-inspect.git)",
+ "imgui-inspect-derive 0.4.0",
  "imgui-winit-support",
  "inventory",
  "itertools",
@@ -1168,16 +1168,18 @@ dependencies = [
 [[package]]
 name = "imgui-inspect"
 version = "0.4.0"
-source = "git+https://github.com/aclysma/imgui-inspect.git#8b430d3f1b245ffa7b68f8d4bc0bf23f7cb5aef9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d805030156a17cd754a9c2fe7d5a18745570ad33041c746f597bd49fbead5d3e"
 dependencies = [
  "imgui",
- "imgui-inspect-derive 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "imgui-inspect-derive 0.3.1",
 ]
 
 [[package]]
 name = "imgui-inspect-derive"
 version = "0.3.1"
-source = "git+https://github.com/aclysma/imgui-inspect.git#8b430d3f1b245ffa7b68f8d4bc0bf23f7cb5aef9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ab476d51b75ccecc9162cdbbff7be0e836b5c2092e324078b2f8b685a3abb38"
 dependencies = [
  "darling",
  "proc-macro2 1.0.9",
@@ -1187,9 +1189,9 @@ dependencies = [
 
 [[package]]
 name = "imgui-inspect-derive"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ab476d51b75ccecc9162cdbbff7be0e836b5c2092e324078b2f8b685a3abb38"
+checksum = "f1b06ed12c1906478df8af001eb8336477b40b3e8b7427a1ee4ff4c27828eb34"
 dependencies = [
  "darling",
  "proc-macro2 1.0.9",
@@ -2609,8 +2611,9 @@ dependencies = [
 
 [[package]]
 name = "skulpin"
-version = "0.7.0"
-source = "git+https://github.com/aclysma/skulpin.git#957d8d284f3c701214bf04ee199dec7da1174b98"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adec52b0ab73d5d3661d457ddf1c11c401409deb52731860c974cac5f4a0fcb4"
 dependencies = [
  "log",
  "skulpin-app-winit",
@@ -2620,8 +2623,9 @@ dependencies = [
 
 [[package]]
 name = "skulpin-app-winit"
-version = "0.1.0"
-source = "git+https://github.com/aclysma/skulpin.git#957d8d284f3c701214bf04ee199dec7da1174b98"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1a79e674b92700af81c5d8fbb6c21989c4b53c10e36731159108e0f26781b87"
 dependencies = [
  "log",
  "skulpin-renderer",
@@ -2630,8 +2634,9 @@ dependencies = [
 
 [[package]]
 name = "skulpin-plugin-imgui"
-version = "0.1.0"
-source = "git+https://github.com/aclysma/skulpin.git#957d8d284f3c701214bf04ee199dec7da1174b98"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c708da042c8ebb84ff220092423fc276eaf5aeb1480e0e8e5669d713b8964f5b"
 dependencies = [
  "imgui",
  "log",
@@ -2640,8 +2645,9 @@ dependencies = [
 
 [[package]]
 name = "skulpin-renderer"
-version = "0.1.0"
-source = "git+https://github.com/aclysma/skulpin.git#957d8d284f3c701214bf04ee199dec7da1174b98"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f98947b8ca729108861169b77bb0be923c075dcbbb4f2143770fe57fac387a4"
 dependencies = [
  "ash",
  "log",
@@ -2651,8 +2657,9 @@ dependencies = [
 
 [[package]]
 name = "skulpin-renderer-winit"
-version = "0.1.0"
-source = "git+https://github.com/aclysma/skulpin.git#957d8d284f3c701214bf04ee199dec7da1174b98"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2ffe320810ef8393fbfb017aed470dab69c42c39212752499215be121092a8f"
 dependencies = [
  "cocoa",
  "log",
