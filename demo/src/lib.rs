@@ -53,6 +53,8 @@ mod component_diffs;
 
 pub mod app;
 
+mod imgui_support;
+
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 pub const GRAVITY: f32 = -9.81;
 
@@ -67,7 +69,7 @@ pub fn create_component_registry() -> HashMap<ComponentTypeId, ComponentRegistra
     let comp_registrations = legion_prefab::iter_component_registrations();
     use std::iter::FromIterator;
     let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
-        comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), 0), reg.clone())),
+        comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), #[cfg(feature = "ffi")] 0), reg.clone())),
     );
 
     component_types

@@ -1,4 +1,4 @@
-use skulpin::LogicalSize;
+use skulpin::app::LogicalSize;
 
 use std::ffi::CString;
 
@@ -30,12 +30,11 @@ fn main() {
     let example_app = DemoApp::new();
     let renderer_builder = skulpin::RendererBuilder::new()
         .app_name(CString::new("Skulpin Example App").unwrap())
-        .use_vulkan_debug_layer(true)
-        .imgui_update_mode(skulpin::ImguiUpdateMode::UserControlled);
+        .use_vulkan_debug_layer(true);
 
     atelier_legion_demo::app::App::run(
         example_app,
-        LogicalSize::new(900.0, 600.0),
-        &renderer_builder,
+        LogicalSize::new(900, 600),
+        renderer_builder,
     );
 }

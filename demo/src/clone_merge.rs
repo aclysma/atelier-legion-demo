@@ -4,6 +4,7 @@ use legion::storage::{ComponentMeta, ComponentTypeId, Component, ComponentStorag
 use legion::prelude::*;
 use std::mem::MaybeUninit;
 use std::ops::Range;
+use legion::index::ComponentIndex;
 
 /// A trivial clone merge impl that does nothing but copy data. All component types must be
 /// cloneable and no type transformations are allowed
@@ -23,14 +24,14 @@ impl legion::world::CloneImpl for CopyCloneImpl {
         component_type: ComponentTypeId,
     ) -> (ComponentTypeId, ComponentMeta) {
         let comp_reg = &self.components[&component_type];
-        (ComponentTypeId(comp_reg.ty(), 0), comp_reg.meta().clone())
+        (ComponentTypeId(comp_reg.ty(), #[cfg(feature = "ffi")] 0), comp_reg.meta().clone())
     }
 
     fn clone_components(
         &self,
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         src_type: ComponentTypeId,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -53,7 +54,7 @@ where
     fn spawn_from(
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -70,7 +71,7 @@ where
     fn spawn_into(
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -87,7 +88,7 @@ where
     fn spawn_into(
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -239,7 +240,7 @@ impl<'a> SpawnCloneImpl<'a> {
         F: Fn(
                 &World,                    // src_world
                 &ComponentStorage,         // src_component_storage
-                Range<usize>,              // src_component_storage_indexes
+                Range<ComponentIndex>,     // src_component_storage_indexes
                 &Resources,                // resources
                 &[Entity],                 // src_entities
                 &[Entity],                 // dst_entities
@@ -305,7 +306,7 @@ impl<'a> legion::world::CloneImpl for SpawnCloneImpl<'a> {
             (handler.dst_type_id(), handler.dst_type_meta())
         } else {
             let comp_reg = &self.components[&component_type];
-            (ComponentTypeId(comp_reg.ty(), 0), comp_reg.meta().clone())
+            (ComponentTypeId(comp_reg.ty(), #[cfg(feature = "ffi")] 0), comp_reg.meta().clone())
         }
     }
 
@@ -313,7 +314,7 @@ impl<'a> legion::world::CloneImpl for SpawnCloneImpl<'a> {
         &self,
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         src_type: ComponentTypeId,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -354,7 +355,7 @@ trait SpawnCloneImplMapping {
         &self,
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],
@@ -369,7 +370,7 @@ where
     F: Fn(
         &World,            // src_world
         &ComponentStorage, // src_component_storage
-        Range<usize>,      // src_component_storage_indexes
+        Range<ComponentIndex>, // src_component_storage_indexes
         &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
@@ -388,7 +389,7 @@ where
     F: Fn(
         &World,            // src_world
         &ComponentStorage, // src_component_storage
-        Range<usize>,      // src_component_storage_indexes
+        Range<ComponentIndex>, // src_component_storage_indexes
         &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
@@ -415,7 +416,7 @@ where
     F: Fn(
         &World,            // src_world
         &ComponentStorage, // src_component_storage
-        Range<usize>,      // src_component_storage_indexes
+        Range<ComponentIndex>, // src_component_storage_indexes
         &Resources,        // resources
         &[Entity],         // src_entities
         &[Entity],         // dst_entities
@@ -436,7 +437,7 @@ where
         &self,
         src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         src_entities: &[Entity],
         dst_entities: &[Entity],

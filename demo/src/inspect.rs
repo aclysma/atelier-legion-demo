@@ -2,9 +2,8 @@ use legion::prelude::*;
 
 use std::marker::PhantomData;
 
-use skulpin::imgui;
-use skulpin::imgui::sys as imgui_sys;
-use skulpin::imgui::Ui;
+use imgui::sys as imgui_sys;
+use imgui::Ui;
 use imgui_inspect::InspectRenderStruct;
 use imgui_inspect::InspectArgsStruct;
 

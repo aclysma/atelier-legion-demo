@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use atelier_importer::{typetag, SerdeImportable};
 use serde_diff::SerdeDiff;
 use imgui_inspect_derive::Inspect;
-use skulpin::imgui;
+use skulpin_plugin_imgui::imgui;
 
 use crate::math::Vec2;
 
@@ -91,7 +91,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         let comp_registrations = legion_prefab::iter_component_registrations();
         use std::iter::FromIterator;
         let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
-            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), 0), reg.clone())),
+            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), #[cfg(feature = "ffi")] 0), reg.clone())),
         );
 
         component_types
@@ -252,7 +252,7 @@ pub fn temp_force_prefab_cook(asset_manager: &mut AssetResource) {
         let comp_registrations = legion_prefab::iter_component_registrations();
         use std::iter::FromIterator;
         let component_types: HashMap<ComponentTypeId, ComponentRegistration> = HashMap::from_iter(
-            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), 0), reg.clone())),
+            comp_registrations.map(|reg| (ComponentTypeId(reg.ty().clone(), #[cfg(feature = "ffi")] 0), reg.clone())),
         );
 
         component_types

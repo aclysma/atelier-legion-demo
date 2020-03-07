@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use imgui_inspect_derive::Inspect;
-use skulpin::imgui;
 use crate::math::Vec2;
 
 //

@@ -9,11 +9,12 @@ use crate::resources::{PhysicsResource, OpenedPrefabState};
 use legion::prelude::*;
 use std::ops::Range;
 use legion::storage::ComponentStorage;
-use skulpin::imgui;
+use skulpin_plugin_imgui::imgui;
 use imgui_inspect_derive::Inspect;
 use ncollide2d::shape::ShapeHandle;
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
+use legion::index::ComponentIndex;
 
 use crate::components::{
     Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent,
@@ -122,7 +123,7 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
     fn spawn_from(
         _src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         _src_entities: &[Entity],
         _dst_entities: &[Entity],
@@ -213,7 +214,7 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
     fn spawn_from(
         _src_world: &World,
         src_component_storage: &ComponentStorage,
-        src_component_storage_indexes: Range<usize>,
+        src_component_storage_indexes: Range<ComponentIndex>,
         resources: &Resources,
         _src_entities: &[Entity],
         _dst_entities: &[Entity],

@@ -1,5 +1,5 @@
-pub use skulpin::TimeState;
-pub use skulpin::TimeContext;
+pub use skulpin::app::TimeState;
+pub use skulpin::app::TimeContext;
 
 use legion::prelude::*;
 
@@ -18,7 +18,7 @@ enum TimeOp {
 pub struct TimeResource {
     pub time_state: TimeState,
     pub simulation_time: TimeContext,
-    pub print_fps_event: skulpin::PeriodicEvent,
+    pub print_fps_event: skulpin::app::PeriodicEvent,
     pub simulation_pause_flags: u8, // No flags set means simulation is not paused
     pending_time_ops: Vec<TimeOp>,
 }

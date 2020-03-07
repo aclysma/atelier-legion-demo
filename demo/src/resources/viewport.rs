@@ -1,4 +1,4 @@
-use skulpin::PhysicalSize;
+use skulpin::app::PhysicalSize;
 
 // this is based on window size (i.e. pixels)
 // bottom-left: (0, 0)

@@ -1,6 +1,6 @@
 use legion::prelude::*;
 
-use skulpin::imgui;
+use imgui;
 use skulpin::skia_safe;
 
 use crate::components::{

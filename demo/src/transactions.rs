@@ -1,17 +1,17 @@
 use legion::prelude::*;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
 
-struct TransactionBuilderEntityInfo {
-    entity_uuid: EntityUuid,
-    entity: Entity,
-}
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 use legion_prefab::{ComponentRegistration, DiffSingleResult};
 use crate::component_diffs::{
     DiffSingleSerializerAcceptor, ComponentDiff, EntityDiff, EntityDiffOp, WorldDiff,
 };
+
+struct TransactionBuilderEntityInfo {
+    entity_uuid: EntityUuid,
+    entity: Entity,
+}
 
 #[derive(Default)]
 pub struct TransactionBuilder {

@@ -8,7 +8,11 @@ use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
 use crate::transactions::{TransactionBuilder, Transaction};
 
-use skulpin::{imgui, VirtualKeyCode, MouseButton, LogicalPosition, MouseScrollDelta};
+use imgui;
+use skulpin::app::VirtualKeyCode;
+use skulpin::LogicalSize;
+use skulpin::app::MouseScrollDelta;
+use skulpin::app::MouseButton;
 use imgui::im_str;
 use ncollide2d::pipeline::{CollisionGroups, CollisionObjectRef};
 

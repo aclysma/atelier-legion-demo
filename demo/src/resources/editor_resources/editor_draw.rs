@@ -1,7 +1,8 @@
 use crate::resources::{DebugDrawResource, ViewportResource};
 use crate::resources::InputResource;
-use skulpin::{InputState, LogicalPosition};
-use skulpin::MouseButton;
+use skulpin::app::InputState;
+use skulpin::LogicalSize;
+use skulpin::app::MouseButton;
 use crate::math::winit_position_to_glam;
 
 fn distance_to_segment_sq(

@@ -15,7 +15,7 @@ use itertools::Itertools;
 use std::collections::vec_deque;
 use crate::clone_merge::CopyCloneImpl;
 use crate::transactions::{TransactionBuilder, TransactionDiffs, TransactionEntityInfo, Transaction};
-use skulpin::imgui::ImString;
+use imgui::ImString;
 
 #[derive(Clone, Copy)]
 pub enum PostCommitSelection {

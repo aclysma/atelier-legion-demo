@@ -2,6 +2,7 @@ use std::ops::Range;
 use legion::storage::ComponentStorage;
 use legion::storage::ComponentTypeId;
 use legion::storage::Component;
+use legion::index::ComponentIndex;
 
 mod physics;
 pub use physics::RigidBodyComponent;
@@ -85,8 +86,9 @@ fn try_get_components_in_storage<T: Component>(
 
 fn try_iter_components_in_storage<T: Component>(
     component_storage: &ComponentStorage,
-    component_storage_indexes: Range<usize>,
+    component_storage_indexes: Range<ComponentIndex>,
 ) -> OptionIter<core::slice::Iter<T>, &T> {
     let all_position_components = try_get_components_in_storage::<T>(component_storage);
-    create_option_iter_from_slice(all_position_components, component_storage_indexes)
+    let range = component_storage_indexes.start.0..component_storage_indexes.end.0;
+    create_option_iter_from_slice(all_position_components, range)
 }

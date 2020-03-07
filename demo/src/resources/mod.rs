@@ -21,7 +21,7 @@ mod app_control;
 pub use app_control::AppControlResource;
 
 mod imgui;
-pub use imgui::ImguiResource;
+pub use self::imgui::ImguiResource;
 
 mod universe;
 pub use universe::UniverseResource;

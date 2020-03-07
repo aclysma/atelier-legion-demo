@@ -13,7 +13,6 @@ use crate::components::{
     Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent,
 };
 use imgui_inspect_derive;
-use skulpin::imgui;
 use crate::math::Vec2;
 use crate::math::Vec4;
 use imgui_inspect_derive::Inspect;

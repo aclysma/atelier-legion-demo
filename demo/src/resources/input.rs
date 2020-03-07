@@ -1,10 +1,11 @@
 use std::ops::{Deref, DerefMut};
-use skulpin::{InputState, PhysicalPosition};
+use skulpin::app::InputState;
+use skulpin::app::PhysicalSize;
 use crate::resources::ViewportResource;
 use crate::math::winit_position_to_glam;
-use skulpin::VirtualKeyCode;
-use skulpin::MouseButton;
-use skulpin::MouseScrollDelta;
+use skulpin::app::VirtualKeyCode;
+use skulpin::app::MouseButton;
+use skulpin::app::MouseScrollDelta;
 
 // Keep track of a drag state so that we can track world space movement on drag. There are some
 // floating point precision issues and it's better to deal with it once here than everywhere
@@ -24,13 +25,13 @@ pub struct MouseDragState {
 
 // For now just wrap the input helper that skulpin provides
 pub struct InputResource {
-    input_state: skulpin::InputState,
+    input_state: InputState,
     mouse_drag_in_progress: [Option<MouseDragState>; InputState::MOUSE_BUTTON_COUNT],
     mouse_drag_just_finished: [Option<MouseDragState>; InputState::MOUSE_BUTTON_COUNT],
 }
 
 impl InputResource {
-    pub fn new(input_state: skulpin::InputState) -> Self {
+    pub fn new(input_state: InputState) -> Self {
         InputResource {
             input_state,
             mouse_drag_in_progress: Default::default(),
@@ -38,15 +39,15 @@ impl InputResource {
         }
     }
 
-    pub fn input_state(&self) -> &skulpin::InputState {
+    pub fn input_state(&self) -> &InputState {
         &self.input_state
     }
 
-    pub fn input_state_mut(&mut self) -> &mut skulpin::InputState {
+    pub fn input_state_mut(&mut self) -> &mut InputState {
         &mut self.input_state
     }
 
-    pub fn window_size(&self) -> skulpin::PhysicalSize<u32> {
+    pub fn window_size(&self) -> PhysicalSize<u32> {
         self.input_state.window_size()
     }
 
@@ -220,7 +221,7 @@ impl InputResource {
 
     fn create_drag_state(
         viewport: &ViewportResource,
-        new_drag_state: skulpin::MouseDragState,
+        new_drag_state: skulpin::app::MouseDragState,
         old_drag_state: Option<&MouseDragState>,
     ) -> MouseDragState {
         let begin_position = winit_position_to_glam(new_drag_state.begin_position);
