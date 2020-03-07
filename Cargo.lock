@@ -2505,7 +2505,7 @@ dependencies = [
 [[package]]
 name = "serde-diff"
 version = "0.2.0"
-source = "git+https://github.com/amethyst/serde-diff.git?rev=83fd749e#83fd749e306959a1c843ff153a06c27caa8f4742"
+source = "git+https://github.com/amethyst/serde-diff.git#f6f50cede6c4de4e3b0d58f0fe866eeb069dd2f6"
 dependencies = [
  "serde",
  "serde-diff-derive",
@@ -2515,7 +2515,7 @@ dependencies = [
 [[package]]
 name = "serde-diff-derive"
 version = "0.2.0"
-source = "git+https://github.com/amethyst/serde-diff.git?rev=83fd749e#83fd749e306959a1c843ff153a06c27caa8f4742"
+source = "git+https://github.com/amethyst/serde-diff.git#f6f50cede6c4de4e3b0d58f0fe866eeb069dd2f6"
 dependencies = [
  "darling",
  "proc-macro2 1.0.9",
