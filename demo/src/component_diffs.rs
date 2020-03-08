@@ -258,8 +258,8 @@ pub fn apply_diff(
     let mut new_world = universe.create_world();
 
     // Copy everything from the opened prefab into the new world as a baseline
-    let mut result_mappings = Default::default();
-    new_world.clone_from(world, &clone_impl, None, Some(&mut result_mappings));
+    let mut result_mappings : HashMap<Entity, Entity> = Default::default();
+    new_world.clone_from(world, &clone_impl, &mut legion::world::HashMapCloneImplResult(&mut result_mappings), &legion::world::NoneEntityReplacePolicy);
 
     // We want to preserve entity UUIDs so we need to insert mappings here as we copy data
     // into the new world

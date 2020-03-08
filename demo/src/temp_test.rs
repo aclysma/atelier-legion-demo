@@ -141,7 +141,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         println!("This test just clones Position2DComponentDef");
         let resources = Resources::default();
         let clone_merge_impl = SpawnCloneImpl::new(registered_components.clone(), &resources);
-        world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
+        world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, &mut legion::world::NoneCloneImplResult, &legion::world::NoneEntityReplacePolicy);
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
@@ -176,7 +176,7 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
             },
         );
 
-        world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, None, None);
+        world.clone_from(&prefab_asset.prefab.world, &clone_merge_impl, &mut legion::world::NoneCloneImplResult, &legion::world::NoneEntityReplacePolicy);
 
         println!("MERGED: iterate positions");
         let query = <legion::prelude::Read<Position2DComponentDef>>::query();
@@ -218,8 +218,8 @@ pub fn temp_force_load_asset(asset_manager: &mut AssetResource) {
         world.clone_from(
             &prefab_asset.prefab.world,
             &clone_merge_impl,
-            Some(&mappings),
-            None,
+            &mut legion::world::NoneCloneImplResult,
+            &legion::world::HashMapEntityReplacePolicy(&mappings),
         );
 
         println!("MERGED: iterate positions");

@@ -1315,7 +1315,7 @@ checksum = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
 [[package]]
 name = "legion"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#24e70958ede1a1819c2794ba5a5a8937c6c09926"
+source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#c7aa61ef8d7b9c7f964a366cf0bf933dc1cb1c22"
 dependencies = [
  "legion-core",
  "legion-systems",
@@ -1324,7 +1324,7 @@ dependencies = [
 [[package]]
 name = "legion-core"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#24e70958ede1a1819c2794ba5a5a8937c6c09926"
+source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#c7aa61ef8d7b9c7f964a366cf0bf933dc1cb1c22"
 dependencies = [
  "crossbeam-channel 0.4.2",
  "derivative",
@@ -1355,7 +1355,7 @@ dependencies = [
 [[package]]
 name = "legion-systems"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#24e70958ede1a1819c2794ba5a5a8937c6c09926"
+source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#c7aa61ef8d7b9c7f964a366cf0bf933dc1cb1c22"
 dependencies = [
  "bit-set",
  "crossbeam-channel 0.4.2",
@@ -2504,8 +2504,9 @@ dependencies = [
 
 [[package]]
 name = "serde-diff"
-version = "0.2.0"
-source = "git+https://github.com/amethyst/serde-diff.git#f6f50cede6c4de4e3b0d58f0fe866eeb069dd2f6"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60d2d5e78578e63fc61e240fa6872f23ef6c87855871298469269d5bf03ca99f"
 dependencies = [
  "serde",
  "serde-diff-derive",
@@ -2514,8 +2515,9 @@ dependencies = [
 
 [[package]]
 name = "serde-diff-derive"
-version = "0.2.0"
-source = "git+https://github.com/amethyst/serde-diff.git#f6f50cede6c4de4e3b0d58f0fe866eeb069dd2f6"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3ee8e6fc7e57ae3148ea71f6c20d088b322fb715ced933e656d452161f5b73a"
 dependencies = [
  "darling",
  "proc-macro2 1.0.9",

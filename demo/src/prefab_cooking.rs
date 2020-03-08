@@ -73,8 +73,8 @@ pub fn cook_prefab(
         world.clone_from(
             &prefab_asset.prefab.world,
             &clone_merge_impl,
-            None,
-            Some(&mut result_mappings),
+            &mut legion::world::HashMapCloneImplResult(&mut result_mappings),
+            &legion::world::NoneEntityReplacePolicy,
         );
 
         // Iterate the entities in this prefab. Determine where they are stored in the cooked

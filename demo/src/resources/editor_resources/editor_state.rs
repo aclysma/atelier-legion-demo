@@ -409,8 +409,8 @@ impl EditorStateResource {
             world.clone_from(
                 &opened_prefab.cooked_prefab.world,
                 &clone_impl,
-                Some(&opened_prefab.prefab_to_world_mappings),
-                Some(&mut prefab_to_world_mappings),
+                &mut legion::world::HashMapCloneImplResult(&mut prefab_to_world_mappings),
+                &legion::world::HashMapEntityReplacePolicy(&opened_prefab.prefab_to_world_mappings)
             );
 
             let mut world_to_prefab_mappings =
