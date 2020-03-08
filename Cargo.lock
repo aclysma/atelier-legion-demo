@@ -170,7 +170,7 @@ dependencies = [
  "atelier-daemon",
  "atelier-importer",
  "atelier-loader",
- "bincode 1.2.1 (git+https://github.com/aclysma/bincode.git?branch=new-trait-bound)",
+ "bincode 1.2.1 (git+https://github.com/servo/bincode.git?rev=e30e91e3a)",
  "crossbeam-channel 0.3.9",
  "env_logger 0.6.2",
  "erased-serde",
@@ -272,7 +272,7 @@ dependencies = [
 [[package]]
 name = "bincode"
 version = "1.2.1"
-source = "git+https://github.com/aclysma/bincode.git?branch=new-trait-bound#d97ed92660311a3c383824ebf69e5e060259ff16"
+source = "git+https://github.com/servo/bincode.git?rev=e30e91e3a#e30e91e3a7d24925f09fdbd96773245a72fd7537"
 dependencies = [
  "byteorder",
  "serde",
@@ -1373,7 +1373,7 @@ dependencies = [
 name = "legion-transaction"
 version = "0.1.0"
 dependencies = [
- "bincode 1.2.1 (git+https://github.com/aclysma/bincode.git?branch=new-trait-bound)",
+ "bincode 1.2.1 (git+https://github.com/servo/bincode.git?rev=e30e91e3a)",
  "erased-serde",
  "legion",
  "legion-prefab",
