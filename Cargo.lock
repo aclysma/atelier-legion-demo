@@ -184,6 +184,7 @@ dependencies = [
  "itertools",
  "legion",
  "legion-prefab",
+ "legion-transaction",
  "log",
  "mopa",
  "nalgebra",
@@ -1366,6 +1367,20 @@ dependencies = [
  "legion-core",
  "paste",
  "tracing",
+]
+
+[[package]]
+name = "legion-transaction"
+version = "0.1.0"
+dependencies = [
+ "bincode 1.2.1 (git+https://github.com/aclysma/bincode.git?branch=new-trait-bound)",
+ "erased-serde",
+ "legion",
+ "legion-prefab",
+ "log",
+ "prefab-format",
+ "serde",
+ "uuid",
 ]
 
 [[package]]

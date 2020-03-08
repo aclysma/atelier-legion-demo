@@ -9,12 +9,12 @@ use std::sync::Arc;
 use crate::resources::time::TimeState;
 use atelier_loader::handle::{TypedAssetStorage, AssetHandle};
 use crate::pipeline::PrefabAsset;
-use crate::component_diffs::{ComponentDiff, apply_diff_to_prefab, WorldDiff};
+use legion_transaction::{ComponentDiff, apply_diff_to_prefab, WorldDiff};
 use prefab_format::{ComponentTypeUuid, EntityUuid};
 use itertools::Itertools;
 use std::collections::vec_deque;
-use crate::clone_merge::CopyCloneImpl;
-use crate::transactions::{TransactionBuilder, TransactionDiffs, TransactionEntityInfo, Transaction};
+use legion_transaction::CopyCloneImpl;
+use legion_transaction::{TransactionBuilder, TransactionDiffs, TransactionEntityInfo, Transaction};
 use imgui::ImString;
 
 #[derive(Clone, Copy)]
@@ -357,10 +357,12 @@ impl EditorStateResource {
             // Duplicate the prefab data so we can apply diffs to it. This is temporary and will eventually be
             // done within the daemon. (This is kind of like a clone() on the uncooked prefab asset)
             let noop_diff = WorldDiff::new(vec![], vec![]);
-            let uncooked_prefab = Arc::new(crate::component_diffs::apply_diff_to_prefab(
+            let uncooked_prefab = Arc::new(legion_transaction::apply_diff_to_prefab(
                 &handle.asset(asset_resource.storage()).unwrap().prefab,
                 &universe.universe,
                 &noop_diff,
+                &crate::create_component_registry_by_uuid(),
+                &crate::create_copy_clone_impl()
             ));
 
             // Store the cooked prefab and relevant metadata in an Arc on the EditorStateResource.
@@ -854,19 +856,27 @@ impl EditorStateResource {
             }
 
             {
+
+                let registry = crate::create_component_registry_by_uuid();
+                let copy_clone_impl = crate::create_copy_clone_impl();
+
                 // Apply the diffs to the cooked data
                 let mut universe = resources.get_mut::<UniverseResource>().unwrap();
                 let new_cooked_prefab =
-                    Arc::new(crate::component_diffs::apply_diff_to_cooked_prefab(
+                    Arc::new(legion_transaction::apply_diff_to_cooked_prefab(
                         &opened_prefab.cooked_prefab,
                         &universe.universe,
                         &diffs,
+                        &registry,
+                        &copy_clone_impl
                     ));
 
-                let new_uncooked_prefab = Arc::new(crate::component_diffs::apply_diff_to_prefab(
+                let new_uncooked_prefab = Arc::new(legion_transaction::apply_diff_to_prefab(
                     &opened_prefab.uncooked_prefab,
                     &universe.universe,
                     &diffs,
+                    &registry,
+                    &copy_clone_impl
                 ));
 
                 // Update the opened prefab state
@@ -1023,7 +1033,7 @@ pub struct EditorTransactionId(uuid::Uuid);
 /// undo/redo steps.
 pub struct EditorTransaction {
     id: EditorTransactionId,
-    transaction: crate::transactions::Transaction,
+    transaction: legion_transaction::Transaction,
 }
 
 impl EditorTransaction {
@@ -1033,7 +1043,7 @@ impl EditorTransaction {
         world: &World,
     ) -> EditorTransaction {
         let id = EditorTransactionId(uuid::Uuid::new_v4());
-        let transaction = builder.begin(universe, world);
+        let transaction = builder.begin(universe, world, &crate::create_copy_clone_impl());
 
         EditorTransaction { id, transaction }
     }

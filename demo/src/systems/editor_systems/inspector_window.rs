@@ -7,7 +7,7 @@ use crate::resources::{
 };
 use crate::resources::ImguiResource;
 use crate::resources::EditorTool;
-use crate::transactions::{TransactionBuilder, Transaction};
+use legion_transaction::{TransactionBuilder, Transaction};
 
 use imgui;
 use skulpin::app::VirtualKeyCode;
@@ -27,7 +27,7 @@ use imgui_inspect::InspectRenderDefault;
 use crate::pipeline::PrefabAsset;
 use prefab_format::{EntityUuid, ComponentTypeUuid};
 use legion_prefab::CookedPrefab;
-use crate::component_diffs::ComponentDiff;
+use legion_transaction::ComponentDiff;
 use std::sync::Arc;
 use crate::components::Position2DComponent;
 use atelier_core::asset_uuid;

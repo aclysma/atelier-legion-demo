@@ -7,7 +7,7 @@ use atelier_loader::{
 };
 use std::collections::HashMap;
 use legion::prelude::*;
-use crate::clone_merge::SpawnCloneImpl;
+use legion_transaction::SpawnCloneImpl;
 
 use legion::storage::ComponentTypeId;
 use prefab_format::ComponentTypeUuid;

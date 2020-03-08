@@ -12,13 +12,7 @@ use legion_prefab::ComponentRegistration;
 use prefab_format::ComponentTypeUuid;
 use atelier_core::asset_uuid;
 
-pub mod temp_test;
-
 mod asset_storage;
-
-mod clone_merge;
-use clone_merge::SpawnCloneImpl;
-use clone_merge::CopyCloneImpl;
 
 mod components;
 use components::*;
@@ -37,8 +31,6 @@ use inspect::EditorInspectRegistry;
 
 pub mod math;
 
-pub mod transactions;
-
 mod pipeline;
 use pipeline::*;
 use std::sync::mpsc::RecvTimeoutError::Timeout;
@@ -49,11 +41,12 @@ pub mod daemon;
 
 mod prefab_cooking;
 
-mod component_diffs;
-
 pub mod app;
 
 mod imgui_support;
+
+use legion_transaction::CopyCloneImpl;
+use legion_transaction::SpawnCloneImpl;
 
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 pub const GRAVITY: f32 = -9.81;
@@ -86,13 +79,13 @@ pub fn create_component_registry_by_uuid() -> HashMap<ComponentTypeUuid, Compone
 
 pub fn create_copy_clone_impl() -> CopyCloneImpl {
     let component_registry = create_component_registry();
-    let mut clone_merge_impl = clone_merge::CopyCloneImpl::new(component_registry);
+    let mut clone_merge_impl = CopyCloneImpl::new(component_registry);
     clone_merge_impl
 }
 
 pub fn create_spawn_clone_impl<'a>(resources: &'a Resources) -> SpawnCloneImpl<'a> {
     let component_registry = create_component_registry();
-    let mut clone_merge_impl = clone_merge::SpawnCloneImpl::new(component_registry, resources);
+    let mut clone_merge_impl = SpawnCloneImpl::new(component_registry, resources);
     clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDef, DrawSkiaCircleComponent>();
     clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDef, DrawSkiaBoxComponent>();
     clone_merge_impl.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();

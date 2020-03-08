@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_diff::SerdeDiff;
 use type_uuid::TypeUuid;
 use nphysics2d::object::DefaultBodyHandle;
-use crate::clone_merge::SpawnFrom;
+use legion_transaction::SpawnFrom;
 use crate::math::Vec2;
 use crate::resources::{PhysicsResource, OpenedPrefabState};
 use legion::prelude::*;
@@ -15,6 +15,7 @@ use ncollide2d::shape::ShapeHandle;
 use ncollide2d::shape::{Ball, Cuboid};
 use ncollide2d::pipeline::{CollisionGroups, GeometricQueryType};
 use legion::index::ComponentIndex;
+use legion_transaction::iter_components_in_storage;
 
 use crate::components::{
     Position2DComponent, UniformScale2DComponent, NonUniformScale2DComponent, Rotation2DComponent,
@@ -132,19 +133,19 @@ impl SpawnFrom<RigidBodyBallComponentDef> for RigidBodyComponent {
     ) {
         let mut physics = resources.get_mut::<PhysicsResource>().unwrap();
 
-        let position_components = crate::components::try_iter_components_in_storage::<
+        let position_components = iter_components_in_storage::<
             Position2DComponent,
         >(
             src_component_storage, src_component_storage_indexes.clone()
         );
 
         let uniform_scale_components =
-            crate::components::try_iter_components_in_storage::<UniformScale2DComponent>(
+            iter_components_in_storage::<UniformScale2DComponent>(
                 src_component_storage,
                 src_component_storage_indexes.clone(),
             );
 
-        let rotation_components = crate::components::try_iter_components_in_storage::<
+        let rotation_components = iter_components_in_storage::<
             Rotation2DComponent,
         >(src_component_storage, src_component_storage_indexes);
 
@@ -223,25 +224,25 @@ impl SpawnFrom<RigidBodyBoxComponentDef> for RigidBodyComponent {
     ) {
         let mut physics = resources.get_mut::<PhysicsResource>().unwrap();
 
-        let position_components = crate::components::try_iter_components_in_storage::<
+        let position_components = iter_components_in_storage::<
             Position2DComponent,
         >(
             src_component_storage, src_component_storage_indexes.clone()
         );
 
         let uniform_scale_components =
-            crate::components::try_iter_components_in_storage::<UniformScale2DComponent>(
+            iter_components_in_storage::<UniformScale2DComponent>(
                 src_component_storage,
                 src_component_storage_indexes.clone(),
             );
 
         let non_uniform_scale_components =
-            crate::components::try_iter_components_in_storage::<NonUniformScale2DComponent>(
+            iter_components_in_storage::<NonUniformScale2DComponent>(
                 src_component_storage,
                 src_component_storage_indexes.clone(),
             );
 
-        let rotation_components = crate::components::try_iter_components_in_storage::<
+        let rotation_components = iter_components_in_storage::<
             Rotation2DComponent,
         >(src_component_storage, src_component_storage_indexes);
 
