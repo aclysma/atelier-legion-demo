@@ -1316,7 +1316,7 @@ checksum = "b294d6fa9ee409a054354afc4352b0b9ef7ca222c69b8812cbea9e7d2bf3783f"
 [[package]]
 name = "legion"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#c7aa61ef8d7b9c7f964a366cf0bf933dc1cb1c22"
+source = "git+https://github.com/kabergstrom/legion?branch=atelier-legion-demo#f206670f3919c480925bba3778caa31185160f93"
 dependencies = [
  "legion-core",
  "legion-systems",
@@ -1325,7 +1325,7 @@ dependencies = [
 [[package]]
 name = "legion-core"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#c7aa61ef8d7b9c7f964a366cf0bf933dc1cb1c22"
+source = "git+https://github.com/kabergstrom/legion?branch=atelier-legion-demo#f206670f3919c480925bba3778caa31185160f93"
 dependencies = [
  "crossbeam-channel 0.4.2",
  "derivative",
@@ -1356,7 +1356,7 @@ dependencies = [
 [[package]]
 name = "legion-systems"
 version = "0.2.1"
-source = "git+https://github.com/kabergstrom/legion?branch=clone_move_rebased#c7aa61ef8d7b9c7f964a366cf0bf933dc1cb1c22"
+source = "git+https://github.com/kabergstrom/legion?branch=atelier-legion-demo#f206670f3919c480925bba3778caa31185160f93"
 dependencies = [
  "bit-set",
  "crossbeam-channel 0.4.2",
