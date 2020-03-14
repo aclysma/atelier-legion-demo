@@ -3,11 +3,11 @@
 This repository is an experiment to integrate [atelier-assets](https://github.com/amethyst/atelier-assets) and 
 [legion](https://github.com/TomGillen/legion)
 
-For now, the goal is to duplicate the skulpin physics demo in a more data-driven, editor-friendly way.
+Please see https://community.amethyst.rs/t/atelier-legion-integration-demo/1352 for more info
 
 ## Status
 
-This is an experiment
+This is an experiment/demo
 
 ## License
 
