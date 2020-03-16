@@ -357,12 +357,13 @@ impl EditorStateResource {
             // Duplicate the prefab data so we can apply diffs to it. This is temporary and will eventually be
             // done within the daemon. (This is kind of like a clone() on the uncooked prefab asset)
             let noop_diff = WorldDiff::new(vec![], vec![]);
+            let component_registry = crate::create_component_registry();
             let uncooked_prefab = Arc::new(legion_transaction::apply_diff_to_prefab(
                 &handle.asset(asset_resource.storage()).unwrap().prefab,
                 &universe.universe,
                 &noop_diff,
                 &crate::create_component_registry_by_uuid(),
-                &crate::create_copy_clone_impl()
+                &CopyCloneImpl::new(&component_registry)
             ));
 
             // Store the cooked prefab and relevant metadata in an Arc on the EditorStateResource.
@@ -404,10 +405,13 @@ impl EditorStateResource {
             editor_state.opened_prefab.clone()
         };
 
+        let spawn_clone_impl_handler_set = crate::create_spawn_clone_impl_handler_set();
+        let component_registry = crate::create_component_registry();
+
         // If a prefab is opened, reset all the data
         if let Some(opened_prefab) = opened_prefab {
             let mut prefab_to_world_mappings = HashMap::default();
-            let clone_impl = crate::create_spawn_clone_impl(resources);
+            let clone_impl = crate::create_spawn_clone_impl(&spawn_clone_impl_handler_set, &component_registry, resources);
             world.clone_from(
                 &opened_prefab.cooked_prefab.world,
                 &clone_impl,
@@ -856,9 +860,9 @@ impl EditorStateResource {
             }
 
             {
-
-                let registry = crate::create_component_registry_by_uuid();
-                let copy_clone_impl = crate::create_copy_clone_impl();
+                let component_registry = crate::create_component_registry();
+                let component_registry_by_uuid = crate::create_component_registry_by_uuid();
+                let copy_clone_impl = CopyCloneImpl::new(&component_registry);
 
                 // Apply the diffs to the cooked data
                 let mut universe = resources.get_mut::<UniverseResource>().unwrap();
@@ -867,7 +871,7 @@ impl EditorStateResource {
                         &opened_prefab.cooked_prefab,
                         &universe.universe,
                         &diffs,
-                        &registry,
+                        &component_registry_by_uuid,
                         &copy_clone_impl
                     ));
 
@@ -875,7 +879,7 @@ impl EditorStateResource {
                     &opened_prefab.uncooked_prefab,
                     &universe.universe,
                     &diffs,
-                    &registry,
+                    &component_registry_by_uuid,
                     &copy_clone_impl
                 ));
 
@@ -1043,7 +1047,8 @@ impl EditorTransaction {
         world: &World,
     ) -> EditorTransaction {
         let id = EditorTransactionId(uuid::Uuid::new_v4());
-        let transaction = builder.begin(universe, world, &crate::create_copy_clone_impl());
+        let component_registry = crate::create_component_registry();
+        let transaction = builder.begin(universe, world, &CopyCloneImpl::new(&component_registry));
 
         EditorTransaction { id, transaction }
     }

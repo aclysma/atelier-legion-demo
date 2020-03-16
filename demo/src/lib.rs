@@ -47,6 +47,7 @@ mod imgui_support;
 
 use legion_transaction::CopyCloneImpl;
 use legion_transaction::SpawnCloneImpl;
+use legion_transaction::SpawnCloneImplHandlerSet;
 
 pub const GROUND_HALF_EXTENTS_WIDTH: f32 = 3.0;
 pub const GRAVITY: f32 = -9.81;
@@ -77,20 +78,22 @@ pub fn create_component_registry_by_uuid() -> HashMap<ComponentTypeUuid, Compone
     component_types
 }
 
-pub fn create_copy_clone_impl() -> CopyCloneImpl {
-    let component_registry = create_component_registry();
-    let mut clone_merge_impl = CopyCloneImpl::new(component_registry);
-    clone_merge_impl
+pub fn create_spawn_clone_impl_handler_set(
+) -> SpawnCloneImplHandlerSet {
+    let mut handler_set = SpawnCloneImplHandlerSet::new();
+    handler_set.add_mapping_into::<DrawSkiaCircleComponentDef, DrawSkiaCircleComponent>();
+    handler_set.add_mapping_into::<DrawSkiaBoxComponentDef, DrawSkiaBoxComponent>();
+    handler_set.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();
+    handler_set.add_mapping::<RigidBodyBoxComponentDef, RigidBodyComponent>();
+    handler_set
 }
 
-pub fn create_spawn_clone_impl<'a>(resources: &'a Resources) -> SpawnCloneImpl<'a> {
-    let component_registry = create_component_registry();
-    let mut clone_merge_impl = SpawnCloneImpl::new(component_registry, resources);
-    clone_merge_impl.add_mapping_into::<DrawSkiaCircleComponentDef, DrawSkiaCircleComponent>();
-    clone_merge_impl.add_mapping_into::<DrawSkiaBoxComponentDef, DrawSkiaBoxComponent>();
-    clone_merge_impl.add_mapping::<RigidBodyBallComponentDef, RigidBodyComponent>();
-    clone_merge_impl.add_mapping::<RigidBodyBoxComponentDef, RigidBodyComponent>();
-    clone_merge_impl
+pub fn create_spawn_clone_impl<'a, 'b, 'c>(
+    handler_set: &'a SpawnCloneImplHandlerSet,
+    component_registry: &'b HashMap<ComponentTypeId, ComponentRegistration>,
+    resources: &'c Resources
+) -> SpawnCloneImpl<'a, 'b, 'c> {
+    SpawnCloneImpl::new(handler_set, component_registry, resources)
 }
 
 pub fn create_editor_selection_registry() -> EditorSelectableRegistry {
